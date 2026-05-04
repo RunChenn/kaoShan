@@ -1,0 +1,270 @@
+// app global css in SCSS form
+@import 'quasar/src/css/index.sass';
+
+// ─── Premium Design Tokens ────────────────────────────────
+:root {
+  --q-primary:   #1A8C55;
+  --q-secondary: #C8902A;
+  --q-negative:  #D93025;
+  --q-positive:  #2ECC71;
+  --q-warning:   #E67E22;
+  --q-info:      #2980B9;
+
+  // Surface layers
+  --surface-deep:   #04101C;
+  --surface-base:   #081628;
+  --surface-raised: #0E1F38;
+  --surface-float:  #142844;
+
+  // Glass
+  --glass-bg:     rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-blur:   blur(24px);
+
+  // Glow colours
+  --primary-glow: rgba(26, 140, 85, 0.38);
+  --gold-glow:    rgba(200, 144, 42, 0.38);
+  --danger-glow:  rgba(217, 48, 37, 0.38);
+
+  // Premium shadow stack
+  --shadow-sm:      0 2px 8px rgba(0,0,0,0.14);
+  --shadow-md:      0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08);
+  --shadow-lg:      0 8px 40px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.12);
+  --shadow-primary: 0 4px 24px var(--primary-glow), 0 2px 8px rgba(0,0,0,0.18);
+  --shadow-gold:    0 4px 24px var(--gold-glow),    0 2px 8px rgba(0,0,0,0.18);
+  --shadow-danger:  0 4px 24px var(--danger-glow),  0 2px 8px rgba(0,0,0,0.18);
+}
+
+// ─── Base Typography ──────────────────────────────────────
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI',
+               'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+.text-h3, .text-h4, .text-h5, .text-h6 {
+  letter-spacing: -0.025em !important;
+}
+
+.text-subtitle1, .text-subtitle2 {
+  letter-spacing: -0.015em;
+}
+
+// ─── Card System ──────────────────────────────────────────
+.hiking-card {
+  border-radius: 20px !important;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition:
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform  0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hiking-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg) !important;
+}
+
+// Glass morphism surface
+.glass-card {
+  background:          var(--glass-bg) !important;
+  backdrop-filter:     var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid    var(--glass-border) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--shadow-md), 0 1px 0 rgba(255,255,255,0.08) inset;
+}
+
+// ─── Button Utilities ─────────────────────────────────────
+.btn-glow-primary {
+  box-shadow: var(--shadow-primary) !important;
+  transition: box-shadow 0.25s ease, transform 0.2s ease !important;
+  &:hover  { box-shadow: 0 6px 32px var(--primary-glow) !important; }
+  &:active { transform: scale(0.97) !important; }
+}
+
+.btn-glow-danger {
+  box-shadow: var(--shadow-danger) !important;
+  transition: box-shadow 0.25s ease, transform 0.2s ease !important;
+  &:hover  { box-shadow: 0 6px 32px var(--danger-glow) !important; }
+  &:active { transform: scale(0.97) !important; }
+}
+
+// ─── Utility Classes ──────────────────────────────────────
+.gradient-green {
+  background: linear-gradient(180deg, #0C3820 0%, #1A8C55 100%);
+}
+
+.sos-bg {
+  background: linear-gradient(135deg, #8B0000, #D93025) !important;
+  box-shadow: var(--shadow-danger) !important;
+}
+
+.premium-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+  margin: 4px 0;
+}
+
+.q-pt-safe  { padding-top:    max(0px, env(safe-area-inset-top)); }
+.q-pb-safe  { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+
+// MapLibre
+.maplibregl-ctrl-top-right { top: 80px !important; }
+
+// ─── Keyframes ────────────────────────────────────────────
+@keyframes slideInUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes slideInDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.88); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-9px); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  100% { transform: scale(1.7); opacity: 0;   }
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(198, 40, 40, 0.35); }
+  50%       { box-shadow: 0 0 0 5px rgba(198, 40, 40, 0);    }
+}
+
+@keyframes score-glow {
+  0%, 100% { box-shadow: 0 0  0px 0px rgba(26, 140, 85, 0.2); }
+  50%       { box-shadow: 0 0 28px 8px rgba(26, 140, 85, 0.4); }
+}
+
+@keyframes breathe-green {
+  0%, 100% { box-shadow: 0 0  0px 0px var(--primary-glow); }
+  50%       { box-shadow: 0 0 20px 4px var(--primary-glow); }
+}
+
+@keyframes gradient-pan {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}
+
+@keyframes ticker-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+// ─── Animation Utility Classes ────────────────────────────
+.anim-slide-up {
+  animation: slideInUp 0.5s cubic-bezier(0.34, 1.1, 0.64, 1) both;
+}
+
+.anim-slide-down {
+  animation: slideInDown 0.4s cubic-bezier(0.34, 1.1, 0.64, 1) both;
+}
+
+.anim-fade {
+  animation: fadeIn 0.5s ease both;
+}
+
+.anim-scale {
+  animation: scaleIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.anim-float {
+  animation: float 3.5s ease-in-out infinite;
+}
+
+// Shimmer text effect
+.shimmer-text {
+  background: linear-gradient(90deg,
+    currentColor 0%,
+    rgba(255,255,255,0.9) 45%,
+    currentColor 55%,
+    currentColor 100%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3.5s linear infinite;
+}
+
+// ─── Dark Mode ────────────────────────────────────────────
+.body--dark {
+  background-color: var(--surface-deep) !important;
+
+  .q-page {
+    background: var(--surface-base);
+  }
+
+  .hiking-card {
+    background: var(--surface-raised) !important;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.45),
+      0 1px 0 rgba(255, 255, 255, 0.05) inset !important;
+    border: 1px solid rgba(255, 255, 255, 0.055) !important;
+  }
+
+  .ai-panel {
+    background: var(--surface-raised) !important;
+    border-color: rgba(26, 140, 85, 0.35) !important;
+  }
+
+  .fatigue-card {
+    background: var(--surface-raised) !important;
+  }
+
+  .family-banner {
+    background: var(--surface-raised) !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+  }
+
+  .deviation-banner { background: #6B0E0E !important; }
+
+  .info-chip {
+    background: rgba(0, 0, 0, 0.82) !important;
+  }
+
+  .bottom-nav-bar {
+    background: rgba(4, 16, 28, 0.92) !important;
+    backdrop-filter: var(--glass-blur);
+  }
+
+  .score-ring-bg    { background: var(--surface-float); }
+  .weather-card     { background: var(--surface-raised); }
+  .flex-card        { background: var(--surface-raised); border-color: rgba(255,255,255,0.06); }
+
+  .q-field--outlined .q-field__control {
+    background: var(--surface-float) !important;
+  }
+
+  .q-btn-toggle { background: var(--surface-float) !important; }
+
+  .ai-reason {
+    background: var(--surface-float) !important;
+    color: #c0cfe0 !important;
+  }
+}
