@@ -23,7 +23,7 @@ export default configure(function (/* ctx */) {
       publicPath: process.env.QUASAR_PUBLIC_FOLDER
         ? `/${process.env.QUASAR_PUBLIC_FOLDER}/`
         : '/',
-      vueRouterMode: 'hash',
+      vueRouterMode: 'history',
     },
 
     devServer: {
