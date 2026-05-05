@@ -2,11 +2,11 @@
   "name": "kao-shan",
   "version": "1.0.0",
   "description": "靠山登山輔助系統",
-  "productName": "靠山登山助理",
+  "productName": "kao-shan",
   "author": "hiking-assistant",
   "private": true,
   "scripts": {
-    "dev": "quasar dev",
+    "dev": "quasar dev --host 0.0.0.0",
     "build": "quasar build",
     "build:pwa": "quasar build -m pwa",
     "lint": "eslint --ext .js,.ts,.vue ./src",

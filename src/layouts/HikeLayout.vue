@@ -19,7 +19,7 @@
             stroke-linejoin="round"
           />
         </svg>
-        <span>Summit AI</span>
+        <span>KaoShan</span>
       </div>
 
       <div class="nav-tabs">
@@ -72,12 +72,11 @@
     </div>
 
     <!-- Tweaks Panel (dev only) -->
-    <TweaksPanel />
+    <!-- <TweaksPanel /> -->
   </div>
 </template>
 
 <script setup lang="ts">
-import TweaksPanel from 'src/components/TweaksPanel.vue';
 import { useAppStore } from 'src/stores/app';
 import { useRoute, useRouter } from 'vue-router';
 

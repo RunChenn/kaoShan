@@ -13,6 +13,14 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/main',
+    component: () => import('src/layouts/MainLayout.vue'),
+    children: [
+      { path: '/', component: () => import('src/pages/IndexPage.vue') },
+      { path: 'plan',          name: 'plan',          component: () => import('src/pages/plan/PlanProfilePage.vue') },
+    ],
+  },
+  {
     path: '/:catchAll(.*)*',
     component: () => import('src/pages/ErrorNotFound.vue'),
   },
