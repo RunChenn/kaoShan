@@ -72,40 +72,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import { useAppStore } from 'src/stores/app'
 import type { AppConfig } from 'src/stores/app'
 
-// ── Sub-components ──────────────────────────────
+// ── Sub-components (render functions, no runtime compiler needed) ──
 
 const SegControl = {
   props: ['options', 'value', 'colorMap'],
   emits: ['change'],
-  template: `
-    <div style="display: flex; gap: 3px">
-      <button
-        v-for="opt in options" :key="opt"
-        @click="$emit('change', opt)"
-        :style="{
+  setup(props: { options: string[]; value: string; colorMap?: Record<string, string> }, { emit }: { emit: (e: 'change', v: string) => void }) {
+    return () => h('div', { style: 'display:flex;gap:3px' },
+      props.options.map((opt: string) => h('button', {
+        key: opt,
+        onClick: () => emit('change', opt),
+        style: {
           flex: 1, padding: '5px 2px', border: 'none', borderRadius: '8px', cursor: 'pointer',
-          fontFamily: '\\'Noto Sans TC\\', sans-serif', fontSize: '11px', fontWeight: 700,
-          background: value === opt ? (colorMap?.[opt] || 'oklch(68% 0.18 148)') : 'rgba(255,255,255,0.07)',
-          color: value === opt ? '#fff' : 'rgba(255,255,255,0.4)',
+          fontFamily: "'Noto Sans TC', sans-serif", fontSize: '11px', fontWeight: 700,
+          background: props.value === opt ? (props.colorMap?.[opt] ?? 'oklch(68% 0.18 148)') : 'rgba(255,255,255,0.07)',
+          color: props.value === opt ? '#fff' : 'rgba(255,255,255,0.4)',
           transition: 'all 0.18s ease', letterSpacing: '0.01em',
-        }"
-      >{{ opt }}</button>
-    </div>
-  `,
+        },
+      }, opt))
+    )
+  },
 }
 
 const PanelRow = {
   props: ['label'],
-  template: `
-    <div style="margin-bottom: 10px">
-      <div style="color: rgba(255,255,255,0.38); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px">{{ label }}</div>
-      <slot />
-    </div>
-  `,
+  setup(props: { label: string }, { slots }: { slots: Record<string, (() => unknown) | undefined> }) {
+    return () => h('div', { style: 'margin-bottom:10px' }, [
+      h('div', { style: 'color:rgba(255,255,255,0.38);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px' }, props.label),
+      slots.default?.(),
+    ])
+  },
 }
 
 const appStore = useAppStore()
