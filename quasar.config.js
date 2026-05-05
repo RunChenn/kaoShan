@@ -20,7 +20,10 @@ export default configure(function (/* ctx */) {
         browser: ['es2019', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
         node: 'node24',
       },
-      vueRouterMode: 'history',
+      publicPath: process.env.QUASAR_PUBLIC_FOLDER
+        ? `/${process.env.QUASAR_PUBLIC_FOLDER}/`
+        : '/',
+      vueRouterMode: 'hash',
     },
 
     devServer: {
