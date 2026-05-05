@@ -18,7 +18,7 @@ export default configure(function (/* ctx */) {
     build: {
       target: {
         browser: ['es2019', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
-        node: 'node22',
+        node: 'node24',
       },
       vueRouterMode: 'history',
     },
