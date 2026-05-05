@@ -1,1 +1,0 @@
-import{it as e}from"./index-C-iJsZZj.js";import{t}from"./useLiff-BZcu3Vx7.js";var n=e(async()=>{let{initLiff:e}=t();await e()});export{n as default};
