@@ -9,7 +9,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'pre-departure', name: 'pre-departure', component: () => import('src/pages/PreDeparturePage.vue') },
       { path: 'active',        name: 'active',        component: () => import('src/pages/ActiveHikePage.vue') },
       { path: 'summary',       name: 'summary',       component: () => import('src/pages/PostHikePage.vue') },
-      { path: 'line',          name: 'line',          component: () => import('src/pages/LinePage.vue') },
+      // { path: 'line',          name: 'line',          component: () => import('src/pages/LinePage.vue') },
     ],
   },
   {

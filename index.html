@@ -4,6 +4,19 @@
     <title><%= productName %></title>
 
     <meta charset="utf-8">
+
+    <!-- GitHub Pages SPA redirect 還原：把 404.html 存的 LIFF callback URL 用 replaceState 還原 -->
+    <script>
+      (function () {
+        var redirect = sessionStorage.getItem('__spa_redirect__');
+        if (redirect) {
+          sessionStorage.removeItem('__spa_redirect__');
+          var u = new URL(redirect);
+          // 僅還原 pathname + search + hash，不做頁面跳轉
+          window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+        }
+      })();
+    </script>
     <meta name="description" content="<%= productDescription %>">
     <meta name="format-detection" content="telephone=no">
     <meta name="msapplication-tap-highlight" content="no">

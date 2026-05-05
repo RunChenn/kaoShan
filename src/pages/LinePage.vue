@@ -1,23 +1,88 @@
 <template>
-  <div class="line-page" :data-theme="appStore.config.theme">
+  <!-- Voice Overlay -->
+  <Teleport to="body">
+    <div v-if="voiceOverlay" class="voice-overlay" @click.self="closeVoiceOverlay">
+      <div class="voice-overlay-panel">
+        <template v-if="overlayPhase === 'recording'">
+          <div class="voice-overlay-title">語音輸入</div>
+          <div class="voice-wave-lg">
+            <div
+              v-for="i in 5"
+              :key="i"
+              class="voice-bar-lg"
+              :style="{ animationDelay: `${i * 0.12}s` }"
+            />
+          </div>
+          <div class="voice-overlay-live">
+            <span class="voice-final-text">{{ overlayFinal }}</span>
+            <span class="voice-interim-text">{{ overlayLive }}</span>
+            <span v-if="!overlayFinal && !overlayLive" class="voice-placeholder">請說話...</span>
+          </div>
+          <button class="voice-stop-btn" @click="stopOverlayRecording">停止錄音</button>
+          <button class="voice-cancel-link" @click="closeVoiceOverlay">取消</button>
+        </template>
 
-    <!-- ── LINE Header ── -->
+        <template v-else-if="overlayPhase === 'confirming'">
+          <div class="voice-overlay-title">確認訊息內容</div>
+          <div class="voice-confirm-label">我聽到的是：</div>
+          <textarea
+            class="voice-confirm-textarea"
+            v-model="overlayFinal"
+            rows="4"
+            placeholder="（可直接編輯文字）"
+          />
+          <div class="voice-confirm-actions">
+            <button class="voice-btn-secondary" @click="retryOverlayRecording">重錄</button>
+            <button
+              class="voice-btn-primary"
+              :disabled="!overlayFinal.trim()"
+              @click="confirmOverlaySend"
+            >
+              確認送出
+            </button>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="voice-overlay-title">傳送中...</div>
+          <div class="voice-wave-lg">
+            <div
+              v-for="i in 5"
+              :key="i"
+              class="voice-bar-lg"
+              :style="{ animationDelay: `${i * 0.12}s`, opacity: 0.4 }"
+            />
+          </div>
+        </template>
+      </div>
+    </div>
+  </Teleport>
+
+  <div class="line-page" :data-theme="appStore.config.theme">
+    <!-- Header -->
     <div class="line-header">
       <div class="line-header-bot">
         <div class="line-bot-avatar">⛰</div>
         <div>
-          <div class="line-bot-name">Summit AI</div>
+          <div class="line-bot-name">KaoShan</div>
           <div class="line-bot-status"><span class="line-dot" />線上服務中</div>
         </div>
       </div>
       <div class="line-header-actions">
         <button class="line-icon-btn" title="撥打電話">📞</button>
         <button class="line-icon-btn" title="視訊">📹</button>
-        <button class="line-icon-btn" @click="showContacts = !showContacts" :class="{ active: showContacts }" title="緊急聯絡人">👥</button>
+        <button
+          class="line-icon-btn"
+          @click="showContacts = !showContacts"
+          :class="{ active: showContacts }"
+          title="緊急聯絡人"
+        >
+          👥
+        </button>
       </div>
     </div>
 
-    <!-- ── Emergency Contacts Panel ── -->
+    <!-- Emergency Contacts Panel -->
     <transition name="slide-down">
       <div v-if="showContacts" class="contacts-panel">
         <div class="contacts-title">緊急聯絡人</div>
@@ -37,18 +102,19 @@
       </div>
     </transition>
 
-    <!-- ── Messages ── -->
+    <!-- Messages -->
     <div class="line-messages" ref="msgListEl">
       <div class="line-date-divider">今天</div>
 
       <template v-for="m in messages" :key="m.id">
-
         <!-- SOS Card -->
         <div v-if="m.type === 'sos'" class="msg-sos">
           <div class="msg-sos-icon">🆘</div>
           <div>
             <div class="msg-sos-title">SOS 緊急求救訊號已發送</div>
-            <div class="msg-sos-sub">位置：玉山主峰 23.469°N 120.957°E｜{{ m.time }}</div>
+            <div class="msg-sos-sub">
+              位置：玉山主峰 23.469°N 120.957°E｜{{ m.time }}
+            </div>
           </div>
         </div>
 
@@ -74,7 +140,12 @@
             <div class="route-card-highlight">{{ cardOf(m).highlight }}</div>
             <div class="route-card-actions">
               <button class="route-action-btn" @click="goToPlan(cardOf(m))">出發前規劃</button>
-              <button class="route-action-btn route-action-ghost" @click="sendUserMsg('告訴我更多關於 ' + cardOf(m).name)">了解更多</button>
+              <button
+                class="route-action-ghost route-action-btn"
+                @click="sendUserMsg('告訴我更多關於 ' + cardOf(m).name)"
+              >
+                了解更多
+              </button>
             </div>
           </div>
         </div>
@@ -95,29 +166,90 @@
           </div>
         </div>
 
+        <!-- History Card -->
+        <div v-else-if="m.type === 'history-card'" class="msg-row bot">
+          <div class="msg-bot-icon">⛰</div>
+          <div class="chat-history-card">
+            <div class="chat-history-card-title">{{ (m.cardData as ParsedHistory).name }}</div>
+            <div class="chat-history-card-meta">
+              <span>📏 {{ (m.cardData as ParsedHistory).distanceKm }}km</span>
+              <span>⬆ {{ (m.cardData as ParsedHistory).elevationGain }}m</span>
+              <span>
+                ⏱ {{ Math.floor((m.cardData as ParsedHistory).durationMin / 60) }}h{{
+                  (m.cardData as ParsedHistory).durationMin % 60
+                }}m
+              </span>
+            </div>
+            <div class="chat-history-card-date">{{ (m.cardData as ParsedHistory).date }}</div>
+          </div>
+        </div>
+
+        <!-- Analysis Progress -->
+        <div v-else-if="m.type === 'analysis-progress'" class="msg-row bot">
+          <div class="msg-bot-icon">⛰</div>
+          <div class="chat-progress-card">
+            <div class="chat-progress-label">
+              AI 分析「{{ (m.cardData as ProgressData).name }}」中...
+            </div>
+            <div class="chat-progress-track">
+              <div
+                class="chat-progress-fill"
+                :style="{ width: `${(m.cardData as ProgressData).progress}%` }"
+              />
+            </div>
+            <div class="chat-progress-pct">{{ (m.cardData as ProgressData).progress }}%</div>
+          </div>
+        </div>
+
+        <!-- Analysis Card -->
+        <div v-else-if="m.type === 'analysis-card'" class="msg-row bot">
+          <div class="msg-bot-icon">⛰</div>
+          <div class="chat-analysis-card">
+            <div class="chat-analysis-title">AI 體能分析</div>
+            <div class="chat-analysis-row">
+              <span>估計體力：</span>
+              <span class="chat-analysis-val">
+                {{ FITNESS_LABELS[(m.cardData as AnalysisResult).fitnessEstimate] }}（{{
+                  (m.cardData as AnalysisResult).fitnessEstimate
+                }}/5）
+              </span>
+            </div>
+            <div class="chat-analysis-row">
+              <span>表現：</span>
+              <span class="chat-analysis-val">{{ (m.cardData as AnalysisResult).insight }}</span>
+            </div>
+            <div class="chat-analysis-insight">
+              {{ (m.cardData as AnalysisResult).recommendation }}
+            </div>
+          </div>
+        </div>
+
         <!-- Normal Text Message -->
         <div v-else class="msg-row" :class="m.role">
           <div v-if="m.role === 'bot'" class="msg-bot-icon">⛰</div>
           <div>
             <div :class="['msg-bubble', `msg-${m.role}`]">{{ m.text }}</div>
-            <div class="msg-time" :style="{ textAlign: m.role === 'user' ? 'right' : 'left' }">{{ m.time }}</div>
+            <div class="msg-time" :style="{ textAlign: m.role === 'user' ? 'right' : 'left' }">
+              {{ m.time }}
+            </div>
           </div>
         </div>
-
       </template>
 
       <!-- Typing Indicator -->
       <div v-if="typing" class="msg-row bot">
         <div class="msg-bot-icon">⛰</div>
         <div class="typing-bubble">
-          <div class="typing-dot" /><div class="typing-dot" /><div class="typing-dot" />
+          <div class="typing-dot" />
+          <div class="typing-dot" />
+          <div class="typing-dot" />
         </div>
       </div>
 
       <div ref="msgEndEl" />
     </div>
 
-    <!-- ── Quick Replies ── -->
+    <!-- Quick Replies -->
     <div v-if="quickReplies.length" class="quick-reply-bar">
       <div class="quick-reply-scroll">
         <button
@@ -125,16 +257,29 @@
           :key="q.label"
           class="quick-reply-btn"
           @click="handleQuickReply(q)"
-        >{{ q.label }}</button>
+        >
+          {{ q.label }}
+        </button>
       </div>
     </div>
 
-    <!-- ── Input Bar ── -->
+    <!-- Input Bar -->
     <div class="line-input-bar">
-      <button class="input-icon-btn">🎙</button>
+      <label class="input-icon-btn" title="上傳 GPX / JSON 紀錄">
+        📎
+        <input type="file" accept=".gpx,.json" @change="onFileUpload" style="display: none" />
+      </label>
+      <button
+        v-if="voiceSupported"
+        class="input-icon-btn"
+        title="語音輸入"
+        @click="openVoiceOverlay"
+      >
+        🎙
+      </button>
       <input
         class="line-input"
-        placeholder="傳訊息給 Summit AI..."
+        placeholder="傳訊息給 KaoShan..."
         v-model="inputText"
         @keydown.enter="sendUserMsg(inputText)"
       />
@@ -142,57 +287,101 @@
         class="line-send-btn"
         :class="{ active: inputText.trim() }"
         @click="sendUserMsg(inputText)"
-      >發送</button>
+      >
+        發送
+      </button>
     </div>
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAppStore } from 'src/stores/app'
-import { useAuthStore } from 'src/stores/auth'
+import { api } from 'src/boot/axios';
+import { useAppStore } from 'src/stores/app';
+import { useAuthStore } from 'src/stores/auth';
+import { getRecommendations, type UserProfile } from 'src/data/hikingRoutes';
+import { nextTick, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
-const router   = useRouter()
-const appStore = useAppStore()
-const auth     = useAuthStore()
+const router = useRouter();
+const appStore = useAppStore();
+const auth = useAuthStore();
 
 // ── Types ──────────────────────────────────
 interface RouteCard {
-  emoji: string; name: string; region: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  distance: string; elevation: string; days: string; highlight: string
+  emoji: string;
+  name: string;
+  region: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  distance: string;
+  elevation: string;
+  days: string;
+  highlight: string;
+}
+
+interface ParsedHistory {
+  name: string;
+  distanceKm: number;
+  elevationGain: number;
+  durationMin: number;
+  date: string;
+}
+
+interface AnalysisResult extends ParsedHistory {
+  fitnessEstimate: number;
+  insight: string;
+  recommendation: string;
+}
+
+interface ProgressData {
+  progress: number;
+  name: string;
 }
 
 interface Message {
-  id: number
-  role: 'bot' | 'user'
-  type: 'text' | 'sos' | 'route-card' | 'weather-card'
-  text?: string
-  card?: RouteCard
-  time: string
+  id: number;
+  role: 'bot' | 'user';
+  type: 'text' | 'sos' | 'route-card' | 'weather-card' | 'history-card' | 'analysis-progress' | 'analysis-card';
+  text?: string;
+  card?: RouteCard;
+  cardData?: ParsedHistory | AnalysisResult | ProgressData;
+  time: string;
 }
 
-interface QuickReply { label: string; action: string; payload?: string }
+interface QuickReply {
+  label: string;
+  action: string;
+  payload?: string;
+}
 
 // ── State ──────────────────────────────────
-const msgEndEl    = ref<HTMLDivElement>()
-const inputText   = ref('')
-const typing      = ref(false)
-const showContacts = ref(false)
-const conversationState = ref<'idle' | 'ask-days' | 'ask-difficulty' | 'done'>('idle')
+const msgListEl = ref<HTMLDivElement>();
+const msgEndEl = ref<HTMLDivElement>();
+const inputText = ref('');
+const typing = ref(false);
+const showContacts = ref(false);
+const historyContext = ref('');
+
+const FITNESS_LABELS: Record<number, string> = {
+  1: '非常差',
+  2: '較差',
+  3: '普通',
+  4: '良好',
+  5: '非常好',
+};
 
 function nowTime() {
-  return new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+  return new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
 }
 
 const messages = ref<Message[]>([
   {
-    id: 1, role: 'bot', type: 'text', time: nowTime(),
-    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 Summit AI 登山助理 🏔\n\n請問您這次想規劃什麼樣的登山行程？我可以依您的偏好推薦最適合的路線、查詢天氣，或協助緊急求救。`,
+    id: 1,
+    role: 'bot',
+    type: 'text',
+    time: nowTime(),
+    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 登山助理\n\n請問您這次想規劃什麼樣的登山行程？告訴我您的年齡、體力和想走幾天，或上傳 GPX 紀錄，我來幫您推薦最適合的路線！`,
   },
-])
+]);
 
 // ── Quick Replies ──────────────────────────
 const QUICK_IDLE: QuickReply[] = [
@@ -200,205 +389,776 @@ const QUICK_IDLE: QuickReply[] = [
   { label: '查詢明日天氣', action: 'weather' },
   { label: '裝備提醒', action: 'gear' },
   { label: '緊急求救', action: 'sos' },
-]
+];
 
-const QUICK_DAYS: QuickReply[] = [
-  { label: '當日來回', action: 'select-days', payload: '1' },
-  { label: '2天1夜', action: 'select-days', payload: '2' },
-  { label: '3天以上', action: 'select-days', payload: '3+' },
-]
+const quickReplies = ref<QuickReply[]>(QUICK_IDLE);
 
-const QUICK_DIFFICULTY: QuickReply[] = [
-  { label: '新手入門', action: 'select-diff', payload: 'easy' },
-  { label: '中級挑戰', action: 'select-diff', payload: 'medium' },
-  { label: '進階技術', action: 'select-diff', payload: 'hard' },
-]
-
-const quickReplies = ref<QuickReply[]>(QUICK_IDLE)
-
-// helper: assert m.card is defined (safe inside v-else-if="m.type === 'route-card'")
-function cardOf(m: Message): RouteCard { return m.card! }
-
-// ── Route Data ─────────────────────────────
-const ROUTES: Record<string, RouteCard[]> = {
-  '1-easy':  [
-    { emoji: '🌿', name: '象山步道', region: '台北市信義區', difficulty: 'easy', distance: '2.2 km', elevation: '183 m', days: '2–3 小時', highlight: '俯瞰 101 夜景，台北市最親民的健行路線' },
-    { emoji: '🏔', name: '合歡山主峰', region: '南投縣仁愛鄉', difficulty: 'easy', distance: '2.9 km', elevation: '峰頂 3,417m', days: '1–2 小時', highlight: '高山公路直通，最容易抵達的百岳之一' },
-  ],
-  '1-medium': [
-    { emoji: '🌲', name: '阿里山眠月線', region: '嘉義縣阿里山鄉', difficulty: 'medium', distance: '15 km', elevation: '1,700 m', days: '全日', highlight: '百年鐵道廢線探秘，瀑布與神木交錯' },
-    { emoji: '⛰', name: '桃山', region: '宜蘭縣大同鄉', difficulty: 'medium', distance: '9 km', elevation: '3,325 m', days: '6–8 小時', highlight: '百岳入門款，視野開闊俯瞰雪山群峰' },
-  ],
-  '1-hard': [
-    { emoji: '🏔', name: '奇萊南峰', region: '花蓮縣秀林鄉', difficulty: 'hard', distance: '14 km', elevation: '3,358 m', days: '8–10 小時', highlight: '技術型百岳，高落差稜線挑戰' },
-  ],
-  '2-easy': [
-    { emoji: '🌸', name: '武陵農場四秀', region: '台中市和平區', difficulty: 'easy', distance: '總計 16 km', elevation: '3,492 m', days: '2天1夜', highlight: '季節性高山花卉，賞景最佳路線' },
-  ],
-  '2-medium': [
-    { emoji: '🦅', name: '雪山東峰→主峰', region: '苗栗縣泰安鄉', difficulty: 'medium', distance: '11 km', elevation: '3,886 m', days: '2天1夜', highlight: '台灣第二高峰，圈谷地形震撼人心' },
-    { emoji: '🌺', name: '合歡群峰縱走', region: '南投縣仁愛鄉', difficulty: 'medium', distance: '13.5 km', elevation: '多峰連走', days: '2天1夜', highlight: '高原縱走，春賞杜鵑秋賞楓' },
-  ],
-  '2-hard': [
-    { emoji: '🦁', name: '南湖大山', region: '宜蘭縣大同鄉', difficulty: 'hard', distance: '28 km', elevation: '3,742 m', days: '2天1夜', highlight: '帝王之山，百岳中最雄偉的高山群' },
-  ],
-  '3+-easy': [
-    { emoji: '🌊', name: '能高越嶺道', region: '南投縣仁愛鄉', difficulty: 'easy', distance: '33 km', elevation: '歷史古道', days: '3天2夜', highlight: '橫貫中央山脈的百年越嶺道，古道秘境' },
-  ],
-  '3+-medium': [
-    { emoji: '👑', name: '玉山主峰', region: '南投縣信義鄉', difficulty: 'medium', distance: '21 km', elevation: '3,952 m', days: '3天2夜', highlight: '台灣最高峰，東北亞最高點，一生必登' },
-    { emoji: '🌙', name: '北一段縱走', region: '南投縣仁愛鄉', difficulty: 'medium', distance: '50 km', elevation: '多峰連走', days: '4–5天', highlight: '中央山脈北段精華，十三連峰壯觀縱走' },
-  ],
-  '3+-hard': [
-    { emoji: '🔥', name: '秀馬奇萊O形', region: '花蓮縣秀林鄉', difficulty: 'hard', distance: '80 km', elevation: '三千公尺高稜', days: '5–7天', highlight: '台灣最具挑戰的O形縱走，極限考驗' },
-  ],
+function cardOf(m: Message): RouteCard {
+  return m.card!;
 }
 
-function getRoutes(days: string, diff: string): RouteCard[] {
-  return ROUTES[`${days}-${diff}`] ?? ROUTES['2-medium']!
-}
+// ── Claude API Chat ────────────────────────
+async function sendUserMsg(text: string, clearInput = true) {
+  const t = text.trim();
+  if (!t) return;
 
-// ── Bot Reply Logic ────────────────────────
-let selectedDays = ''
+  messages.value.push({ id: Date.now(), role: 'user', type: 'text', text: t, time: nowTime() });
+  if (clearInput) inputText.value = '';
+  quickReplies.value = [];
+  typing.value = true;
 
-function botReply(text?: string, type: Message['type'] = 'text', card?: RouteCard) {
-  const msg: Message = { id: Date.now(), role: 'bot', type, time: nowTime() }
-  if (text) msg.text = text
-  if (card)  msg.card = card
-  messages.value.push(msg)
-}
+  // Special local actions
+  if (/sos|求救|緊急/.test(t)) {
+    typing.value = false;
+    messages.value.push({ id: Date.now(), role: 'bot', type: 'sos', time: nowTime() });
+    setTimeout(() => {
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        time: nowTime(),
+        text: '⚠ 已收到 SOS 訊號！您目前位置已通報救援單位。\n\n請保持冷靜、原地待援，並持續保持通訊。已同步通知您的緊急聯絡人。',
+      });
+      quickReplies.value = QUICK_IDLE;
+    }, 500);
+    return;
+  }
 
-function handleQuickReply(q: QuickReply) {
-  sendUserMsg(q.label, false)
-  processAction(q.action, q.payload)
-}
+  if (/天氣|氣象|下雨/.test(t)) {
+    typing.value = false;
+    messages.value.push({ id: Date.now(), role: 'bot', type: 'weather-card', time: nowTime() });
+    setTimeout(() => {
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        time: nowTime(),
+        text: '根據預報，明天適合早出發！記得穿著保暖層並攜帶雨具。需要我幫您規劃路線嗎？',
+      });
+      quickReplies.value = [
+        { label: '規劃路線', action: 'plan' },
+        { label: '裝備提醒', action: 'gear' },
+      ];
+    }, 300);
+    return;
+  }
 
-function processAction(action: string, payload?: string) {
-  typing.value = true
-  setTimeout(() => {
-    typing.value = false
+  // Build conversation history (text messages only)
+  const apiMessages = messages.value
+    .filter((m) => (m.type === 'text' || !m.type) && m.text)
+    .map((m) => ({
+      role: m.role === 'bot' ? 'assistant' : 'user',
+      content: m.text!,
+    }));
 
-    if (action === 'plan') {
-      conversationState.value = 'ask-days'
-      quickReplies.value = QUICK_DAYS
-      botReply('好的！讓我幫您規劃行程 🗓\n\n請問您這次預計幾天的行程？')
+  try {
+    const res = await api.post('/chat', {
+      messages: apiMessages,
+      history_context: historyContext.value,
+    });
 
-    } else if (action === 'select-days') {
-      selectedDays = payload ?? '2'
-      conversationState.value = 'ask-difficulty'
-      quickReplies.value = QUICK_DIFFICULTY
-      const daysLabel: Record<string, string> = { '1': '當日來回', '2': '2天1夜', '3+': '3天以上' }
-      botReply(`了解！${daysLabel[payload ?? '2']} 的行程 ✓\n\n請問您的登山經驗程度？這樣我可以推薦最適合的路線。`)
+    const { reply, ready, extracted_profile } = res.data as {
+      reply: string;
+      ready: boolean;
+      extracted_profile: Record<string, unknown> | null;
+    };
 
-    } else if (action === 'select-diff') {
-      conversationState.value = 'done'
-      quickReplies.value = []
-      const diffLabel: Record<string, string> = { easy: '新手入門', medium: '中級挑戰', hard: '進階技術' }
-      botReply(`明白！以下是為您篩選的 ${diffLabel[payload ?? 'medium']} 路線 👇`)
-      const routes = getRoutes(selectedDays, payload ?? 'medium')
+    messages.value.push({ id: Date.now() + 1, role: 'bot', type: 'text', text: reply, time: nowTime() });
+
+    if (ready && extracted_profile) {
+      // Show route recommendations
+      const profile = extracted_profile as unknown as UserProfile;
+      const routes = getRecommendations(profile);
       setTimeout(() => {
-        routes.forEach((card, i) => {
+        messages.value.push({
+          id: Date.now() + 2,
+          role: 'bot',
+          type: 'text',
+          time: nowTime(),
+          text: `根據您的資料，以下是我為您推薦的路線 👇`,
+        });
+        routes.slice(0, 3).forEach((r, i) => {
           setTimeout(() => {
-            messages.value.push({ id: Date.now() + i, role: 'bot', type: 'route-card', card, time: nowTime() })
-          }, i * 400)
-        })
-        setTimeout(() => {
-          botReply('以上是我的推薦！點選「出發前規劃」可進入完整的 AI 安全評估與裝備確認流程。需要查詢明日天氣嗎？')
-          quickReplies.value = [
-            { label: '查詢天氣', action: 'weather' },
-            { label: '重新選擇', action: 'plan' },
-            { label: '裝備清單', action: 'gear' },
-          ]
-        }, routes.length * 400 + 300)
-      }, 200)
-
-    } else if (action === 'weather') {
-      messages.value.push({ id: Date.now(), role: 'bot', type: 'weather-card', time: nowTime() })
-      setTimeout(() => {
-        botReply('根據預報，明天適合早出發！記得穿著保暖層並攜帶雨具。需要我幫您規劃路線嗎？')
-        quickReplies.value = [{ label: '規劃路線', action: 'plan' }, { label: '裝備提醒', action: 'gear' }]
-      }, 300)
-
-    } else if (action === 'gear') {
-      botReply('以下是出發前必備裝備清單 🎒\n\n✅ 登山鞋（防水）\n✅ 登山杖\n✅ 頭燈 + 備用電池\n✅ 急救包\n✅ 保暖層（羽絨/抓絨）\n✅ 雨衣（非傘）\n✅ 行動糧食 1.5 倍份量\n✅ 飲水至少 2L\n✅ 無線電 / 衛星求救器\n\n完整裝備可在「出發前」頁面用 AI 辨識確認！')
-      quickReplies.value = [{ label: '前往出發前規劃', action: 'go-plan' }, { label: '規劃路線', action: 'plan' }]
-
-    } else if (action === 'sos') {
-      messages.value.push({ id: Date.now(), role: 'bot', type: 'sos', time: nowTime() })
-      setTimeout(() => {
-        botReply('⚠ 已收到 SOS 訊號！您目前位置已通報救援單位。\n\n請保持冷靜、原地待援，並持續保持通訊。已同步通知您的緊急聯絡人。')
-        quickReplies.value = QUICK_IDLE
-      }, 500)
-
-    } else if (action === 'go-plan') {
-      router.push('/pre-departure')
+            messages.value.push({
+              id: Date.now() + 10 + i,
+              role: 'bot',
+              type: 'route-card',
+              time: nowTime(),
+              card: {
+                emoji: r.emoji,
+                name: r.name,
+                region: r.region,
+                difficulty: r.risk === 'low' ? 'easy' : r.risk === 'mid' ? 'medium' : 'hard',
+                distance: r.distance,
+                elevation: r.elevation,
+                days: `${r.minDays}天`,
+                highlight: r.highlight,
+              },
+            });
+          }, i * 400);
+        });
+        setTimeout(
+          () => {
+            quickReplies.value = [
+              { label: '查詢天氣', action: 'weather' },
+              { label: '重新規劃', action: 'plan' },
+              { label: '裝備清單', action: 'gear' },
+            ];
+          },
+          routes.length * 400 + 500,
+        );
+      }, 400);
+    } else {
+      quickReplies.value = QUICK_IDLE;
     }
-  }, 1100)
-}
-
-function sendUserMsg(text: string, clearInput = true) {
-  const t = text.trim()
-  if (!t) return
-  messages.value.push({ id: Date.now(), role: 'user', type: 'text', text: t, time: nowTime() })
-  if (clearInput) inputText.value = ''
-
-  // Keyword matching for free-form input
-  if (conversationState.value === 'idle' || conversationState.value === 'done') {
-    if (/天氣|氣象|下雨|雨/.test(t))       processAction('weather')
-    else if (/裝備|背包|清單/.test(t))     processAction('gear')
-    else if (/路線|推薦|規劃|登山/.test(t)) processAction('plan')
-    else if (/sos|求救|緊急/.test(t))      processAction('sos')
-    else {
-      typing.value = true
-      setTimeout(() => {
-        typing.value = false
-        botReply('收到！我可以幫您規劃路線、查詢天氣，或裝備提醒。請問您需要哪種服務？')
-        quickReplies.value = QUICK_IDLE
-        conversationState.value = 'idle'
-      }, 1000)
-    }
+  } catch (_err) {
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      time: nowTime(),
+      text: 'AI 服務暫時無法回應，請稍後再試。',
+    });
+    quickReplies.value = QUICK_IDLE;
+  } finally {
+    typing.value = false;
   }
 }
 
+function handleQuickReply(q: QuickReply) {
+  if (q.action === 'plan') {
+    void sendUserMsg('幫我規劃登山路線');
+  } else if (q.action === 'weather') {
+    void sendUserMsg('查詢明日天氣');
+  } else if (q.action === 'gear') {
+    void sendUserMsg('裝備清單提醒');
+  } else if (q.action === 'sos') {
+    void sendUserMsg('SOS 緊急求救');
+  } else if (q.action === 'go-plan') {
+    router.push('/pre-departure');
+  }
+}
+
+// ── GPX / JSON Upload ────────────────────────────
+function sleep(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms));
+}
+
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function parseGpx(text: string): ParsedHistory {
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  const trkpts = [...doc.querySelectorAll('trkpt')];
+  const name = doc.querySelector('name')?.textContent ?? 'GPX 路線';
+
+  let distanceKm = 0;
+  let elevationGain = 0;
+
+  for (let i = 1; i < trkpts.length; i++) {
+    const prev = trkpts[i - 1]!;
+    const curr = trkpts[i]!;
+    const lat1 = parseFloat(prev.getAttribute('lat') ?? '0');
+    const lon1 = parseFloat(prev.getAttribute('lon') ?? '0');
+    const lat2 = parseFloat(curr.getAttribute('lat') ?? '0');
+    const lon2 = parseFloat(curr.getAttribute('lon') ?? '0');
+    distanceKm += haversine(lat1, lon1, lat2, lon2);
+
+    const ele1 = parseFloat(prev.querySelector('ele')?.textContent ?? '0');
+    const ele2 = parseFloat(curr.querySelector('ele')?.textContent ?? '0');
+    if (ele2 > ele1) elevationGain += ele2 - ele1;
+  }
+
+  const times = [...doc.querySelectorAll('trkpt time')]
+    .map((t) => new Date(t.textContent ?? '').getTime())
+    .filter((t) => !isNaN(t));
+
+  const durationMin =
+    times.length >= 2
+      ? Math.round((times[times.length - 1]! - times[0]!) / 60000)
+      : Math.round(distanceKm * 30);
+
+  const rawDate =
+    doc.querySelector('metadata time')?.textContent?.split('T')[0] ??
+    new Date().toISOString().split('T')[0]!;
+
+  return {
+    name,
+    distanceKm: Math.round(distanceKm * 10) / 10,
+    elevationGain: Math.round(elevationGain),
+    durationMin,
+    date: rawDate ?? '',
+  };
+}
+
+function analyzeHistory(record: ParsedHistory): AnalysisResult {
+  const speedKmh =
+    record.durationMin > 0 ? record.distanceKm / (record.durationMin / 60) : 2;
+  const elevPerKm = record.distanceKm > 0 ? record.elevationGain / record.distanceKm : 0;
+
+  let fitnessEstimate = 3;
+  if (speedKmh > 3 && elevPerKm > 200) fitnessEstimate = 5;
+  else if (speedKmh > 2.5 || elevPerKm > 150) fitnessEstimate = 4;
+  else if (speedKmh < 1.5) fitnessEstimate = 2;
+
+  const insight = `平均速度 ${speedKmh.toFixed(1)} km/h，每公里爬升 ${Math.round(elevPerKm)}m`;
+  const recommendation =
+    fitnessEstimate >= 4
+      ? '體能狀況良好，可嘗試進階路線'
+      : fitnessEstimate >= 3
+        ? '建議繼續維持現有訓練強度'
+        : '建議從較輕鬆的路線開始訓練';
+
+  return { ...record, fitnessEstimate, insight, recommendation };
+}
+
+async function onFileUpload(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  (e.target as HTMLInputElement).value = '';
+
+  messages.value.push({
+    id: Date.now(),
+    role: 'bot',
+    type: 'text',
+    text: `正在讀取「${file.name}」紀錄...`,
+    time: nowTime(),
+  });
+  typing.value = true;
+
+  let record: ParsedHistory | null = null;
+  try {
+    const text = await file.text();
+    if (file.name.endsWith('.gpx')) {
+      record = parseGpx(text);
+    } else if (file.name.endsWith('.json')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = JSON.parse(text) as any;
+      record = {
+        name: (data.routeName ?? data.name ?? '歷史路線') as string,
+        distanceKm: Number(data.distanceKm ?? 0),
+        elevationGain: Number(data.elevationGain ?? 0),
+        durationMin: Number(data.durationMin ?? 0),
+        date: (data.date ?? new Date().toISOString().split('T')[0]!) as string,
+      };
+    }
+  } catch (_) {
+    typing.value = false;
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      text: '無法解析檔案，請確認格式正確（支援 .gpx 或 .json）',
+      time: nowTime(),
+    });
+    return;
+  }
+
+  if (!record) {
+    typing.value = false;
+    return;
+  }
+
+  typing.value = false;
+
+  // History card
+  messages.value.push({
+    id: Date.now() + 1,
+    role: 'bot',
+    type: 'history-card',
+    time: nowTime(),
+    cardData: { ...record },
+  });
+
+  await sleep(500);
+
+  // Progress card
+  const progressEntry: Message = {
+    id: Date.now() + 2,
+    role: 'bot',
+    type: 'analysis-progress',
+    time: nowTime(),
+    cardData: { progress: 0, name: record.name } as ProgressData,
+  };
+  messages.value.push(progressEntry);
+
+  for (let p = 10; p <= 100; p += 10) {
+    await sleep(180);
+    (progressEntry.cardData as ProgressData).progress = p;
+  }
+
+  await sleep(300);
+
+  // Replace progress with analysis card
+  const idx = messages.value.indexOf(progressEntry);
+  if (idx !== -1) {
+    messages.value.splice(idx, 1, {
+      id: Date.now() + 3,
+      role: 'bot',
+      type: 'analysis-card',
+      time: nowTime(),
+      cardData: analyzeHistory(record),
+    });
+  }
+
+  // Store history context for Claude
+  historyContext.value = `使用者上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，時間 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分。`;
+
+  // Auto-trigger Claude analysis
+  await sleep(800);
+  typing.value = true;
+  try {
+    const res = await api.post('/chat', {
+      messages: [
+        {
+          role: 'user',
+          content: `我上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，花費 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分鐘。請幫我分析體能表現並給建議。`,
+        },
+      ],
+      history_context: historyContext.value,
+    });
+    messages.value.push({
+      id: Date.now() + 4,
+      role: 'bot',
+      type: 'text',
+      text: (res.data as { reply: string }).reply,
+      time: nowTime(),
+    });
+  } catch (_) {
+    messages.value.push({
+      id: Date.now() + 4,
+      role: 'bot',
+      type: 'text',
+      text: `根據您的紀錄，${record.name} 距離 ${record.distanceKm}km、爬升 ${record.elevationGain}m，體能表現${record.elevationGain > 500 ? '相當不錯' : '良好'}！請問接下來想規劃什麼樣的路線？`,
+      time: nowTime(),
+    });
+  } finally {
+    typing.value = false;
+    quickReplies.value = [
+      { label: '規劃路線', action: 'plan' },
+      { label: '裝備清單', action: 'gear' },
+    ];
+  }
+}
+
+// ── Voice Overlay ────────────────────────────────
+const voiceSupported = ref(false);
+const voiceOverlay = ref(false);
+const overlayPhase = ref<'recording' | 'confirming' | 'sending'>('recording');
+const overlayLive = ref('');
+const overlayFinal = ref('');
+let overlayRecognition: SpeechRecognition | null = null;
+
+onMounted(() => {
+  const SR =
+    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
+    (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+  if (SR) voiceSupported.value = true;
+  scrollToBottom();
+});
+
+function openVoiceOverlay() {
+  if (!voiceSupported.value) return;
+  overlayFinal.value = '';
+  overlayLive.value = '';
+  overlayPhase.value = 'recording';
+  voiceOverlay.value = true;
+  startOverlayRecognition();
+}
+
+function startOverlayRecognition() {
+  const SR =
+    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
+    (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+  if (!SR) return;
+
+  if (overlayRecognition) {
+    try { overlayRecognition.abort(); } catch (_) { /* ignore */ }
+  }
+
+  const r = new SR();
+  r.lang = 'zh-TW';
+  r.interimResults = true;
+  r.continuous = true;
+  r.maxAlternatives = 1;
+
+  r.onresult = (e: SpeechRecognitionEvent) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const result = e.results[i];
+      if (!result) continue;
+      if (result.isFinal) {
+        overlayFinal.value += result[0]?.transcript ?? '';
+        overlayLive.value = '';
+      } else {
+        interim += result[0]?.transcript ?? '';
+      }
+    }
+    overlayLive.value = interim;
+  };
+
+  r.onend = () => {
+    if (overlayPhase.value === 'recording') {
+      overlayLive.value = '';
+      overlayPhase.value = 'confirming';
+    }
+  };
+
+  r.onerror = (e: SpeechRecognitionErrorEvent) => {
+    if (e.error !== 'no-speech') console.warn('Voice error:', e.error);
+    if (overlayPhase.value === 'recording') {
+      overlayLive.value = '';
+      overlayPhase.value = 'confirming';
+    }
+  };
+
+  overlayRecognition = r;
+  try { r.start(); } catch (_) { /* ignore */ }
+}
+
+function stopOverlayRecording() {
+  overlayPhase.value = 'confirming';
+  overlayLive.value = '';
+  if (overlayRecognition) {
+    try { overlayRecognition.stop(); } catch (_) { /* ignore */ }
+  }
+}
+
+function retryOverlayRecording() {
+  overlayFinal.value = '';
+  overlayLive.value = '';
+  overlayPhase.value = 'recording';
+  startOverlayRecognition();
+}
+
+function confirmOverlaySend() {
+  const text = overlayFinal.value.trim();
+  if (!text) return;
+  overlayPhase.value = 'sending';
+  voiceOverlay.value = false;
+  void sendUserMsg(text, false);
+}
+
+function closeVoiceOverlay() {
+  if (overlayRecognition) {
+    try { overlayRecognition.abort(); } catch (_) { /* ignore */ }
+  }
+  voiceOverlay.value = false;
+}
+
+// ── Helpers ─────────────────────────────────
 function notifyContact(c: { name: string }) {
   messages.value.push({
-    id: Date.now(), role: 'bot', type: 'text', time: nowTime(),
+    id: Date.now(),
+    role: 'bot',
+    type: 'text',
+    time: nowTime(),
     text: `已通知 ${c.name}，對方會收到您的目前行程與位置資訊。`,
-  })
-  showContacts.value = false
+  });
+  showContacts.value = false;
 }
 
 function goToPlan(card: RouteCard) {
   messages.value.push({
-    id: Date.now(), role: 'bot', type: 'text', time: nowTime(),
+    id: Date.now(),
+    role: 'bot',
+    type: 'text',
+    time: nowTime(),
     text: `好的！正在前往「${card.name}」的出發前規劃頁面...`,
-  })
-  setTimeout(() => router.push('/pre-departure'), 600)
+  });
+  setTimeout(() => router.push('/pre-departure'), 600);
 }
 
-// ── Data ───────────────────────────────────
+// ── Static data ─────────────────────────────
 const contacts = [
   { emoji: '👨', name: '王大明（父）', rel: '家人 · 追蹤中' },
   { emoji: '👩', name: '李小雯（友）', rel: '好友 · 已告知行程' },
-]
+];
 
 const weatherData = [
   { icon: '⛅', temp: '12°C', label: '早晨' },
   { icon: '☀', temp: '18°C', label: '中午' },
-  { icon: '🌧', temp: '9°C',  label: '下午' },
-]
+  { icon: '🌧', temp: '9°C', label: '下午' },
+];
 
 // ── Scroll ─────────────────────────────────
 function scrollToBottom() {
-  nextTick(() => msgEndEl.value?.scrollIntoView({ behavior: 'smooth' }))
+  nextTick(() => msgEndEl.value?.scrollIntoView({ behavior: 'smooth' }));
 }
-watch(messages, scrollToBottom, { deep: true })
-watch(typing, scrollToBottom)
-
-onMounted(scrollToBottom)
+watch(messages, scrollToBottom, { deep: true });
+watch(typing, scrollToBottom);
 </script>
 
 <style scoped>
+/* ── Voice Overlay ── */
+.voice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-overlay-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px 32px;
+  width: min(400px, 90vw);
+}
+
+.voice-overlay-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+.voice-wave-lg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 60px;
+}
+
+.voice-bar-lg {
+  width: 6px;
+  border-radius: 3px;
+  background: #06c755;
+  animation: voice-bounce 0.8s ease-in-out infinite alternate;
+  height: 20px;
+}
+
+.voice-bar-lg:nth-child(1) { animation-duration: 0.7s; }
+.voice-bar-lg:nth-child(2) { animation-duration: 0.9s; }
+.voice-bar-lg:nth-child(3) { animation-duration: 0.6s; }
+.voice-bar-lg:nth-child(4) { animation-duration: 1.0s; }
+.voice-bar-lg:nth-child(5) { animation-duration: 0.75s; }
+
+@keyframes voice-bounce {
+  from { height: 8px; }
+  to { height: 52px; }
+}
+
+.voice-overlay-live {
+  width: 100%;
+  min-height: 80px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.voice-final-text { color: #fff; font-weight: 500; }
+.voice-interim-text { color: rgba(255, 255, 255, 0.45); }
+.voice-placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+
+.voice-stop-btn {
+  padding: 12px 32px;
+  border-radius: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.voice-stop-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.voice-cancel-link {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.voice-cancel-link:hover { color: rgba(255, 255, 255, 0.7); }
+
+.voice-confirm-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+  align-self: flex-start;
+}
+
+.voice-confirm-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.9rem;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+.voice-confirm-textarea:focus { border-color: #06c755; }
+
+.voice-confirm-actions { display: flex; gap: 12px; width: 100%; }
+
+.voice-btn-secondary {
+  flex: 1;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.voice-btn-secondary:hover { background: rgba(255, 255, 255, 0.08); }
+
+.voice-btn-primary {
+  flex: 2;
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+  background: #06c755;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.voice-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.voice-btn-primary:not(:disabled):hover { opacity: 0.88; }
+
+/* ── Chat Card Bubbles ── */
+.chat-history-card {
+  max-width: 260px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-history-card-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.chat-history-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.chat-history-card-date {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.chat-progress-card {
+  max-width: 220px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-progress-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.chat-progress-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.chat-progress-fill {
+  height: 100%;
+  background: #06c755;
+  border-radius: 3px;
+  transition: width 0.15s ease;
+}
+
+.chat-progress-pct {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.chat-analysis-card {
+  max-width: 260px;
+  padding: 10px 12px;
+  background: rgba(6, 199, 85, 0.08);
+  border: 1px solid rgba(6, 199, 85, 0.3);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-analysis-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #06c755;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.chat-analysis-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.chat-analysis-val {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.chat-analysis-insight {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ── Page shell ── */
 .line-page {
   display: flex;
@@ -418,51 +1178,69 @@ onMounted(scrollToBottom)
   box-shadow: 0 2px 12px rgba(6, 199, 85, 0.3);
 }
 
-.line-header-bot { display: flex; align-items: center; gap: 10px; }
+.line-header-bot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 .line-bot-avatar {
-  width: 40px; height: 40px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.25);
-  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 20px;
 }
 
 .line-bot-name {
-  font-size: 1rem; font-weight: 800; color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
   letter-spacing: -0.015em;
 }
 
 .line-bot-status {
-  font-size: 0.65rem; color: rgba(255,255,255,0.82);
-  display: flex; align-items: center; gap: 4px; margin-top: 1px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.82);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
 }
 
 .line-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #fff; display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  display: inline-block;
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
+  50% { opacity: 0.4; }
 }
 
 .line-header-actions { display: flex; gap: 4px; }
 
 .line-icon-btn {
-  width: 36px; height: 36px;
-  border: none; background: rgba(255,255,255,0.18);
-  border-radius: 50%; cursor: pointer; font-size: 15px;
-  display: flex; align-items: center; justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.15s;
 }
-
-.line-icon-btn:hover,
-.line-icon-btn.active {
-  background: rgba(255,255,255,0.35);
-}
+.line-icon-btn:hover, .line-icon-btn.active { background: rgba(255, 255, 255, 0.35); }
 
 /* ── Contacts Panel ── */
 .contacts-panel {
@@ -473,14 +1251,20 @@ onMounted(scrollToBottom)
 }
 
 .contacts-title {
-  font-size: 0.7rem; font-weight: 700; color: var(--text-muted);
-  letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .contacts-list { display: flex; flex-direction: column; gap: 8px; }
 
 .contact-item {
-  display: flex; align-items: center; gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 8px 10px;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -488,18 +1272,20 @@ onMounted(scrollToBottom)
 }
 
 .contact-avatar {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
 }
 
 .contact-info { flex: 1; }
 .contact-name { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
-.contact-rel  { font-size: 0.68rem; color: var(--text-muted); margin-top: 1px; }
-
+.contact-rel { font-size: 0.68rem; color: var(--text-muted); margin-top: 1px; }
 .contact-actions { display: flex; gap: 6px; }
 
 .contact-btn {
@@ -508,13 +1294,14 @@ onMounted(scrollToBottom)
   border-radius: 8px;
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 0.7rem; font-weight: 700;
-  cursor: pointer; font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
   transition: all 0.15s;
 }
-
 .contact-btn:hover { background: #06c755; color: #fff; border-color: #06c755; }
-.contact-btn-call  { padding: 4px 8px; }
+.contact-btn-call { padding: 4px 8px; }
 
 /* ── Messages area ── */
 .line-messages {
@@ -536,21 +1323,20 @@ onMounted(scrollToBottom)
 }
 
 /* ── Message rows ── */
-.msg-row {
-  display: flex;
-  gap: 6px;
-  align-items: flex-end;
-}
-
-.msg-row.user  { flex-direction: row-reverse; }
-.msg-row.bot   { flex-direction: row; }
+.msg-row { display: flex; gap: 6px; align-items: flex-end; }
+.msg-row.user { flex-direction: row-reverse; }
+.msg-row.bot { flex-direction: row; }
 
 .msg-bot-icon {
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #06c755;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
   align-self: flex-end;
 }
 
@@ -576,15 +1362,13 @@ onMounted(scrollToBottom)
   border-bottom-right-radius: 4px;
 }
 
-.msg-time {
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  margin-top: 3px;
-}
+.msg-time { font-size: 0.6rem; color: var(--text-muted); margin-top: 3px; }
 
 /* ── SOS card ── */
 .msg-sos {
-  display: flex; align-items: center; gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 14px;
   background: rgba(220, 38, 38, 0.12);
   border: 1px solid rgba(220, 38, 38, 0.35);
@@ -594,12 +1378,12 @@ onMounted(scrollToBottom)
 
 @keyframes sos-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }
-  50%       { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
 }
 
 .msg-sos-icon { font-size: 24px; }
 .msg-sos-title { font-size: 0.82rem; font-weight: 800; color: #dc2626; }
-.msg-sos-sub   { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+.msg-sos-sub { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
 
 /* ── Route Card ── */
 .route-card {
@@ -612,50 +1396,53 @@ onMounted(scrollToBottom)
   padding: 12px;
 }
 
-.route-card-top {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-}
-
+.route-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .route-emoji { font-size: 22px; flex-shrink: 0; }
-.route-card-name   { font-size: 0.88rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.015em; }
+.route-card-name { font-size: 0.88rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.015em; }
 .route-card-region { font-size: 0.65rem; color: var(--text-muted); margin-top: 1px; }
 
 .route-diff-badge {
-  margin-left: auto; padding: 2px 8px;
-  border-radius: 20px; font-size: 0.65rem; font-weight: 700;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
-.diff-easy   { background: rgba(26,140,85,0.18);  color: #16a34a; border: 1px solid rgba(26,140,85,0.35); }
-.diff-medium { background: rgba(251,146,60,0.18); color: #d97706; border: 1px solid rgba(251,146,60,0.35); }
-.diff-hard   { background: rgba(220,38,38,0.12);  color: #dc2626; border: 1px solid rgba(220,38,38,0.3); }
+.diff-easy { background: rgba(26, 140, 85, 0.18); color: #16a34a; border: 1px solid rgba(26, 140, 85, 0.35); }
+.diff-medium { background: rgba(251, 146, 60, 0.18); color: #d97706; border: 1px solid rgba(251, 146, 60, 0.35); }
+.diff-hard { background: rgba(220, 38, 38, 0.12); color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.3); }
 
 .route-card-meta {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  font-size: 0.68rem; color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.68rem;
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
-.route-card-highlight {
-  font-size: 0.72rem; color: var(--text-secondary);
-  line-height: 1.5; margin-bottom: 10px;
-}
-
+.route-card-highlight { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 10px; }
 .route-card-actions { display: flex; gap: 6px; }
 
 .route-action-btn {
-  flex: 1; padding: 6px;
-  border: none; border-radius: 8px;
-  background: #06c755; color: #fff;
-  font-size: 0.72rem; font-weight: 700;
-  cursor: pointer; font-family: inherit;
+  flex: 1;
+  padding: 6px;
+  border: none;
+  border-radius: 8px;
+  background: #06c755;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
   transition: opacity 0.15s;
 }
-
 .route-action-btn:hover { opacity: 0.85; }
 
 .route-action-ghost {
-  background: transparent;
+  background: transparent !important;
   border: 1px solid var(--border) !important;
   color: var(--text-secondary) !important;
 }
@@ -665,48 +1452,61 @@ onMounted(scrollToBottom)
   max-width: 260px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px; border-bottom-left-radius: 4px;
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
   padding: 12px;
 }
 
 .weather-card-title {
-  font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
-  letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
 }
 
-.weather-cols { display: flex; gap: 0; }
+.weather-cols { display: flex; }
 
 .weather-col {
-  flex: 1; text-align: center;
+  flex: 1;
+  text-align: center;
   padding: 6px 4px;
   border-right: 1px solid var(--border);
 }
-
 .weather-col:last-child { border-right: none; }
 
 .weather-icon-lg { font-size: 22px; margin-bottom: 4px; }
-.weather-temp    { font-size: 0.9rem; font-weight: 800; color: var(--text-primary); }
-.weather-label   { font-size: 0.62rem; color: var(--text-muted); margin-top: 2px; }
+.weather-temp { font-size: 0.9rem; font-weight: 800; color: var(--text-primary); }
+.weather-label { font-size: 0.62rem; color: var(--text-muted); margin-top: 2px; }
 
 .weather-warning {
-  margin-top: 8px; padding: 6px 8px;
-  background: rgba(251,146,60,0.12);
-  border: 1px solid rgba(251,146,60,0.3);
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(251, 146, 60, 0.12);
+  border: 1px solid rgba(251, 146, 60, 0.3);
   border-radius: 8px;
-  font-size: 0.7rem; color: #d97706; font-weight: 600;
+  font-size: 0.7rem;
+  color: #d97706;
+  font-weight: 600;
 }
 
 /* ── Typing indicator ── */
 .typing-bubble {
-  display: flex; align-items: center; gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px; border-bottom-left-radius: 4px;
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
 }
 
 .typing-dot {
-  width: 7px; height: 7px; border-radius: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: var(--text-muted);
   animation: typing-bounce 1.2s ease-in-out infinite;
 }
@@ -715,7 +1515,7 @@ onMounted(scrollToBottom)
 
 @keyframes typing-bounce {
   0%, 60%, 100% { transform: translateY(0); }
-  30%            { transform: translateY(-6px); }
+  30% { transform: translateY(-6px); }
 }
 
 /* ── Quick replies ── */
@@ -727,7 +1527,8 @@ onMounted(scrollToBottom)
 }
 
 .quick-reply-scroll {
-  display: flex; gap: 6px;
+  display: flex;
+  gap: 6px;
   overflow-x: auto;
   padding-bottom: 2px;
   scrollbar-width: none;
@@ -740,19 +1541,22 @@ onMounted(scrollToBottom)
   border-radius: 20px;
   background: transparent;
   color: #06c755;
-  font-size: 0.75rem; font-weight: 700;
-  cursor: pointer; white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
   font-family: inherit;
   transition: all 0.15s;
   flex-shrink: 0;
 }
-
 .quick-reply-btn:hover { background: #06c755; color: #fff; }
 
 /* ── Input bar ── */
 .line-input-bar {
   flex-shrink: 0;
-  display: flex; align-items: center; gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 10px 12px;
   padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
   background: var(--bg-surface);
@@ -760,12 +1564,19 @@ onMounted(scrollToBottom)
 }
 
 .input-icon-btn {
-  width: 36px; height: 36px;
-  border: none; background: transparent;
-  font-size: 18px; cursor: pointer; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   transition: background 0.15s;
+  flex-shrink: 0;
 }
 .input-icon-btn:hover { background: var(--bg-card); }
 
@@ -776,18 +1587,23 @@ onMounted(scrollToBottom)
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-primary);
-  font-size: 0.82rem; font-family: inherit;
-  outline: none; transition: border-color 0.15s;
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
 }
 .line-input:focus { border-color: #06c755; }
 
 .line-send-btn {
   padding: 8px 16px;
-  border: none; border-radius: 22px;
+  border: none;
+  border-radius: 22px;
   background: var(--border);
   color: var(--text-muted);
-  font-size: 0.78rem; font-weight: 700;
-  cursor: pointer; font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
   transition: all 0.15s;
 }
 .line-send-btn.active { background: #06c755; color: #fff; }

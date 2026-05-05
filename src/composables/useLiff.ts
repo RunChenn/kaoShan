@@ -2,6 +2,7 @@ import { useAuthStore } from 'src/stores/auth'
 import { ref } from 'vue'
 
 const liffInitialized = ref(false)
+const POST_LOGIN_REDIRECT_KEY = '__liff_post_login_redirect__'
 
 export function useLiff() {
   const auth = useAuthStore()
@@ -45,7 +46,7 @@ export function useLiff() {
     }
   }
 
-  async function login(): Promise<void> {
+  async function login(redirectPath = '/pre-departure'): Promise<void> {
     const liffId = import.meta.env.VITE_LIFF_ID
 
     if (!liffId || liffId === 'your_liff_id_here') {
@@ -62,6 +63,7 @@ export function useLiff() {
       return
     }
 
+    sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirectPath)
     const liffAPI = await import('@line/liff').then(m => m.default)
     liffAPI.login()
   }

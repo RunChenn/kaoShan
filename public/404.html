@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<script>
+  // GitHub Pages SPA + LIFF callback 處理
+  // 將完整的原始 URL（含 LIFF OAuth 參數）存入 sessionStorage，再跳回首頁
+  // index.html 啟動時會用 history.replaceState 還原，讓 LIFF SDK 正常處理 code 交換
+  sessionStorage.setItem('__spa_redirect__', window.location.href);
+  var base = window.location.pathname.split('/').slice(0, 2).join('/') + '/';
+  window.location.replace(base);
+</script>
+</body>
+</html>

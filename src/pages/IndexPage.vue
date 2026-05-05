@@ -92,8 +92,12 @@
                   d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
                 />
               </svg>
-              使用 Google 登入
+              使用 Google 登入（可Demo）
             </q-btn>
+
+            <button class="guest-btn" @click="handleGuestLogin">
+              訪客體驗 →
+            </button>
           </div>
         </div>
       </template>
@@ -200,7 +204,7 @@ async function handleLogin() {
   loading.value = true;
   try {
     await login();
-    router.push({ name: 'line' });
+    router.push({ name: 'pre-departure' });
   } finally {
     loading.value = false;
   }
@@ -210,10 +214,22 @@ async function handleGoogleLogin() {
   loadingGoogle.value = true;
   try {
     await loginWithGoogle();
-    router.push({ name: 'line' });
+    router.push({ name: 'pre-departure' });
   } finally {
     loadingGoogle.value = false;
   }
+}
+
+function handleGuestLogin() {
+  auth.setLoggedIn(
+    {
+      userId: 'guest_001',
+      displayName: '訪客',
+      pictureUrl: 'https://i.pravatar.cc/150?img=12',
+    },
+    'guest_token'
+  );
+  router.push({ name: 'pre-departure' });
 }
 </script>
 
@@ -453,6 +469,26 @@ async function handleGoogleLogin() {
   border: 2px solid rgba(26, 140, 85, 0.6);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   flex-shrink: 0;
+}
+
+// ── Guest button ──────────────────────────────────────────
+.guest-btn {
+  margin-top: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  padding: 8px;
+  font-family: inherit;
+  transition: color 0.2s;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.75);
+  }
 }
 
 // ── Action buttons ────────────────────────────────────────
