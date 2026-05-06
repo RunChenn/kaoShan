@@ -1,7 +1,11 @@
 <template>
   <!-- Voice Overlay -->
   <Teleport to="body">
-    <div v-if="voiceOverlay" class="voice-overlay" @click.self="closeVoiceOverlay">
+    <div
+      v-if="voiceOverlay"
+      class="voice-overlay"
+      @click.self="closeVoiceOverlay"
+    >
       <div class="voice-overlay-panel">
         <template v-if="overlayPhase === 'recording'">
           <div class="voice-overlay-title">語音輸入</div>
@@ -16,10 +20,16 @@
           <div class="voice-overlay-live">
             <span class="voice-final-text">{{ overlayFinal }}</span>
             <span class="voice-interim-text">{{ overlayLive }}</span>
-            <span v-if="!overlayFinal && !overlayLive" class="voice-placeholder">請說話...</span>
+            <span v-if="!overlayFinal && !overlayLive" class="voice-placeholder"
+              >請說話...</span
+            >
           </div>
-          <button class="voice-stop-btn" @click="stopOverlayRecording">停止錄音</button>
-          <button class="voice-cancel-link" @click="closeVoiceOverlay">取消</button>
+          <button class="voice-stop-btn" @click="stopOverlayRecording">
+            停止錄音
+          </button>
+          <button class="voice-cancel-link" @click="closeVoiceOverlay">
+            取消
+          </button>
         </template>
 
         <template v-else-if="overlayPhase === 'confirming'">
@@ -32,7 +42,9 @@
             placeholder="（可直接編輯文字）"
           />
           <div class="voice-confirm-actions">
-            <button class="voice-btn-secondary" @click="retryOverlayRecording">重錄</button>
+            <button class="voice-btn-secondary" @click="retryOverlayRecording">
+              重錄
+            </button>
             <button
               class="voice-btn-primary"
               :disabled="!overlayFinal.trim()"
@@ -94,7 +106,9 @@
               <div class="contact-rel">{{ c.rel }}</div>
             </div>
             <div class="contact-actions">
-              <button class="contact-btn" @click="notifyContact(c)">📢 通知</button>
+              <button class="contact-btn" @click="notifyContact(c)">
+                📢 通知
+              </button>
               <button class="contact-btn contact-btn-call">📞</button>
             </div>
           </div>
@@ -128,8 +142,14 @@
                 <div class="route-card-name">{{ cardOf(m).name }}</div>
                 <div class="route-card-region">{{ cardOf(m).region }}</div>
               </div>
-              <span :class="['route-diff-badge', `diff-${cardOf(m).difficulty}`]">
-                {{ { easy: '入門', medium: '中級', hard: '進階' }[cardOf(m).difficulty] }}
+              <span
+                :class="['route-diff-badge', `diff-${cardOf(m).difficulty}`]"
+              >
+                {{
+                  { easy: '入門', medium: '中級', hard: '進階' }[
+                    cardOf(m).difficulty
+                  ]
+                }}
               </span>
             </div>
             <div class="route-card-meta">
@@ -139,7 +159,9 @@
             </div>
             <div class="route-card-highlight">{{ cardOf(m).highlight }}</div>
             <div class="route-card-actions">
-              <button class="route-action-btn" @click="goToPlan(cardOf(m))">出發前規劃</button>
+              <button class="route-action-btn" @click="goToPlan(cardOf(m))">
+                出發前規劃
+              </button>
               <button
                 class="route-action-ghost route-action-btn"
                 @click="sendUserMsg('告訴我更多關於 ' + cardOf(m).name)"
@@ -162,7 +184,9 @@
                 <div class="weather-label">{{ w.label }}</div>
               </div>
             </div>
-            <div class="weather-warning">⚡ 午後雷陣雨機率 75%，建議 13:00 前下山</div>
+            <div class="weather-warning">
+              ⚡ 午後雷陣雨機率 75%，建議 13:00 前下山
+            </div>
           </div>
         </div>
 
@@ -170,17 +194,22 @@
         <div v-else-if="m.type === 'history-card'" class="msg-row bot">
           <div class="msg-bot-icon">⛰</div>
           <div class="chat-history-card">
-            <div class="chat-history-card-title">{{ (m.cardData as ParsedHistory).name }}</div>
+            <div class="chat-history-card-title">
+              {{ (m.cardData as ParsedHistory).name }}
+            </div>
             <div class="chat-history-card-meta">
               <span>📏 {{ (m.cardData as ParsedHistory).distanceKm }}km</span>
               <span>⬆ {{ (m.cardData as ParsedHistory).elevationGain }}m</span>
               <span>
-                ⏱ {{ Math.floor((m.cardData as ParsedHistory).durationMin / 60) }}h{{
-                  (m.cardData as ParsedHistory).durationMin % 60
-                }}m
+                ⏱
+                {{
+                  Math.floor((m.cardData as ParsedHistory).durationMin / 60)
+                }}h{{ (m.cardData as ParsedHistory).durationMin % 60 }}m
               </span>
             </div>
-            <div class="chat-history-card-date">{{ (m.cardData as ParsedHistory).date }}</div>
+            <div class="chat-history-card-date">
+              {{ (m.cardData as ParsedHistory).date }}
+            </div>
           </div>
         </div>
 
@@ -197,7 +226,9 @@
                 :style="{ width: `${(m.cardData as ProgressData).progress}%` }"
               />
             </div>
-            <div class="chat-progress-pct">{{ (m.cardData as ProgressData).progress }}%</div>
+            <div class="chat-progress-pct">
+              {{ (m.cardData as ProgressData).progress }}%
+            </div>
           </div>
         </div>
 
@@ -209,14 +240,18 @@
             <div class="chat-analysis-row">
               <span>估計體力：</span>
               <span class="chat-analysis-val">
-                {{ FITNESS_LABELS[(m.cardData as AnalysisResult).fitnessEstimate] }}（{{
-                  (m.cardData as AnalysisResult).fitnessEstimate
-                }}/5）
+                {{
+                  FITNESS_LABELS[
+                    (m.cardData as AnalysisResult).fitnessEstimate
+                  ]
+                }}（{{ (m.cardData as AnalysisResult).fitnessEstimate }}/5）
               </span>
             </div>
             <div class="chat-analysis-row">
               <span>表現：</span>
-              <span class="chat-analysis-val">{{ (m.cardData as AnalysisResult).insight }}</span>
+              <span class="chat-analysis-val">{{
+                (m.cardData as AnalysisResult).insight
+              }}</span>
             </div>
             <div class="chat-analysis-insight">
               {{ (m.cardData as AnalysisResult).recommendation }}
@@ -229,7 +264,10 @@
           <div v-if="m.role === 'bot'" class="msg-bot-icon">⛰</div>
           <div>
             <div :class="['msg-bubble', `msg-${m.role}`]">{{ m.text }}</div>
-            <div class="msg-time" :style="{ textAlign: m.role === 'user' ? 'right' : 'left' }">
+            <div
+              class="msg-time"
+              :style="{ textAlign: m.role === 'user' ? 'right' : 'left' }"
+            >
               {{ m.time }}
             </div>
           </div>
@@ -267,7 +305,12 @@
     <div class="line-input-bar">
       <label class="input-icon-btn" title="上傳 GPX / JSON 紀錄">
         📎
-        <input type="file" accept=".gpx,.json" @change="onFileUpload" style="display: none" />
+        <input
+          type="file"
+          accept=".gpx,.json"
+          @change="onFileUpload"
+          style="display: none"
+        />
       </label>
       <button
         v-if="voiceSupported"
@@ -296,9 +339,9 @@
 
 <script setup lang="ts">
 import { api } from 'src/boot/axios';
+import { getRecommendations, type UserProfile } from 'src/data/hikingRoutes';
 import { useAppStore } from 'src/stores/app';
 import { useAuthStore } from 'src/stores/auth';
-import { getRecommendations, type UserProfile } from 'src/data/hikingRoutes';
 import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -340,7 +383,14 @@ interface ProgressData {
 interface Message {
   id: number;
   role: 'bot' | 'user';
-  type: 'text' | 'sos' | 'route-card' | 'weather-card' | 'history-card' | 'analysis-progress' | 'analysis-card';
+  type:
+    | 'text'
+    | 'sos'
+    | 'route-card'
+    | 'weather-card'
+    | 'history-card'
+    | 'analysis-progress'
+    | 'analysis-card';
   text?: string;
   card?: RouteCard;
   cardData?: ParsedHistory | AnalysisResult | ProgressData;
@@ -370,7 +420,10 @@ const FITNESS_LABELS: Record<number, string> = {
 };
 
 function nowTime() {
-  return new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+  return new Date().toLocaleTimeString('zh-TW', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 const messages = ref<Message[]>([
@@ -402,7 +455,13 @@ async function sendUserMsg(text: string, clearInput = true) {
   const t = text.trim();
   if (!t) return;
 
-  messages.value.push({ id: Date.now(), role: 'user', type: 'text', text: t, time: nowTime() });
+  messages.value.push({
+    id: Date.now(),
+    role: 'user',
+    type: 'text',
+    text: t,
+    time: nowTime(),
+  });
   if (clearInput) inputText.value = '';
   quickReplies.value = [];
   typing.value = true;
@@ -410,7 +469,12 @@ async function sendUserMsg(text: string, clearInput = true) {
   // Special local actions
   if (/sos|求救|緊急/.test(t)) {
     typing.value = false;
-    messages.value.push({ id: Date.now(), role: 'bot', type: 'sos', time: nowTime() });
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'sos',
+      time: nowTime(),
+    });
     setTimeout(() => {
       messages.value.push({
         id: Date.now() + 1,
@@ -426,7 +490,12 @@ async function sendUserMsg(text: string, clearInput = true) {
 
   if (/天氣|氣象|下雨/.test(t)) {
     typing.value = false;
-    messages.value.push({ id: Date.now(), role: 'bot', type: 'weather-card', time: nowTime() });
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'weather-card',
+      time: nowTime(),
+    });
     setTimeout(() => {
       messages.value.push({
         id: Date.now() + 1,
@@ -463,7 +532,13 @@ async function sendUserMsg(text: string, clearInput = true) {
       extracted_profile: Record<string, unknown> | null;
     };
 
-    messages.value.push({ id: Date.now() + 1, role: 'bot', type: 'text', text: reply, time: nowTime() });
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      text: reply,
+      time: nowTime(),
+    });
 
     if (ready && extracted_profile) {
       // Show route recommendations
@@ -488,7 +563,12 @@ async function sendUserMsg(text: string, clearInput = true) {
                 emoji: r.emoji,
                 name: r.name,
                 region: r.region,
-                difficulty: r.risk === 'low' ? 'easy' : r.risk === 'mid' ? 'medium' : 'hard',
+                difficulty:
+                  r.risk === 'low'
+                    ? 'easy'
+                    : r.risk === 'mid'
+                      ? 'medium'
+                      : 'hard',
                 distance: r.distance,
                 elevation: r.elevation,
                 days: `${r.minDays}天`,
@@ -544,7 +624,12 @@ function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+function haversine(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -603,7 +688,8 @@ function parseGpx(text: string): ParsedHistory {
 function analyzeHistory(record: ParsedHistory): AnalysisResult {
   const speedKmh =
     record.durationMin > 0 ? record.distanceKm / (record.durationMin / 60) : 2;
-  const elevPerKm = record.distanceKm > 0 ? record.elevationGain / record.distanceKm : 0;
+  const elevPerKm =
+    record.distanceKm > 0 ? record.elevationGain / record.distanceKm : 0;
 
   let fitnessEstimate = 3;
   if (speedKmh > 3 && elevPerKm > 200) fitnessEstimate = 5;
@@ -760,8 +846,13 @@ let overlayRecognition: SpeechRecognition | null = null;
 
 onMounted(() => {
   const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-    (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
+      .SpeechRecognition ||
+    (
+      window as typeof window & {
+        webkitSpeechRecognition?: typeof SpeechRecognition;
+      }
+    ).webkitSpeechRecognition;
   if (SR) voiceSupported.value = true;
   scrollToBottom();
 });
@@ -777,12 +868,21 @@ function openVoiceOverlay() {
 
 function startOverlayRecognition() {
   const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-    (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
+      .SpeechRecognition ||
+    (
+      window as typeof window & {
+        webkitSpeechRecognition?: typeof SpeechRecognition;
+      }
+    ).webkitSpeechRecognition;
   if (!SR) return;
 
   if (overlayRecognition) {
-    try { overlayRecognition.abort(); } catch (_) { /* ignore */ }
+    try {
+      overlayRecognition.abort();
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   const r = new SR();
@@ -822,14 +922,22 @@ function startOverlayRecognition() {
   };
 
   overlayRecognition = r;
-  try { r.start(); } catch (_) { /* ignore */ }
+  try {
+    r.start();
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function stopOverlayRecording() {
   overlayPhase.value = 'confirming';
   overlayLive.value = '';
   if (overlayRecognition) {
-    try { overlayRecognition.stop(); } catch (_) { /* ignore */ }
+    try {
+      overlayRecognition.stop();
+    } catch (_) {
+      /* ignore */
+    }
   }
 }
 
@@ -850,7 +958,11 @@ function confirmOverlaySend() {
 
 function closeVoiceOverlay() {
   if (overlayRecognition) {
-    try { overlayRecognition.abort(); } catch (_) { /* ignore */ }
+    try {
+      overlayRecognition.abort();
+    } catch (_) {
+      /* ignore */
+    }
   }
   voiceOverlay.value = false;
 }
@@ -942,15 +1054,29 @@ watch(typing, scrollToBottom);
   height: 20px;
 }
 
-.voice-bar-lg:nth-child(1) { animation-duration: 0.7s; }
-.voice-bar-lg:nth-child(2) { animation-duration: 0.9s; }
-.voice-bar-lg:nth-child(3) { animation-duration: 0.6s; }
-.voice-bar-lg:nth-child(4) { animation-duration: 1.0s; }
-.voice-bar-lg:nth-child(5) { animation-duration: 0.75s; }
+.voice-bar-lg:nth-child(1) {
+  animation-duration: 0.7s;
+}
+.voice-bar-lg:nth-child(2) {
+  animation-duration: 0.9s;
+}
+.voice-bar-lg:nth-child(3) {
+  animation-duration: 0.6s;
+}
+.voice-bar-lg:nth-child(4) {
+  animation-duration: 1s;
+}
+.voice-bar-lg:nth-child(5) {
+  animation-duration: 0.75s;
+}
 
 @keyframes voice-bounce {
-  from { height: 8px; }
-  to { height: 52px; }
+  from {
+    height: 8px;
+  }
+  to {
+    height: 52px;
+  }
 }
 
 .voice-overlay-live {
@@ -965,9 +1091,17 @@ watch(typing, scrollToBottom);
   text-align: center;
 }
 
-.voice-final-text { color: #fff; font-weight: 500; }
-.voice-interim-text { color: rgba(255, 255, 255, 0.45); }
-.voice-placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+.voice-final-text {
+  color: #fff;
+  font-weight: 500;
+}
+.voice-interim-text {
+  color: rgba(255, 255, 255, 0.45);
+}
+.voice-placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
 
 .voice-stop-btn {
   padding: 12px 32px;
@@ -995,7 +1129,9 @@ watch(typing, scrollToBottom);
   cursor: pointer;
   padding: 0;
 }
-.voice-cancel-link:hover { color: rgba(255, 255, 255, 0.7); }
+.voice-cancel-link:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
 
 .voice-confirm-label {
   font-size: 0.8rem;
@@ -1017,9 +1153,15 @@ watch(typing, scrollToBottom);
   outline: none;
   box-sizing: border-box;
 }
-.voice-confirm-textarea:focus { border-color: #06c755; }
+.voice-confirm-textarea:focus {
+  border-color: #06c755;
+}
 
-.voice-confirm-actions { display: flex; gap: 12px; width: 100%; }
+.voice-confirm-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
 
 .voice-btn-secondary {
   flex: 1;
@@ -1034,7 +1176,9 @@ watch(typing, scrollToBottom);
   cursor: pointer;
   transition: all 0.15s;
 }
-.voice-btn-secondary:hover { background: rgba(255, 255, 255, 0.08); }
+.voice-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
 
 .voice-btn-primary {
   flex: 2;
@@ -1049,8 +1193,13 @@ watch(typing, scrollToBottom);
   cursor: pointer;
   transition: opacity 0.15s;
 }
-.voice-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-.voice-btn-primary:not(:disabled):hover { opacity: 0.88; }
+.voice-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.voice-btn-primary:not(:disabled):hover {
+  opacity: 0.88;
+}
 
 /* ── Chat Card Bubbles ── */
 .chat-history-card {
@@ -1203,7 +1352,7 @@ watch(typing, scrollToBottom);
 }
 
 .line-bot-status {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.82);
   display: flex;
   align-items: center;
@@ -1221,11 +1370,19 @@ watch(typing, scrollToBottom);
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
-.line-header-actions { display: flex; gap: 4px; }
+.line-header-actions {
+  display: flex;
+  gap: 4px;
+}
 
 .line-icon-btn {
   width: 36px;
@@ -1240,7 +1397,10 @@ watch(typing, scrollToBottom);
   justify-content: center;
   transition: background 0.15s;
 }
-.line-icon-btn:hover, .line-icon-btn.active { background: rgba(255, 255, 255, 0.35); }
+.line-icon-btn:hover,
+.line-icon-btn.active {
+  background: rgba(255, 255, 255, 0.35);
+}
 
 /* ── Contacts Panel ── */
 .contacts-panel {
@@ -1259,7 +1419,11 @@ watch(typing, scrollToBottom);
   margin-bottom: 8px;
 }
 
-.contacts-list { display: flex; flex-direction: column; gap: 8px; }
+.contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .contact-item {
   display: flex;
@@ -1283,10 +1447,23 @@ watch(typing, scrollToBottom);
   font-size: 18px;
 }
 
-.contact-info { flex: 1; }
-.contact-name { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
-.contact-rel { font-size: 0.68rem; color: var(--text-muted); margin-top: 1px; }
-.contact-actions { display: flex; gap: 6px; }
+.contact-info {
+  flex: 1;
+}
+.contact-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.contact-rel {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.contact-actions {
+  display: flex;
+  gap: 6px;
+}
 
 .contact-btn {
   padding: 4px 10px;
@@ -1300,8 +1477,14 @@ watch(typing, scrollToBottom);
   font-family: inherit;
   transition: all 0.15s;
 }
-.contact-btn:hover { background: #06c755; color: #fff; border-color: #06c755; }
-.contact-btn-call { padding: 4px 8px; }
+.contact-btn:hover {
+  background: #06c755;
+  color: #fff;
+  border-color: #06c755;
+}
+.contact-btn-call {
+  padding: 4px 8px;
+}
 
 /* ── Messages area ── */
 .line-messages {
@@ -1315,7 +1498,7 @@ watch(typing, scrollToBottom);
 
 .line-date-divider {
   text-align: center;
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -1323,9 +1506,17 @@ watch(typing, scrollToBottom);
 }
 
 /* ── Message rows ── */
-.msg-row { display: flex; gap: 6px; align-items: flex-end; }
-.msg-row.user { flex-direction: row-reverse; }
-.msg-row.bot { flex-direction: row; }
+.msg-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.msg-row.user {
+  flex-direction: row-reverse;
+}
+.msg-row.bot {
+  flex-direction: row;
+}
 
 .msg-bot-icon {
   width: 32px;
@@ -1344,7 +1535,7 @@ watch(typing, scrollToBottom);
   max-width: 260px;
   padding: 9px 12px;
   border-radius: 16px;
-  font-size: 0.82rem;
+  font-size: 1rem;
   line-height: 1.6;
   white-space: pre-line;
 }
@@ -1362,7 +1553,11 @@ watch(typing, scrollToBottom);
   border-bottom-right-radius: 4px;
 }
 
-.msg-time { font-size: 0.6rem; color: var(--text-muted); margin-top: 3px; }
+.msg-time {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
 
 /* ── SOS card ── */
 .msg-sos {
@@ -1377,13 +1572,28 @@ watch(typing, scrollToBottom);
 }
 
 @keyframes sos-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }
-  50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  }
 }
 
-.msg-sos-icon { font-size: 24px; }
-.msg-sos-title { font-size: 0.82rem; font-weight: 800; color: #dc2626; }
-.msg-sos-sub { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+.msg-sos-icon {
+  font-size: 24px;
+}
+.msg-sos-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #dc2626;
+}
+.msg-sos-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
 
 /* ── Route Card ── */
 .route-card {
@@ -1396,10 +1606,27 @@ watch(typing, scrollToBottom);
   padding: 12px;
 }
 
-.route-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.route-emoji { font-size: 22px; flex-shrink: 0; }
-.route-card-name { font-size: 0.88rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.015em; }
-.route-card-region { font-size: 0.65rem; color: var(--text-muted); margin-top: 1px; }
+.route-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.route-emoji {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.route-card-name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
+}
+.route-card-region {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
 
 .route-diff-badge {
   margin-left: auto;
@@ -1410,9 +1637,21 @@ watch(typing, scrollToBottom);
   flex-shrink: 0;
 }
 
-.diff-easy { background: rgba(26, 140, 85, 0.18); color: #16a34a; border: 1px solid rgba(26, 140, 85, 0.35); }
-.diff-medium { background: rgba(251, 146, 60, 0.18); color: #d97706; border: 1px solid rgba(251, 146, 60, 0.35); }
-.diff-hard { background: rgba(220, 38, 38, 0.12); color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.3); }
+.diff-easy {
+  background: rgba(26, 140, 85, 0.18);
+  color: #16a34a;
+  border: 1px solid rgba(26, 140, 85, 0.35);
+}
+.diff-medium {
+  background: rgba(251, 146, 60, 0.18);
+  color: #d97706;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+}
+.diff-hard {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
 
 .route-card-meta {
   display: flex;
@@ -1423,8 +1662,16 @@ watch(typing, scrollToBottom);
   margin-bottom: 6px;
 }
 
-.route-card-highlight { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 10px; }
-.route-card-actions { display: flex; gap: 6px; }
+.route-card-highlight {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.route-card-actions {
+  display: flex;
+  gap: 6px;
+}
 
 .route-action-btn {
   flex: 1;
@@ -1439,7 +1686,9 @@ watch(typing, scrollToBottom);
   font-family: inherit;
   transition: opacity 0.15s;
 }
-.route-action-btn:hover { opacity: 0.85; }
+.route-action-btn:hover {
+  opacity: 0.85;
+}
 
 .route-action-ghost {
   background: transparent !important;
@@ -1466,7 +1715,9 @@ watch(typing, scrollToBottom);
   margin-bottom: 10px;
 }
 
-.weather-cols { display: flex; }
+.weather-cols {
+  display: flex;
+}
 
 .weather-col {
   flex: 1;
@@ -1474,11 +1725,25 @@ watch(typing, scrollToBottom);
   padding: 6px 4px;
   border-right: 1px solid var(--border);
 }
-.weather-col:last-child { border-right: none; }
+.weather-col:last-child {
+  border-right: none;
+}
 
-.weather-icon-lg { font-size: 22px; margin-bottom: 4px; }
-.weather-temp { font-size: 0.9rem; font-weight: 800; color: var(--text-primary); }
-.weather-label { font-size: 0.62rem; color: var(--text-muted); margin-top: 2px; }
+.weather-icon-lg {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+.weather-temp {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.weather-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  letter-spacing: 0.05em;
+}
 
 .weather-warning {
   margin-top: 8px;
@@ -1510,12 +1775,22 @@ watch(typing, scrollToBottom);
   background: var(--text-muted);
   animation: typing-bounce 1.2s ease-in-out infinite;
 }
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 @keyframes typing-bounce {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-6px); }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-6px);
+  }
 }
 
 /* ── Quick replies ── */
@@ -1533,7 +1808,9 @@ watch(typing, scrollToBottom);
   padding-bottom: 2px;
   scrollbar-width: none;
 }
-.quick-reply-scroll::-webkit-scrollbar { display: none; }
+.quick-reply-scroll::-webkit-scrollbar {
+  display: none;
+}
 
 .quick-reply-btn {
   padding: 5px 12px;
@@ -1541,7 +1818,7 @@ watch(typing, scrollToBottom);
   border-radius: 20px;
   background: transparent;
   color: #06c755;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -1549,7 +1826,10 @@ watch(typing, scrollToBottom);
   transition: all 0.15s;
   flex-shrink: 0;
 }
-.quick-reply-btn:hover { background: #06c755; color: #fff; }
+.quick-reply-btn:hover {
+  background: #06c755;
+  color: #fff;
+}
 
 /* ── Input bar ── */
 .line-input-bar {
@@ -1578,7 +1858,9 @@ watch(typing, scrollToBottom);
   transition: background 0.15s;
   flex-shrink: 0;
 }
-.input-icon-btn:hover { background: var(--bg-card); }
+.input-icon-btn:hover {
+  background: var(--bg-card);
+}
 
 .line-input {
   flex: 1;
@@ -1592,7 +1874,9 @@ watch(typing, scrollToBottom);
   outline: none;
   transition: border-color 0.15s;
 }
-.line-input:focus { border-color: #06c755; }
+.line-input:focus {
+  border-color: #06c755;
+}
 
 .line-send-btn {
   padding: 8px 16px;
@@ -1600,17 +1884,25 @@ watch(typing, scrollToBottom);
   border-radius: 22px;
   background: var(--border);
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s;
 }
-.line-send-btn.active { background: #06c755; color: #fff; }
+.line-send-btn.active {
+  background: #06c755;
+  color: #fff;
+}
 
 /* ── Transitions ── */
 .slide-down-enter-active,
-.slide-down-leave-active { transition: all 0.25s ease; }
+.slide-down-leave-active {
+  transition: all 0.25s ease;
+}
 .slide-down-enter-from,
-.slide-down-leave-to { opacity: 0; transform: translateY(-8px); }
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
 </style>

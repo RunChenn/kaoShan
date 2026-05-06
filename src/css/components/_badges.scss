@@ -1,0 +1,35 @@
+/* ── Badge ───────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge-low {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--risk-low);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+}
+.badge-mid {
+  background: rgba(251, 146, 60, 0.15);
+  color: var(--risk-mid);
+  border: 1px solid rgba(251, 146, 60, 0.25);
+}
+.badge-high {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--risk-high);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.badge-sos {
+  background: rgba(185, 28, 28, 0.18);
+  color: var(--risk-sos);
+  border: 1px solid rgba(185, 28, 28, 0.3);
+}
+

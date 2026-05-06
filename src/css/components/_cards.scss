@@ -1,0 +1,44 @@
+// ─── Card System ──────────────────────────────────────────
+.hiking-card {
+  border-radius: 20px !important;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition:
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform  0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hiking-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.glass-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--shadow-md), 0 1px 0 rgba(255,255,255,0.08) inset;
+}
+/* ── Card ────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.card-sm {
+  border-radius: 12px;
+  padding: 12px;
+}
+.card-lg {
+  border-radius: 20px;
+  padding: 20px;
+}
+

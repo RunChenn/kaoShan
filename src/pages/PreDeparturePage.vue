@@ -1,7 +1,11 @@
 <template>
   <!-- Voice Overlay -->
   <Teleport to="body">
-    <div v-if="voiceOverlay" class="voice-overlay" @click.self="closeVoiceOverlay">
+    <div
+      v-if="voiceOverlay"
+      class="voice-overlay"
+      @click.self="closeVoiceOverlay"
+    >
       <div class="voice-overlay-panel">
         <!-- Recording phase -->
         <template v-if="overlayPhase === 'recording'">
@@ -17,10 +21,16 @@
           <div class="voice-overlay-live">
             <span class="voice-final-text">{{ overlayFinal }}</span>
             <span class="voice-interim-text">{{ overlayLive }}</span>
-            <span v-if="!overlayFinal && !overlayLive" class="voice-placeholder">請說話...</span>
+            <span v-if="!overlayFinal && !overlayLive" class="voice-placeholder"
+              >請說話...</span
+            >
           </div>
-          <button class="voice-stop-btn" @click="stopOverlayRecording">停止錄音</button>
-          <button class="voice-cancel-link" @click="closeVoiceOverlay">取消</button>
+          <button class="voice-stop-btn" @click="stopOverlayRecording">
+            停止錄音
+          </button>
+          <button class="voice-cancel-link" @click="closeVoiceOverlay">
+            取消
+          </button>
         </template>
 
         <!-- Confirming phase -->
@@ -34,7 +44,9 @@
             placeholder="（可直接編輯文字）"
           />
           <div class="voice-confirm-actions">
-            <button class="voice-btn-secondary" @click="retryOverlayRecording">重錄</button>
+            <button class="voice-btn-secondary" @click="retryOverlayRecording">
+              重錄
+            </button>
             <button
               class="voice-btn-primary"
               :disabled="!overlayFinal.trim()"
@@ -65,27 +77,46 @@
     <!-- ── Sidebar ── -->
     <aside class="p1-sidebar">
       <!-- LINE AI 路線諮詢 -->
-      <div class="pre-line-panel line-page" :data-theme="appStore.config.theme">
+      <div
+        class="pre-line-panel line-page"
+        :class="{ 'line-panel-collapsed': chatCollapsed }"
+        :data-theme="appStore.config.theme"
+      >
         <div class="line-header">
           <div class="line-header-bot">
             <div class="line-bot-avatar">⛰</div>
             <div>
               <div class="line-bot-name">KaoShan</div>
-              <div class="line-bot-status"><span class="line-dot" />線上服務中</div>
+              <div class="line-bot-status">
+                <span class="line-dot" />線上服務中
+              </div>
             </div>
           </div>
           <div class="line-header-actions">
-            <button class="line-icon-btn" title="撥打電話">📞</button>
-            <button class="line-icon-btn" title="視訊">📹</button>
-            <button
+            <!-- <button class="line-icon-btn" title="撥打電話">📞</button> -->
+            <!-- <button class="line-icon-btn" title="視訊">📹</button> -->
+            <!-- <button
               class="line-icon-btn"
               @click="showContacts = !showContacts"
               :class="{ active: showContacts }"
               title="緊急聯絡人"
             >
               👥
-            </button>
+            </button> -->
           </div>
+        </div>
+
+        <div v-if="chatCollapsed" class="chat-collapsed-strip">
+          <div>
+            <div class="chat-collapsed-title">AI 已完成需求統整</div>
+            <div class="chat-collapsed-sub">
+              {{ demandSummary.goal }} · {{ demandSummary.days }} ·
+              {{ demandSummary.fitness }}
+            </div>
+          </div>
+          <button class="chat-expand-btn" @click="chatCollapsed = false">
+            查看對話
+          </button>
         </div>
 
         <transition name="slide-down">
@@ -99,7 +130,9 @@
                   <div class="contact-rel">{{ c.rel }}</div>
                 </div>
                 <div class="contact-actions">
-                  <button class="contact-btn" @click="notifyContact(c)">📢 通知</button>
+                  <button class="contact-btn" @click="notifyContact(c)">
+                    📢 通知
+                  </button>
                   <button class="contact-btn contact-btn-call">📞</button>
                 </div>
               </div>
@@ -107,7 +140,7 @@
           </div>
         </transition>
 
-        <div class="line-messages" ref="msgListEl">
+        <div v-if="!chatCollapsed" class="line-messages" ref="msgListEl">
           <div class="line-date-divider">今天</div>
 
           <template v-for="m in messages" :key="m.id">
@@ -115,7 +148,9 @@
               <div class="msg-sos-icon">🆘</div>
               <div>
                 <div class="msg-sos-title">SOS 緊急求救訊號已發送</div>
-                <div class="msg-sos-sub">位置：玉山主峰 23.469°N 120.957°E｜{{ m.time }}</div>
+                <div class="msg-sos-sub">
+                  位置：玉山主峰 23.469°N 120.957°E｜{{ m.time }}
+                </div>
               </div>
             </div>
 
@@ -123,16 +158,28 @@
               <div class="msg-bot-icon">⛰</div>
               <div
                 class="route-card"
-                :class="{ 'route-card-selected': selectedRoute?.id === cardOf(m).source?.id }"
+                :class="{
+                  'route-card-selected':
+                    selectedRoute?.id === cardOf(m).source?.id,
+                }"
               >
                 <div class="route-card-top">
-                  <span class="route-emoji">{{ cardOf(m).emoji }}</span>
+                  <!-- <span class="route-emoji">{{ cardOf(m).emoji }}</span> -->
                   <div>
                     <div class="route-card-name">{{ cardOf(m).name }}</div>
                     <div class="route-card-region">{{ cardOf(m).region }}</div>
                   </div>
-                  <span :class="['route-diff-badge', `diff-${cardOf(m).difficulty}`]">
-                    {{ { easy: '入門', medium: '中級', hard: '進階' }[cardOf(m).difficulty] }}
+                  <span
+                    :class="[
+                      'route-diff-badge',
+                      `diff-${cardOf(m).difficulty}`,
+                    ]"
+                  >
+                    {{
+                      { easy: '入門', medium: '中級', hard: '進階' }[
+                        cardOf(m).difficulty
+                      ]
+                    }}
                   </span>
                 </div>
                 <div class="route-card-meta">
@@ -140,10 +187,19 @@
                   <span>⬆ {{ cardOf(m).elevation }}</span>
                   <span>⏱ {{ cardOf(m).days }}</span>
                 </div>
-                <div class="route-card-highlight">{{ cardOf(m).highlight }}</div>
+                <div class="route-card-highlight">
+                  {{ cardOf(m).highlight }}
+                </div>
                 <div class="route-card-actions">
-                  <button class="route-action-btn" @click="selectRecommendedRoute(cardOf(m))">
-                    {{ selectedRoute?.id === cardOf(m).source?.id ? '已選擇' : '出發前規劃' }}
+                  <button
+                    class="route-action-btn"
+                    @click="selectRecommendedRoute(cardOf(m))"
+                  >
+                    {{
+                      selectedRoute?.id === cardOf(m).source?.id
+                        ? '已選擇'
+                        : '出發前規劃'
+                    }}
                   </button>
                   <button
                     class="route-action-ghost route-action-btn"
@@ -160,30 +216,47 @@
               <div class="weather-card">
                 <div class="weather-card-title">明日山區天氣預報</div>
                 <div class="weather-cols">
-                  <div v-for="w in weatherData" :key="w.label" class="weather-col">
+                  <div
+                    v-for="w in weatherData"
+                    :key="w.label"
+                    class="weather-col"
+                  >
                     <div class="weather-icon-lg">{{ w.icon }}</div>
                     <div class="weather-temp">{{ w.temp }}</div>
                     <div class="weather-label">{{ w.label }}</div>
                   </div>
                 </div>
-                <div class="weather-warning">⚡ 午後雷陣雨機率 75%，建議 13:00 前下山</div>
+                <div class="weather-warning">
+                  ⚡ 午後雷陣雨機率 75%，建議 13:00 前下山
+                </div>
               </div>
             </div>
 
             <div v-else-if="m.type === 'history-card'" class="msg-row bot">
               <div class="msg-bot-icon">⛰</div>
               <div class="chat-history-card">
-                <div class="chat-history-card-title">{{ (m.cardData as ParsedHistory).name }}</div>
+                <div class="chat-history-card-title">
+                  {{ (m.cardData as ParsedHistory).name }}
+                </div>
                 <div class="chat-history-card-meta">
-                  <span>📏 {{ (m.cardData as ParsedHistory).distanceKm }}km</span>
-                  <span>⬆ {{ (m.cardData as ParsedHistory).elevationGain }}m</span>
+                  <span
+                    >📏 {{ (m.cardData as ParsedHistory).distanceKm }}km</span
+                  >
+                  <span
+                    >⬆ {{ (m.cardData as ParsedHistory).elevationGain }}m</span
+                  >
                   <span>
-                    ⏱ {{ Math.floor((m.cardData as ParsedHistory).durationMin / 60) }}h{{
-                      (m.cardData as ParsedHistory).durationMin % 60
-                    }}m
+                    ⏱
+                    {{
+                      Math.floor(
+                        (m.cardData as ParsedHistory).durationMin / 60,
+                      )
+                    }}h{{ (m.cardData as ParsedHistory).durationMin % 60 }}m
                   </span>
                 </div>
-                <div class="chat-history-card-date">{{ (m.cardData as ParsedHistory).date }}</div>
+                <div class="chat-history-card-date">
+                  {{ (m.cardData as ParsedHistory).date }}
+                </div>
               </div>
             </div>
 
@@ -196,10 +269,14 @@
                 <div class="chat-progress-track">
                   <div
                     class="chat-progress-fill"
-                    :style="{ width: `${(m.cardData as ProgressData).progress}%` }"
+                    :style="{
+                      width: `${(m.cardData as ProgressData).progress}%`,
+                    }"
                   />
                 </div>
-                <div class="chat-progress-pct">{{ (m.cardData as ProgressData).progress }}%</div>
+                <div class="chat-progress-pct">
+                  {{ (m.cardData as ProgressData).progress }}%
+                </div>
               </div>
             </div>
 
@@ -210,14 +287,18 @@
                 <div class="chat-analysis-row">
                   <span>估計體力：</span>
                   <span class="chat-analysis-val">
-                    {{ FITNESS_LABELS[(m.cardData as AnalysisResult).fitnessEstimate] }}（{{
-                      (m.cardData as AnalysisResult).fitnessEstimate
-                    }}/5）
+                    {{
+                      FITNESS_LABELS[
+                        (m.cardData as AnalysisResult).fitnessEstimate
+                      ]
+                    }}（{{ (m.cardData as AnalysisResult).fitnessEstimate }}/5）
                   </span>
                 </div>
                 <div class="chat-analysis-row">
                   <span>表現：</span>
-                  <span class="chat-analysis-val">{{ (m.cardData as AnalysisResult).insight }}</span>
+                  <span class="chat-analysis-val">{{
+                    (m.cardData as AnalysisResult).insight
+                  }}</span>
                 </div>
                 <div class="chat-analysis-insight">
                   {{ (m.cardData as AnalysisResult).recommendation }}
@@ -229,7 +310,10 @@
               <div v-if="m.role === 'bot'" class="msg-bot-icon">⛰</div>
               <div>
                 <div :class="['msg-bubble', `msg-${m.role}`]">{{ m.text }}</div>
-                <div class="msg-time" :style="{ textAlign: m.role === 'user' ? 'right' : 'left' }">
+                <div
+                  class="msg-time"
+                  :style="{ textAlign: m.role === 'user' ? 'right' : 'left' }"
+                >
                   {{ m.time }}
                 </div>
               </div>
@@ -248,7 +332,10 @@
           <div ref="msgEndEl" />
         </div>
 
-        <div v-if="quickReplies.length" class="quick-reply-bar">
+        <div
+          v-if="!chatCollapsed && quickReplies.length"
+          class="quick-reply-bar"
+        >
           <div class="quick-reply-scroll">
             <button
               v-for="q in quickReplies"
@@ -261,10 +348,15 @@
           </div>
         </div>
 
-        <div class="line-input-bar">
+        <div v-if="!chatCollapsed" class="line-input-bar">
           <label class="input-icon-btn" title="上傳 GPX / JSON 紀錄">
             📎
-            <input type="file" accept=".gpx,.json" @change="onFileUpload" style="display: none" />
+            <input
+              type="file"
+              accept=".gpx,.json"
+              @change="onFileUpload"
+              style="display: none"
+            />
           </label>
           <button
             v-if="voiceSupported"
@@ -290,8 +382,98 @@
         </div>
       </div>
 
+      <div
+        v-if="recommendationsVisible"
+        class="card recommendation-panel anim-slide-up"
+      >
+        <div class="section-label">需求統整</div>
+        <div class="demand-grid">
+          <div class="demand-item">
+            <span>目標</span>
+            <strong>{{ demandSummary.goal }}</strong>
+          </div>
+          <div class="demand-item">
+            <span>天數</span>
+            <strong>{{ demandSummary.days }}</strong>
+          </div>
+          <div class="demand-item">
+            <span>體能</span>
+            <strong>{{ demandSummary.fitness }}</strong>
+          </div>
+          <div class="demand-item">
+            <span>風險偏好</span>
+            <strong>{{ demandSummary.risk }}</strong>
+          </div>
+        </div>
+        <div class="demand-note">{{ demandSummary.note }}</div>
+
+        <div class="section-label recommendation-label">推薦路線</div>
+        <div class="recommendation-list">
+          <div
+            v-for="card in recommendedRouteCards"
+            :key="card.source?.id ?? card.name"
+            class="route-card route-card-full"
+            :class="{
+              'route-card-selected': selectedRoute?.id === card.source?.id,
+            }"
+          >
+            <div class="route-card-top">
+              <!-- <span class="route-emoji">{{ card.emoji }}</span> -->
+              <div>
+                <div class="route-card-name">{{ card.name }}</div>
+                <div class="route-card-region">{{ card.region }}</div>
+              </div>
+              <span :class="['route-diff-badge', `diff-${card.difficulty}`]">
+                {{
+                  { easy: '入門', medium: '中級', hard: '進階' }[
+                    card.difficulty
+                  ]
+                }}
+              </span>
+            </div>
+            <div class="route-card-meta">
+              <div class="route-card-meta-item">
+                <div class="route-card-meta-title">距離</div>
+                <div class="route-card-meta-data">{{ card.distance }}</div>
+              </div>
+              <div class="route-card-meta-item">
+                <div class="route-card-meta-title">爬升</div>
+                <div class="route-card-meta-data">{{ card.elevation }}</div>
+              </div>
+              <div class="route-card-meta-item">
+                <div class="route-card-meta-title">預計時間</div>
+                <div class="route-card-meta-data">{{ card.time }}</div>
+              </div>
+              <div class="route-card-meta-item">
+                <div class="route-card-meta-title">天數</div>
+                <div class="route-card-meta-data">{{ card.days }}</div>
+              </div>
+            </div>
+            <div class="route-card-highlight">{{ card.highlight }}</div>
+            <div class="route-card-actions">
+              <button
+                class="route-action-btn"
+                @click="selectRecommendedRoute(card)"
+              >
+                {{
+                  selectedRoute?.id === card.source?.id
+                    ? '已選擇'
+                    : '選擇此路線'
+                }}
+              </button>
+              <button
+                class="route-action-ghost route-action-btn"
+                @click="askMoreAboutRoute(card)"
+              >
+                了解更多
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 裝備清單 -->
-      <div class="card">
+      <div v-if="planningRevealed" class="card anim-slide-up">
         <div
           style="
             display: flex;
@@ -304,23 +486,34 @@
           <span
             style="font-size: 0.78rem; font-weight: 700"
             :style="{
-              color: gearCount === 10 ? 'var(--risk-low)' : 'var(--text-muted)',
+              color:
+                gearItems.length > 0 && gearCount === gearItems.length
+                  ? 'var(--risk-low)'
+                  : 'var(--text-muted)',
             }"
-            >{{ gearCount }}/10</span
+            >{{ gearCount }}/{{ gearItems.length }}</span
           >
         </div>
-        <div class="gear-grid">
+        <div class="gear-add-row">
+          <input
+            v-model="newGearLabel"
+            class="gear-add-input"
+            placeholder="新增裝備，例如：手套"
+            @keydown.enter="addCustomGear"
+          />
+          <button class="gear-add-btn" @click="addCustomGear">新增</button>
+        </div>
+        <div v-if="gearItems.length === 0" class="gear-empty">
+          尚未建立裝備清單。可自行新增，或使用 AI 裝備辨識自動加入。
+        </div>
+        <div v-else class="gear-grid">
           <div
-            v-for="(item, i) in GEAR_ITEMS"
+            v-for="(item, i) in gearItems"
             :key="item.id"
             :class="['gear-item', 'stagger-item', { checked: gear[item.id] }]"
             :style="{ animationDelay: `${i * 0.03}s` }"
             @click="gear[item.id] = !gear[item.id]"
           >
-            <span class="gear-icon">{{ item.icon }}</span>
-            <span style="font-size: 0.78rem; line-height: 1.2">{{
-              item.label
-            }}</span>
             <div class="gear-check">
               <svg
                 v-if="gear[item.id]"
@@ -337,12 +530,30 @@
                 />
               </svg>
             </div>
+            <span class="gear-icon">{{ item.icon }}</span>
+            <span style="font-size: 0.78rem; line-height: 1.2">{{
+              item.label
+            }}</span>
+            <button
+              class="gear-remove-btn"
+              title="刪除裝備"
+              @click.stop="removeGear(item.id)"
+            >
+              <span class="material-icons">delete</span>
+            </button>
           </div>
         </div>
+        <button
+          class="gear-assess-btn"
+          :disabled="gearItems.length === 0"
+          @click="assessGearList"
+        >
+          AI 評估清單
+        </button>
       </div>
 
       <!-- AI 裝備辨識 -->
-      <div class="card">
+      <div v-if="planningRevealed" class="card anim-slide-up">
         <div class="section-label">AI 裝備辨識（YOLOv8）</div>
         <div
           class="yolo-area"
@@ -381,7 +592,7 @@
                 margin-bottom: 6px;
               "
             >
-              辨識完成，已自動勾選 4 項
+              辨識完成，已自動加入或勾選 {{ yoloItems.length }} 項
             </div>
             <div class="yolo-result">
               <span v-for="it in yoloItems" :key="it.label" class="yolo-chip"
@@ -390,10 +601,32 @@
             </div>
           </div>
         </div>
+        <div v-if="gearAssessment" class="gear-assessment-card">
+          <div
+            class="gear-score-ring"
+            :style="{ '--score': gearAssessment.score }"
+          >
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <circle class="gear-score-track" cx="48" cy="48" r="40" />
+              <circle class="gear-score-bar" cx="48" cy="48" r="40" />
+            </svg>
+            <div class="gear-score-label">
+              <strong>{{ gearAssessment.score }}</strong>
+              <span>分</span>
+            </div>
+          </div>
+          <div class="gear-assessment-copy">
+            <div class="gear-assessment-title">{{ gearAssessment.level }}</div>
+            <div class="gear-assessment-text">{{ gearAssessment.summary }}</div>
+            <ul class="gear-assessment-list">
+              <li v-for="tip in gearAssessment.tips" :key="tip">{{ tip }}</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <!-- 天氣 -->
-      <div class="card">
+      <div v-if="planningRevealed" class="card anim-slide-up">
         <div class="section-label">明日天氣</div>
         <div class="weather-cols">
           <div v-for="w in weather" :key="w.label" class="weather-col">
@@ -426,14 +659,15 @@
           <div class="route-label-pill">
             <span>{{ selectedRoute.emoji }}</span>
             <span>{{ selectedRoute.name }}</span>
-            <span :class="['badge', `badge-${selectedRoute.risk}`]">{{
-              riskLabel[selectedRoute.risk]
-            }}</span>
+            <span
+              :class="[
+                'route-diff-badge',
+                `diff-${routeDifficulty(selectedRoute)}`,
+              ]"
+              >{{ routeDifficultyLabel(selectedRoute) }}</span
+            >
           </div>
-          <button
-            class="btn btn-primary"
-            @click="router.push('/active')"
-          >
+          <button class="btn btn-primary" @click="router.push('/active')">
             開始登山
           </button>
         </div>
@@ -452,11 +686,11 @@ import MapPhase1 from 'src/components/MapPhase1.vue';
 import {
   FITNESS_LABELS,
   GEAR_ITEMS,
+  ROUTES,
   getRecommendations,
+  type GearItem,
   type RecommendedRoute,
-  type UserProfile,
 } from 'src/data/hikingRoutes';
-import { api } from 'src/boot/axios';
 import { useAppStore } from 'src/stores/app';
 import { useAuthStore } from 'src/stores/auth';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
@@ -493,6 +727,7 @@ interface RouteCard {
   difficulty: 'easy' | 'medium' | 'hard';
   distance: string;
   elevation: string;
+  time: string;
   days: string;
   highlight: string;
   source?: RecommendedRoute;
@@ -501,7 +736,14 @@ interface RouteCard {
 interface Message {
   id: number;
   role: 'bot' | 'user';
-  type: 'text' | 'sos' | 'route-card' | 'weather-card' | 'history-card' | 'analysis-progress' | 'analysis-card';
+  type:
+    | 'text'
+    | 'sos'
+    | 'route-card'
+    | 'weather-card'
+    | 'history-card'
+    | 'analysis-progress'
+    | 'analysis-card';
   text?: string;
   card?: RouteCard;
   time: string;
@@ -513,13 +755,39 @@ interface QuickReply {
   action: string;
 }
 
+interface DemandSummary {
+  goal: string;
+  days: string;
+  fitness: string;
+  risk: string;
+  note: string;
+}
+
+interface GearAssessment {
+  score: number;
+  level: string;
+  summary: string;
+  tips: string[];
+}
+
 // ── LINE Chatbox ─────────────────────────────────
 const msgListEl = ref<HTMLDivElement>();
 const msgEndEl = ref<HTMLDivElement>();
 const inputText = ref('');
 const typing = ref(false);
 const showContacts = ref(false);
+const chatCollapsed = ref(false);
+const recommendationsVisible = ref(false);
+const planningRevealed = ref(false);
 const historyContext = ref('');
+const recommendedRouteCards = ref<RouteCard[]>([]);
+const demandSummary = ref<DemandSummary>({
+  goal: '尚未建立',
+  days: '待確認',
+  fitness: '待確認',
+  risk: '待確認',
+  note: '完成 AI 對話後，這裡會整理本次登山需求與推薦路線。',
+});
 
 function nowTime() {
   return new Date().toLocaleTimeString('zh-TW', {
@@ -551,18 +819,154 @@ function cardOf(m: Message): RouteCard {
   return m.card!;
 }
 
+function showPlanningTools() {
+  planningRevealed.value = true;
+}
+
+function buildDemandSummary(msg: string): DemandSummary {
+  return {
+    goal: /新手|第一次|入門/.test(msg)
+      ? '新手友善路線'
+      : /百岳|挑戰|進階/.test(msg)
+        ? '進階挑戰路線'
+        : '出發前路線規劃',
+    days: /兩天|2天/.test(msg)
+      ? '2 天 1 夜'
+      : /三天|3天/.test(msg)
+        ? '3 天 2 夜'
+        : '1 日行程',
+    fitness: /進階|挑戰|百岳/.test(msg)
+      ? '良好，可接受較長爬升'
+      : /體能|分析|GPX|紀錄/.test(msg)
+        ? '依上傳紀錄估算：普通至良好'
+        : '普通，優先控制負荷',
+    risk: /陡|挑戰|百岳/.test(msg) ? '可接受中風險' : '偏好低風險',
+    note: '假資料模式：先以天數、體能、坡度接受度與天氣風險篩選，選定路線後再展開裝備與天氣檢查。',
+  };
+}
+
+function publishRouteRecommendations(
+  routes: RecommendedRoute[],
+  sourceMessage: string,
+) {
+  demandSummary.value = buildDemandSummary(sourceMessage);
+  recommendedRouteCards.value = routes.slice(0, 3).map(toRouteCard);
+  recommendationsVisible.value = true;
+  chatCollapsed.value = true;
+  messages.value.push({
+    id: Date.now() + 2,
+    role: 'bot',
+    type: 'text',
+    text: '我已完成需求統整，推薦路線已整理在下方區塊。請先選擇一條路線，再進入裝備與天氣檢查。',
+    time: nowTime(),
+  });
+  quickReplies.value = [];
+}
+
+async function replyWithMockAi(msg: string) {
+  await sleep(650);
+  typing.value = false;
+
+  if (/裝備|清單|gear/i.test(msg)) {
+    if (!selectedRoute.value) {
+      const routes = getRecommendations({
+        age: 28,
+        fitness: 2,
+        experience: 'beginner',
+        slopeComfort: 2,
+        days: 1,
+      });
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        text: '我會先幫你整理路線需求。選定路線後，才會展開對應的裝備清單、AI 裝備辨識與明日天氣。',
+        time: nowTime(),
+      });
+      setTimeout(() => publishRouteRecommendations(routes, msg), 500);
+      return;
+    }
+    showPlanningTools();
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      text: '我已把出發前檢查區打開。先確認登山鞋、雨衣、頭燈、保暖層、水與離線地圖；如果要快速檢查裝備，可以點下面的 AI 裝備辨識。',
+      time: nowTime(),
+    });
+    quickReplies.value = [
+      { label: '查詢明日天氣', action: 'weather' },
+      { label: '推薦路線', action: 'plan' },
+    ];
+    return;
+  }
+
+  if (/體能|分析|GPX|紀錄/i.test(msg) || historyContext.value) {
+    const routes = getRecommendations({
+      age: 32,
+      fitness: 3,
+      experience: 'beginner',
+      slopeComfort: 2,
+      days: 1,
+    });
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      text: '我先用示範體能資料幫你估算：目前適合 1 日、低到中風險、爬升不要太連續的路線。接下來可以看推薦路線與出發前檢查。',
+      time: nowTime(),
+    });
+    setTimeout(() => publishRouteRecommendations(routes, msg), 500);
+    return;
+  }
+
+  const routes = getRecommendations({
+    age: 28,
+    fitness: /進階|挑戰|百岳|兩天|2天/.test(msg) ? 4 : 2,
+    experience: /新手|第一次|入門/.test(msg) ? 'beginner' : 'experienced',
+    slopeComfort: /陡|挑戰|百岳/.test(msg) ? 4 : 2,
+    days: /兩天|2天|三天|3天/.test(msg) ? 2 : 1,
+  });
+  messages.value.push({
+    id: Date.now() + 1,
+    role: 'bot',
+    type: 'text',
+    text: '收到。我會先用假資料模擬 AI 規劃流程：依照你的需求，先抓「行程天數、體能負荷、坡度接受度、天氣風險」四個條件來篩選。',
+    time: nowTime(),
+  });
+  setTimeout(
+    () =>
+      publishRouteRecommendations(
+        routes.length ? routes : ROUTES.slice(0, 3),
+        msg,
+      ),
+    650,
+  );
+}
+
 async function sendUserMsg(text: string, clearInput = true) {
   const msg = text.trim();
   if (!msg) return;
 
-  messages.value.push({ id: Date.now(), role: 'user', type: 'text', text: msg, time: nowTime() });
+  messages.value.push({
+    id: Date.now(),
+    role: 'user',
+    type: 'text',
+    text: msg,
+    time: nowTime(),
+  });
   if (clearInput) inputText.value = '';
   quickReplies.value = [];
   typing.value = true;
 
   if (/sos|求救|緊急/i.test(msg)) {
     typing.value = false;
-    messages.value.push({ id: Date.now(), role: 'bot', type: 'sos', time: nowTime() });
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'sos',
+      time: nowTime(),
+    });
     setTimeout(() => {
       messages.value.push({
         id: Date.now() + 1,
@@ -578,7 +982,12 @@ async function sendUserMsg(text: string, clearInput = true) {
 
   if (/天氣|氣象|下雨/.test(msg)) {
     typing.value = false;
-    messages.value.push({ id: Date.now(), role: 'bot', type: 'weather-card', time: nowTime() });
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'weather-card',
+      time: nowTime(),
+    });
     setTimeout(() => {
       messages.value.push({
         id: Date.now() + 1,
@@ -595,79 +1004,7 @@ async function sendUserMsg(text: string, clearInput = true) {
     return;
   }
 
-  // Build messages for API (only text-type messages)
-  const apiMessages = messages.value
-    .filter((m) => m.type === 'text' && m.text)
-    .map((m) => ({
-      role: m.role === 'bot' ? 'assistant' : 'user',
-      content: m.text!,
-    }));
-
-  try {
-    const res = await api.post('/chat', {
-      messages: apiMessages,
-      history_context: historyContext.value,
-    });
-
-    const { reply, ready, extracted_profile } = res.data as {
-      reply: string;
-      ready: boolean;
-      extracted_profile: Record<string, unknown> | null;
-    };
-
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'bot',
-      type: 'text',
-      text: reply,
-      time: nowTime(),
-    });
-
-    if (ready && extracted_profile) {
-      const userProfile = extracted_profile as unknown as UserProfile;
-      const routes = getRecommendations(userProfile);
-      setTimeout(() => {
-        messages.value.push({
-          id: Date.now() + 2,
-          role: 'bot',
-          type: 'text',
-          text: '根據您的資料，以下是我為您推薦的路線 👇',
-          time: nowTime(),
-        });
-        routes.slice(0, 3).forEach((r, i) => {
-          setTimeout(() => {
-            messages.value.push({
-              id: Date.now() + 10 + i,
-              role: 'bot',
-              time: nowTime(),
-              type: 'route-card',
-              card: toRouteCard(r),
-            });
-          }, i * 400);
-        });
-        setTimeout(() => {
-          quickReplies.value = [
-            { label: '查詢天氣', action: 'weather' },
-            { label: '重新規劃', action: 'plan' },
-            { label: '裝備清單', action: 'gear' },
-          ];
-        }, routes.length * 400 + 500);
-      }, 400);
-    } else {
-      quickReplies.value = QUICK_IDLE;
-    }
-  } catch (_err) {
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'bot',
-      type: 'text',
-      text: 'AI 服務暫時無法回應，請稍後再試。',
-      time: nowTime(),
-    });
-    quickReplies.value = QUICK_IDLE;
-  } finally {
-    typing.value = false;
-  }
+  await replyWithMockAi(msg);
 }
 
 function handleQuickReply(q: QuickReply) {
@@ -687,17 +1024,31 @@ function toRouteCard(route: RecommendedRoute): RouteCard {
     emoji: route.emoji,
     name: route.name,
     region: route.region,
-    difficulty: route.risk === 'low' ? 'easy' : route.risk === 'mid' ? 'medium' : 'hard',
+    difficulty: routeDifficulty(route),
     distance: route.distance,
     elevation: route.elevation,
+    time: route.time,
     days: `${route.minDays}天`,
     highlight: route.highlight,
     source: route,
   };
 }
 
+function routeDifficulty(route: RecommendedRoute): 'easy' | 'medium' | 'hard' {
+  return route.risk === 'low'
+    ? 'easy'
+    : route.risk === 'mid'
+      ? 'medium'
+      : 'hard';
+}
+
+function routeDifficultyLabel(route: RecommendedRoute) {
+  return { easy: '入門', medium: '中級', hard: '進階' }[routeDifficulty(route)];
+}
+
 function selectRecommendedRoute(card: RouteCard) {
   if (!card.source) return;
+  showPlanningTools();
   selectedRoute.value = card.source;
   messages.value.push({
     id: Date.now(),
@@ -708,8 +1059,31 @@ function selectRecommendedRoute(card: RouteCard) {
   });
 }
 
+function askMoreAboutRoute(card: RouteCard) {
+  chatCollapsed.value = false;
+  messages.value.push({
+    id: Date.now(),
+    role: 'user',
+    type: 'text',
+    text: `告訴我更多關於 ${card.name}`,
+    time: nowTime(),
+  });
+  messages.value.push({
+    id: Date.now() + 1,
+    role: 'bot',
+    type: 'text',
+    text: `${card.name} 的重點是 ${card.highlight}。距離 ${card.distance}、爬升 ${card.elevation}，建議先確認天氣與裝備，再決定是否開始登山。`,
+    time: nowTime(),
+  });
+}
+
 // ── GPX / JSON Upload ────────────────────────────
-function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+function haversine(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -768,7 +1142,8 @@ function parseGpx(text: string): ParsedHistory {
 function analyzeHistory(record: ParsedHistory): AnalysisResult {
   const speedKmh =
     record.durationMin > 0 ? record.distanceKm / (record.durationMin / 60) : 2;
-  const elevPerKm = record.distanceKm > 0 ? record.elevationGain / record.distanceKm : 0;
+  const elevPerKm =
+    record.distanceKm > 0 ? record.elevationGain / record.distanceKm : 0;
 
   let fitnessEstimate = 3;
   if (speedKmh > 3 && elevPerKm > 200) fitnessEstimate = 5;
@@ -880,41 +1255,10 @@ async function onFileUpload(e: Event) {
   // Set history context
   historyContext.value = `使用者上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，時間 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分。`;
 
-  // Auto-trigger Claude analysis
+  // Auto-trigger mock analysis
   await sleep(800);
   typing.value = true;
-  try {
-    const res = await api.post('/chat', {
-      messages: [
-        {
-          role: 'user',
-          content: `我上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，花費 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分鐘。請幫我分析體能表現並給建議。`,
-        },
-      ],
-      history_context: historyContext.value,
-    });
-    messages.value.push({
-      id: Date.now() + 4,
-      role: 'bot',
-      type: 'text',
-      text: (res.data as { reply: string }).reply,
-      time: nowTime(),
-    });
-  } catch (_) {
-    messages.value.push({
-      id: Date.now() + 4,
-      role: 'bot',
-      type: 'text',
-      text: `根據您的紀錄，${record.name} 距離 ${record.distanceKm}km、爬升 ${record.elevationGain}m，體能表現${record.elevationGain > 500 ? '相當不錯' : '良好'}！請問接下來想規劃什麼樣的路線？`,
-      time: nowTime(),
-    });
-  } finally {
-    typing.value = false;
-    quickReplies.value = [
-      { label: '規劃路線', action: 'plan' },
-      { label: '裝備清單', action: 'gear' },
-    ];
-  }
+  await replyWithMockAi('分析我的體能');
 }
 
 function sleep(ms: number) {
@@ -931,8 +1275,13 @@ let overlayRecognition: SpeechRecognition | null = null;
 
 onMounted(() => {
   const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-    (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
+      .SpeechRecognition ||
+    (
+      window as typeof window & {
+        webkitSpeechRecognition?: typeof SpeechRecognition;
+      }
+    ).webkitSpeechRecognition;
   if (SR) voiceSupported.value = true;
   scrollToBottom();
 });
@@ -948,8 +1297,13 @@ function openVoiceOverlay() {
 
 function startOverlayRecognition() {
   const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-    (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
+      .SpeechRecognition ||
+    (
+      window as typeof window & {
+        webkitSpeechRecognition?: typeof SpeechRecognition;
+      }
+    ).webkitSpeechRecognition;
   if (!SR) return;
 
   if (overlayRecognition) {
@@ -1062,16 +1416,105 @@ watch(typing, scrollToBottom);
 
 // ── Gear & route state ───────────────────────────
 const gear = reactive<Record<string, boolean>>({});
-const gearCount = computed(() => Object.values(gear).filter(Boolean).length);
+const gearItems = ref<GearItem[]>([]);
+const newGearLabel = ref('');
+const gearAssessment = ref<GearAssessment | null>(null);
+const gearCount = computed(
+  () => gearItems.value.filter((item) => gear[item.id]).length,
+);
+
+function normalizeGearId(label: string) {
+  return `custom-${label.trim().toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+}
+
+function addGearItem(item: GearItem, checked = false) {
+  const existing = gearItems.value.find(
+    (g) => g.id === item.id || g.label === item.label,
+  );
+  if (!existing) {
+    gearItems.value.push(item);
+  }
+  if (checked) {
+    gear[existing?.id ?? item.id] = true;
+  }
+  gearAssessment.value = null;
+}
+
+function addCustomGear() {
+  const label = newGearLabel.value.trim();
+  if (!label) return;
+  addGearItem({ id: normalizeGearId(label), label, icon: '🎒' });
+  newGearLabel.value = '';
+}
+
+function removeGear(id: string) {
+  gearItems.value = gearItems.value.filter((item) => item.id !== id);
+  delete gear[id];
+  gearAssessment.value = null;
+}
+
+function assessGearList() {
+  const requiredIds = [
+    'water',
+    'food',
+    'rain',
+    'headlamp',
+    'firstaid',
+    'warm',
+    'map',
+  ];
+  const currentIds = new Set(gearItems.value.map((item) => item.id));
+  const checkedIds = new Set(
+    gearItems.value.filter((item) => gear[item.id]).map((item) => item.id),
+  );
+  const requiredPresent = requiredIds.filter((id) => currentIds.has(id)).length;
+  const requiredChecked = requiredIds.filter((id) => checkedIds.has(id)).length;
+  const checkedRatio = gearItems.value.length
+    ? gearCount.value / gearItems.value.length
+    : 0;
+  const coverageScore = Math.round((requiredPresent / requiredIds.length) * 45);
+  const readinessScore = Math.round(
+    (requiredChecked / requiredIds.length) * 40,
+  );
+  const checkScore = Math.round(checkedRatio * 15);
+  const score = Math.min(100, coverageScore + readinessScore + checkScore);
+  const missingRequired = requiredIds
+    .filter((id) => !currentIds.has(id))
+    .map((id) => GEAR_ITEMS.find((item) => item.id === id)?.label)
+    .filter(Boolean) as string[];
+  const uncheckedRequired = requiredIds
+    .filter((id) => currentIds.has(id) && !checkedIds.has(id))
+    .map((id) => GEAR_ITEMS.find((item) => item.id === id)?.label)
+    .filter(Boolean) as string[];
+  const level =
+    score >= 85
+      ? '準備充足'
+      : score >= 65
+        ? '基本可出發'
+        : score >= 40
+          ? '需要補強'
+          : '不建議出發';
+  const tips = [
+    missingRequired.length
+      ? `建議補上：${missingRequired.slice(0, 4).join('、')}${missingRequired.length > 4 ? '等' : ''}。`
+      : '必備項目已列入清單。',
+    uncheckedRequired.length
+      ? `尚未確認：${uncheckedRequired.slice(0, 4).join('、')}。`
+      : '必備項目皆已勾選確認。',
+    selectedRoute.value?.risk === 'high'
+      ? '高風險路線請額外確認保暖、雨具、離線地圖與緊急通訊。'
+      : '出發前再檢查天氣與水量，避免午後風險。',
+  ];
+
+  gearAssessment.value = {
+    score,
+    level,
+    summary: `目前 ${gearCount.value}/${gearItems.value.length} 項已確認，必備裝備覆蓋 ${requiredPresent}/${requiredIds.length} 項。`,
+    tips,
+  };
+}
 
 const selectedRoute = ref<RecommendedRoute | null>(null);
-
-const riskLabel: Record<string, string> = {
-  low: '低風險',
-  mid: '中風險',
-  high: '高風險',
-  sos: '極高風險',
-};
 
 // ── YOLO scanner ──────────────────────────────────
 const scanning = ref(false);
@@ -1084,7 +1527,10 @@ function doScan() {
   setTimeout(() => {
     const autoItems = ['boots', 'poles', 'headlamp', 'rain'];
     autoItems.forEach((k) => {
-      gear[k] = true;
+      const sourceItem = GEAR_ITEMS.find((item) => item.id === k);
+      if (sourceItem) {
+        addGearItem(sourceItem, true);
+      }
     });
     yoloItems.value = [
       { label: '登山鞋', conf: '97%' },
@@ -1161,15 +1607,29 @@ const weather = [
   height: 20px;
 }
 
-.voice-bar-lg:nth-child(1) { animation-duration: 0.7s; }
-.voice-bar-lg:nth-child(2) { animation-duration: 0.9s; }
-.voice-bar-lg:nth-child(3) { animation-duration: 0.6s; }
-.voice-bar-lg:nth-child(4) { animation-duration: 1.0s; }
-.voice-bar-lg:nth-child(5) { animation-duration: 0.75s; }
+.voice-bar-lg:nth-child(1) {
+  animation-duration: 0.7s;
+}
+.voice-bar-lg:nth-child(2) {
+  animation-duration: 0.9s;
+}
+.voice-bar-lg:nth-child(3) {
+  animation-duration: 0.6s;
+}
+.voice-bar-lg:nth-child(4) {
+  animation-duration: 1s;
+}
+.voice-bar-lg:nth-child(5) {
+  animation-duration: 0.75s;
+}
 
 @keyframes voice-bounce {
-  from { height: 8px; }
-  to { height: 52px; }
+  from {
+    height: 8px;
+  }
+  to {
+    height: 52px;
+  }
 }
 
 /* Live text area */
@@ -1517,7 +1977,7 @@ const weather = [
   max-width: 340px;
   padding: 7px 10px;
   border-radius: 12px;
-  font-size: 0.78rem;
+  font-size: 1rem;
   line-height: 1.5;
   white-space: pre-line;
 }
@@ -1657,7 +2117,9 @@ const weather = [
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: border-color 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .upload-pill:hover {
@@ -1707,7 +2169,9 @@ const weather = [
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s, transform 0.15s;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
   box-shadow: 0 2px 8px rgba(6, 199, 85, 0.4);
 }
 
@@ -1751,7 +2215,9 @@ const weather = [
   border-radius: 12px;
   border-bottom-left-radius: 4px;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   min-width: 220px;
 }
 
@@ -1821,7 +2287,301 @@ const weather = [
   background: var(--bg-base);
   border: 1px solid var(--border);
   border-radius: 16px;
+}
+
+.line-panel-collapsed {
+  min-height: auto;
+  max-height: none;
+}
+
+.chat-collapsed-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-collapsed-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+
+.chat-collapsed-sub {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.chat-expand-btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid #06c755;
+  border-radius: 16px;
+  background: transparent;
+  color: #06c755;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.recommendation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.demand-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.demand-item {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+
+.demand-item span {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.demand-item strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+[data-theme='light'] .demand-item strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.demand-note {
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: rgba(6, 199, 85, 0.08);
+  border: 1px solid rgba(6, 199, 85, 0.22);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.recommendation-label {
+  margin-top: 8px;
+}
+
+.recommendation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.route-card-full {
+  max-width: none;
+  position: relative;
+  display: block;
+  padding: 16px;
+  border: 1px solid rgba(6, 199, 85, 0.18);
+  border-radius: 16px;
+  border-bottom-left-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(6, 199, 85, 0.08), rgba(200, 144, 42, 0.055)),
+    var(--bg-card);
+  box-shadow:
+    0 10px 28px rgba(4, 16, 28, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
   overflow: hidden;
+  transition:
+    transform 0.2s var(--ease-out),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.route-card-full::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #06c755, #c8902a);
+}
+
+.route-card-full::after {
+  content: '';
+  position: absolute;
+  top: -48px;
+  right: -48px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(6, 199, 85, 0.08);
+  pointer-events: none;
+}
+
+.route-card-full:hover {
+  transform: translateY(-2px);
+  border-color: rgba(6, 199, 85, 0.42);
+  box-shadow:
+    0 16px 38px rgba(4, 16, 28, 0.14),
+    0 0 0 3px rgba(6, 199, 85, 0.08);
+}
+
+.route-card-full.route-card-selected {
+  border-color: #06c755;
+  background:
+    linear-gradient(135deg, rgba(6, 199, 85, 0.14), rgba(6, 199, 85, 0.055)),
+    var(--bg-card);
+  box-shadow:
+    0 16px 40px rgba(6, 199, 85, 0.16),
+    0 0 0 3px rgba(6, 199, 85, 0.12);
+}
+
+.route-card-full .route-card-top {
+  position: relative;
+  z-index: 1;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.route-card-full .route-emoji {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 199, 85, 0.12);
+  border: 1px solid rgba(6, 199, 85, 0.18);
+  font-size: 23px;
+  box-shadow: 0 6px 16px rgba(6, 199, 85, 0.1);
+}
+
+.route-card-full .route-card-name {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.route-card-full .route-card-region {
+  margin-top: 3px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.route-card-full .route-diff-badge {
+  position: relative;
+  z-index: 1;
+  padding: 4px 9px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.route-card-full .route-card-meta {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.route-card-full .route-card-meta .route-card-meta-item {
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.route-card-full .route-card-meta .route-card-meta-title {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.route-card-full .route-card-meta .route-card-meta-data {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-green);
+  letter-spacing: 0.05em;
+}
+
+.route-card-full .route-card-highlight {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+[data-theme='dark'] .route-card-full .route-card-highlight {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.route-card-full .route-card-actions {
+  position: relative;
+  z-index: 1;
+  gap: 8px;
+}
+
+.route-card-full .route-action-btn {
+  min-height: 38px;
+  border-radius: 11px;
+  font-size: 0.78rem;
+  box-shadow: 0 8px 20px rgba(6, 199, 85, 0.22);
+}
+
+.route-card-full .route-action-ghost {
+  box-shadow: none;
+  background: var(--bg-surface) !important;
+}
+
+@media (max-width: 560px) {
+  .route-card-full .route-card-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .route-card-full .route-card-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .route-card-full .route-card-actions {
+    flex-direction: row;
+  }
 }
 
 .line-header {
@@ -1859,7 +2619,7 @@ const weather = [
 }
 
 .line-bot-status {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.82);
   display: flex;
   align-items: center;
@@ -1877,8 +2637,13 @@ const weather = [
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .line-header-actions {
@@ -2004,7 +2769,7 @@ const weather = [
 
 .line-date-divider {
   text-align: center;
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -2038,7 +2803,7 @@ const weather = [
   max-width: 260px;
   padding: 9px 12px;
   border-radius: 16px;
-  font-size: 0.82rem;
+  font-size: 1rem;
   line-height: 1.6;
   white-space: pre-line;
 }
@@ -2057,7 +2822,7 @@ const weather = [
 }
 
 .msg-time {
-  font-size: 0.6rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: 3px;
 }
@@ -2074,8 +2839,13 @@ const weather = [
 }
 
 @keyframes sos-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }
-  50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  }
 }
 
 .msg-sos-icon {
@@ -2095,13 +2865,14 @@ const weather = [
 }
 
 .route-card {
-  max-width: 280px;
+  /* max-width: 280px; */
+  max-width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 16px;
   border-bottom-left-radius: 4px;
   overflow: hidden;
-  padding: 12px;
+  padding: 12px 12px 12px 16px;
 }
 
 .route-card-selected {
@@ -2138,7 +2909,7 @@ const weather = [
   margin-left: auto;
   padding: 2px 8px;
   border-radius: 20px;
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -2171,7 +2942,7 @@ const weather = [
 }
 
 .route-card-highlight {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 10px;
@@ -2179,6 +2950,7 @@ const weather = [
 
 .route-card-actions {
   display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
@@ -2292,7 +3064,7 @@ const weather = [
   border-radius: 20px;
   background: transparent;
   color: #06c755;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -2361,7 +3133,7 @@ const weather = [
   border-radius: 22px;
   background: var(--border);
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;

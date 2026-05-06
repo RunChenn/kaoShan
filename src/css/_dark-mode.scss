@@ -1,0 +1,69 @@
+// ─── Dark Mode ────────────────────────────────────────────
+.body--dark {
+  background-color: var(--surface-deep) !important;
+
+  .q-page {
+    background: var(--surface-base);
+  }
+
+  .hiking-card {
+    background: var(--surface-raised) !important;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.45),
+      0 1px 0 rgba(255, 255, 255, 0.05) inset !important;
+    border: 1px solid rgba(255, 255, 255, 0.055) !important;
+  }
+
+  .ai-panel {
+    background: var(--surface-raised) !important;
+    border-color: rgba(26, 140, 85, 0.35) !important;
+  }
+
+  .fatigue-card {
+    background: var(--surface-raised) !important;
+  }
+
+  .family-banner {
+    background: var(--surface-raised) !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+  }
+
+  .deviation-banner {
+    background: #6B0E0E !important;
+  }
+
+  .info-chip {
+    background: rgba(0, 0, 0, 0.82) !important;
+  }
+
+  .bottom-nav-bar {
+    background: rgba(4, 16, 28, 0.92) !important;
+    backdrop-filter: var(--glass-blur);
+  }
+
+  .score-ring-bg {
+    background: var(--surface-float);
+  }
+
+  .weather-card {
+    background: var(--surface-raised);
+  }
+
+  .flex-card {
+    background: var(--surface-raised);
+    border-color: rgba(255,255,255,0.06);
+  }
+
+  .q-field--outlined .q-field__control {
+    background: var(--surface-float) !important;
+  }
+
+  .q-btn-toggle {
+    background: var(--surface-float) !important;
+  }
+
+  .ai-reason {
+    background: var(--surface-float) !important;
+    color: #c0cfe0 !important;
+  }
+}

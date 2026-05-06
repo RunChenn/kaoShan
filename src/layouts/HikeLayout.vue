@@ -88,7 +88,7 @@ const TABS = [
   { path: '/pre-departure', icon: '⛺', label: '出發前' },
   { path: '/active', icon: '🗺', label: '登山中' },
   { path: '/summary', icon: '📊', label: '登山後' },
-  { path: '/line', icon: '💬', label: 'LINE' },
+  // { path: '/line', icon: '💬', label: 'LINE' },
 ];
 
 function toggleTheme() {
