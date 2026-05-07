@@ -5,6 +5,26 @@ import { ref } from 'vue'
 const liffInitialized = ref(false)
 const POST_LOGIN_REDIRECT_KEY = '__liff_post_login_redirect__'
 const DEFAULT_LIFF_ID = '2009970633-zYGV9XSy'
+const GOOGLE_SCRIPT_ID = 'google-identity-services'
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string
+            callback: (response: { credential?: string }) => void
+            auto_select?: boolean
+            cancel_on_tap_outside?: boolean
+          }) => void
+          prompt: (momentListener?: (notification: unknown) => void) => void
+          disableAutoSelect: () => void
+        }
+      }
+    }
+  }
+}
 
 function getLiffId(): string {
   return import.meta.env.VITE_LIFF_ID || DEFAULT_LIFF_ID
@@ -15,6 +35,32 @@ function getLiffRedirectUri(): string {
   url.search = ''
   url.hash = ''
   return url.toString()
+}
+
+function getGoogleClientId(): string {
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+}
+
+function loadGoogleIdentityScript(): Promise<void> {
+  if (window.google?.accounts?.id) return Promise.resolve()
+
+  return new Promise((resolve, reject) => {
+    const existing = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener('error', () => reject(new Error('Google Identity Services 載入失敗')), { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = GOOGLE_SCRIPT_ID
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Google Identity Services 載入失敗'))
+    document.head.appendChild(script)
+  })
 }
 
 export function useLiff() {
@@ -120,17 +166,71 @@ export function useLiff() {
   }
 
   async function loginWithGoogle(): Promise<void> {
-    // Mock Google 登入
-    auth.setLoggedIn(
-      {
-        userId: 'google_user_001',
-        displayName: '陳小華',
-        pictureUrl: 'https://i.pravatar.cc/150?img=47',
-        statusMessage: '喜歡走步道',
-      },
-      'mock_google_token',
-      'google'
-    )
+    const clientId = getGoogleClientId()
+    if (!clientId) {
+      throw new Error('VITE_GOOGLE_CLIENT_ID 未設定，無法使用 Google 實際登入')
+    }
+
+    await loadGoogleIdentityScript()
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+
+      window.google?.accounts.id.initialize({
+        client_id: clientId,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        callback: async (response) => {
+          if (!response.credential) {
+            if (!settled) {
+              settled = true
+              reject(new Error('Google credential 取得失敗'))
+            }
+            return
+          }
+
+          try {
+            const { data } = await api.post<{
+              jwt_token: string
+              user_id: string
+              display_name: string
+              picture_url?: string | null
+              email?: string | null
+            }>('/auth/google', {
+              credential: response.credential,
+            })
+
+            auth.setLoggedIn(
+              {
+                userId: data.user_id,
+                displayName: data.display_name,
+                pictureUrl: data.picture_url ?? '',
+              },
+              data.jwt_token,
+              'google'
+            )
+            if (!settled) {
+              settled = true
+              resolve()
+            }
+          } catch (e) {
+            if (!settled) {
+              settled = true
+              reject(e)
+            }
+          }
+        },
+      })
+
+      window.google?.accounts.id.prompt(() => {
+        window.setTimeout(() => {
+          if (!settled) {
+            settled = true
+            reject(new Error('Google 登入視窗未完成，請確認第三方 Cookie 或彈窗設定'))
+          }
+        }, 30000)
+      })
+    })
   }
 
   async function logout(): Promise<void> {
@@ -139,6 +239,7 @@ export function useLiff() {
       const liffAPI = await import('@line/liff').then(m => m.default)
       liffAPI.logout()
     }
+    window.google?.accounts.id.disableAutoSelect()
     auth.logout()
   }
 

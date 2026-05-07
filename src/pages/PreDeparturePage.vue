@@ -804,7 +804,7 @@ const messages = ref<Message[]>([
     role: 'bot',
     type: 'text',
     time: nowTime(),
-    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 登山助理\n\n請問您這次想規劃什麼樣的登山行程？告訴我您的年齡、體力和想走幾天，或上傳 GPX 紀錄，我來幫您推薦最適合的路線！`,
+    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
   },
 ]);
 

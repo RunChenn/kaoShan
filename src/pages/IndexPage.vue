@@ -46,7 +46,7 @@
               }}</span>
             </div>
 
-            <q-btn
+            <!-- <q-btn
               unelevated
               size="lg"
               class="full-width line-btn"
@@ -59,9 +59,9 @@
 
             <div class="login-divider">
               <span>或</span>
-            </div>
+            </div> -->
 
-            <q-btn
+            <!-- <q-btn
               unelevated
               size="lg"
               class="full-width google-btn"
@@ -92,10 +92,15 @@
                   d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
                 />
               </svg>
-              使用 Google 登入（可Demo）
-            </q-btn>
+              使用 Google 登入
+            </q-btn> -->
 
-            <button class="guest-btn" @click="handleGuestLogin">
+            <button
+              unelevated
+              size="lg"
+              class="guest-btn full-width line-btn"
+              @click="handleGuestLogin"
+            >
               訪客體驗 →
             </button>
           </div>
@@ -218,7 +223,13 @@ async function handleGoogleLogin() {
   loadingGoogle.value = true;
   try {
     await loginWithGoogle();
-    router.push({ name: 'pre-departure' });
+    if (auth.isLoggedIn) {
+      router.push({ name: 'pre-departure' });
+    }
+  } catch (e) {
+    window.alert(
+      e instanceof Error ? e.message : 'Google 登入失敗，請稍後再試',
+    );
   } finally {
     loadingGoogle.value = false;
   }
@@ -231,7 +242,8 @@ function handleGuestLogin() {
       displayName: '訪客',
       pictureUrl: 'https://i.pravatar.cc/150?img=12',
     },
-    'guest_token'
+    'guest_token',
+    'guest',
   );
   router.push({ name: 'pre-departure' });
 }
