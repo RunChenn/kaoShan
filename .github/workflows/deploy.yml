@@ -30,6 +30,8 @@ jobs:
       run: npm run build
       env:
         QUASAR_PUBLIC_FOLDER: ${{ github.event.repository.name }}
+        VITE_LIFF_ID: ${{ vars.VITE_LIFF_ID }}
+        VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
     - name: Copy index.html to 404.html
       run: cp dist/spa/index.html dist/spa/404.html
