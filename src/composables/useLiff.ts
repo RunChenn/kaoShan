@@ -11,7 +11,7 @@ function getLiffId(): string {
 }
 
 function getLiffRedirectUri(): string {
-  return new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+  return new URL(import.meta.env.VITE_API_BASE_URL, window.location.origin).toString()
 }
 
 export function useLiff() {
