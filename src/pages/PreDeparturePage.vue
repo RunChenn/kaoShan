@@ -697,6 +697,21 @@
           來源：{{ routeWeather.source }}
         </div>
       </div>
+
+      <div v-if="selectedRoute" class="offline-download-card">
+        <div class="offline-download-title">離線下載包</div>
+        <div class="offline-download-desc">
+          會打包路線資料、路線 GPX 軌跡、裝備清單、AI 風險評估與緊急求救資料。
+        </div>
+        <button
+          class="offline-download-btn"
+          :disabled="offlinePackageDownloading"
+          @click="downloadOfflinePackage"
+        >
+          <span class="material-icons">download</span>
+          <span>{{ offlinePackageDownloading ? '建立中...' : '離線下載包' }}</span>
+        </button>
+      </div>
     </aside>
 
     <!-- Map area — only shown after route is selected -->
@@ -919,6 +934,18 @@ interface GpxMapTrack {
   points: [number, number][];
   distanceKm: number;
   elevationGain: number;
+}
+
+interface OfflinePackageMeta {
+  success: boolean;
+  task_id: string;
+  estimated_size_mb: number;
+  includes: Array<{
+    name: string;
+    description: string;
+    estimated_size_mb: number;
+  }>;
+  message: string;
 }
 
 interface ProfileForm {
@@ -2313,6 +2340,7 @@ const weather = [
 
 const routeWeather = ref<RouteWeatherResponse | null>(null);
 const weatherLoading = ref(false);
+const offlinePackageDownloading = ref(false);
 const displayedWeather = computed<WeatherPeriod[]>(() =>
   routeWeather.value?.periods?.length ? routeWeather.value.periods : weather,
 );
@@ -2338,6 +2366,204 @@ async function loadRouteWeather(route: RecommendedRoute) {
     routeWeather.value = null;
   } finally {
     weatherLoading.value = false;
+  }
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildGpxXml(route: RecommendedRoute) {
+  const trackPoints = route.polyline
+    .map(
+      ([lat, lon], index) => `
+        <trkpt lat="${lat}" lon="${lon}">
+          <name>${escapeXml(route.name)}-${index + 1}</name>
+        </trkpt>`,
+    )
+    .join('');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="KaoShan" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${escapeXml(route.name)} GPX</name>
+    <desc>${escapeXml(route.highlight)}</desc>
+  </metadata>
+  <trk>
+    <name>${escapeXml(route.name)} GPX</name>
+    <trkseg>${trackPoints}
+    </trkseg>
+  </trk>
+  </gpx>`;
+}
+
+function encodePdfUcs2(text: string) {
+  let hex = 'FEFF';
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code <= 0xffff) {
+      hex += code.toString(16).padStart(4, '0').toUpperCase();
+    } else {
+      const cp = code - 0x10000;
+      const high = 0xd800 + ((cp >> 10) & 0x3ff);
+      const low = 0xdc00 + (cp & 0x3ff);
+      hex += high.toString(16).padStart(4, '0').toUpperCase();
+      hex += low.toString(16).padStart(4, '0').toUpperCase();
+    }
+  }
+  return hex;
+}
+
+function buildOfflinePackagePdf(
+  route: RecommendedRoute,
+  payload: {
+    meta: OfflinePackageMeta | null;
+    route: Record<string, unknown>;
+    gpx: { file_name: string; format: string; xml: string };
+    gear: { items: Array<{ id: string; label: string; checked: boolean; source: string }>; assessment: GearAssessment | null };
+    ai_risk_assessment: Record<string, unknown>;
+    emergency: { contacts: Array<{ name: string; rel: string }>; numbers: string[]; reminder: string };
+    created_at: string;
+  },
+) {
+  const routeLines = [
+    'KaoShan 離線下載包',
+    '',
+    `路線：${route.name}`,
+    `地區：${route.region}`,
+    `時間：${route.time}`,
+    `距離：${route.distance}`,
+    `坡度：${route.minSlope} 級`,
+    `難度：${routeDifficultyLabel(route)}`,
+    `風險：${route.risk}`,
+    '',
+    '包含內容',
+    '1. 路線資料',
+    '2. 路線 GPX 軌跡',
+    '3. 裝備清單',
+    '4. AI 風險評估',
+    '5. 緊急求救資料',
+    '',
+    `AI 建議：${String((payload.ai_risk_assessment as { weather_advice?: string }).weather_advice ?? '')}`,
+    '',
+    `緊急電話：${payload.emergency.numbers.join(' / ')}`,
+    `建立時間：${payload.created_at}`,
+  ];
+
+  const body = routeLines
+    .map((line) => `<${encodePdfUcs2(line)}> Tj`)
+    .map((line, index) => (index === 0 ? `${line}` : `0 -20 Td\n${line}`))
+    .join('\n');
+
+  const contentStream = `BT\n/F1 12 Tf\n50 790 Td\n${body}\nET`;
+  const contentLength = contentStream.length;
+
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj',
+    '4 0 obj\n<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniGB-UCS2-H /DescendantFonts [6 0 R] >>\nendobj',
+    `5 0 obj\n<< /Length ${contentLength} >>\nstream\n${contentStream}\nendstream\nendobj`,
+    '6 0 obj\n<< /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 0 >> >>\nendobj',
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [0];
+  for (const obj of objects) {
+    offsets.push(pdf.length);
+    pdf += `${obj}\n`;
+  }
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (let i = 1; i <= objects.length; i++) {
+    pdf += `${offsets[i]!.toString().padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
+async function downloadOfflinePackage() {
+  if (!selectedRoute.value) return;
+  offlinePackageDownloading.value = true;
+  try {
+    const userId = auth.profile?.userId ?? 'guest';
+    let meta: OfflinePackageMeta | null = null;
+
+    try {
+      const { data } = await api.post<OfflinePackageMeta>('/offline/package', {
+        route_id: selectedRoute.value.id,
+        user_id: userId,
+      });
+      meta = data;
+    } catch (_) {
+      meta = null;
+    }
+
+    const gpxXml = buildGpxXml(selectedRoute.value);
+    const routeData = {
+      id: selectedRoute.value.id,
+      name: selectedRoute.value.name,
+      region: selectedRoute.value.region,
+      distance: selectedRoute.value.distance,
+      elevation: selectedRoute.value.elevation,
+      time: selectedRoute.value.time,
+      difficulty: routeDifficulty(selectedRoute.value),
+      risk: selectedRoute.value.risk,
+      min_days: selectedRoute.value.minDays,
+      min_fitness: selectedRoute.value.minFitness,
+      min_experience: selectedRoute.value.minExp,
+      min_slope: selectedRoute.value.minSlope,
+      highlight: selectedRoute.value.highlight,
+    };
+    const gearList = gearItems.value.map((item) => ({
+      id: item.id,
+      label: item.label,
+      checked: Boolean(gear[item.id]),
+      source: lastDetectedGearIds.value.has(item.id) ? 'ai-detect' : 'manual',
+    }));
+    const packagePayload = {
+      meta,
+      route: routeData,
+      gpx: {
+        file_name: `${selectedRoute.value.id}.gpx`,
+        format: 'GPX 1.1',
+        xml: gpxXml,
+      },
+      gear: {
+        items: gearList,
+        assessment: gearAssessment.value,
+      },
+      ai_risk_assessment: {
+        weather_advice: weatherAdvice.value,
+        weather_source: routeWeather.value?.source ?? '本機快取',
+        route_weather: routeWeather.value,
+        route_risk: selectedRoute.value.risk,
+        difficulty: routeDifficulty(selectedRoute.value),
+      },
+      emergency: {
+        contacts,
+        numbers: ['119', '110', '112'],
+        reminder: '離線狀態請優先報平安、保留電量、回到可通訊位置後再送出位置。',
+      },
+      created_at: new Date().toISOString(),
+    };
+
+    const pdfBlob = buildOfflinePackagePdf(selectedRoute.value, packagePayload);
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kaoshan-offline-${selectedRoute.value.id}.pdf`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  } finally {
+    offlinePackageDownloading.value = false;
   }
 }
 </script>
@@ -3817,6 +4043,62 @@ async function loadRouteWeather(route: RecommendedRoute) {
   font-size: 0.7rem;
   color: #d97706;
   font-weight: 600;
+}
+
+.offline-download-card {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(6, 199, 85, 0.22);
+  background:
+    linear-gradient(180deg, rgba(6, 199, 85, 0.08), rgba(6, 199, 85, 0.03)),
+    var(--bg-card);
+}
+
+.offline-download-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+.offline-download-desc {
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.offline-download-btn {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 0;
+  background: linear-gradient(135deg, #06c755, #1a8c55);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.offline-download-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.offline-download-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .typing-bubble {
