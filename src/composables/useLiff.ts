@@ -1,9 +1,14 @@
-import { useAuthStore } from 'src/stores/auth'
 import { api } from 'src/boot/axios'
+import { useAuthStore } from 'src/stores/auth'
 import { ref } from 'vue'
 
 const liffInitialized = ref(false)
 const POST_LOGIN_REDIRECT_KEY = '__liff_post_login_redirect__'
+const DEFAULT_LIFF_ID = '2009970633-zYGV9XSy'
+
+function getLiffId(): string {
+  return import.meta.env.VITE_LIFF_ID || DEFAULT_LIFF_ID
+}
 
 export function useLiff() {
   const auth = useAuthStore()
@@ -34,7 +39,7 @@ export function useLiff() {
   async function initLiff(): Promise<void> {
     if (liffInitialized.value) return
 
-    const liffId = import.meta.env.VITE_LIFF_ID
+    const liffId = getLiffId()
 
     if (!liffId || liffId === 'your_liff_id_here') {
       console.warn('[LIFF] VITE_LIFF_ID 未設定，LINE 實際登入不可用')
@@ -62,7 +67,7 @@ export function useLiff() {
   }
 
   async function login(redirectPath = '/pre-departure'): Promise<void> {
-    const liffId = import.meta.env.VITE_LIFF_ID
+    const liffId = getLiffId()
 
     if (!liffId || liffId === 'your_liff_id_here') {
       throw new Error('VITE_LIFF_ID 未設定，無法使用 LINE 實際登入')
@@ -95,7 +100,7 @@ export function useLiff() {
   }
 
   async function logout(): Promise<void> {
-    const liffId = import.meta.env.VITE_LIFF_ID
+    const liffId = getLiffId()
     if (liffId && liffId !== 'your_liff_id_here') {
       const liffAPI = await import('@line/liff').then(m => m.default)
       liffAPI.logout()
@@ -104,7 +109,7 @@ export function useLiff() {
   }
 
   async function shareResult(summary: { routeName: string; distance: string; duration: string }): Promise<void> {
-    const liffId = import.meta.env.VITE_LIFF_ID
+    const liffId = getLiffId()
 
     if (!liffId || liffId === 'your_liff_id_here') {
       console.log('[LIFF] shareResult stub:', summary)
