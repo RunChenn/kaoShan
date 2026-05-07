@@ -3,8 +3,8 @@
  *
  * 三種輸入自動對應後端模型：
  *   chat()         → POST /ai/chat          → GPT-4o
- *   hikingRecord() → POST /ai/hiking-record  → Claude Sonnet
- *   voice()        → POST /ai/voice          → Whisper → Claude 或 GPT-4o
+ *   hikingRecord() → POST /ai/hiking-record  → GPT-4o
+ *   voice()        → POST /ai/voice          → Whisper → GPT-4o
  */
 
 import { api } from 'src/boot/axios'
@@ -25,7 +25,7 @@ export function useAiRouter() {
     return data
   }
 
-  /** 爬山紀錄文字分析 → Claude Sonnet */
+  /** 爬山紀錄文字分析 → GPT-4o */
   async function hikingRecord(content: string): Promise<AiRouterResponse> {
     const form = new FormData()
     form.append('content', content)

@@ -778,6 +778,11 @@ interface Message {
   cardData?: ParsedHistory | AnalysisResult | ProgressData;
 }
 
+interface ApiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface QuickReply {
   label: string;
   action: string;
@@ -866,6 +871,23 @@ const messages = ref<Message[]>([
     text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
   },
 ]);
+
+function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
+  const apiMessages = messages.value
+    .filter((m) => m.id !== 1 && m.type === 'text' && m.text?.trim())
+    .map<ApiChatMessage>((m) => ({
+      role: m.role === 'bot' ? 'assistant' : 'user',
+      content: m.text!.trim(),
+    }));
+
+  const extra = extraUserContent?.trim();
+  const lastMessage = apiMessages.at(-1);
+  if (extra && !(lastMessage?.role === 'user' && lastMessage.content === extra)) {
+    apiMessages.push({ role: 'user', content: extra });
+  }
+
+  return apiMessages.slice(-16);
+}
 
 const QUICK_IDLE: QuickReply[] = [
   { label: '規劃登山路線', action: 'plan' },
@@ -983,14 +1005,14 @@ function normalizeExtractedProfile(
   };
 }
 
-async function extractProfileWithClaude(text: string): Promise<ProfileForm | null> {
+async function extractProfileWithOpenAi(text: string): Promise<ProfileForm | null> {
   try {
     const { data } = await api.post<{
       reply: string;
       ready: boolean;
       extracted_profile?: Record<string, unknown> | null;
     }>('/chat', {
-      messages: [{ role: 'user', content: text }],
+      messages: buildChatRequestMessages(text),
       history_context: historyContext.value,
     });
     if (!data.ready && !data.extracted_profile) return null;
@@ -1098,7 +1120,7 @@ async function recommendRoutesFromProfile(
 }
 
 async function completeProfileAndRecommend(sourceMessage: string, fitness = 3) {
-  const extracted = await extractProfileWithClaude(sourceMessage);
+  const extracted = await extractProfileWithOpenAi(sourceMessage);
   if (!extracted) return false;
   if (fitness !== 3) extracted.fitness = fitness;
   await recommendRoutesFromProfile(extracted, sourceMessage);
@@ -1162,11 +1184,13 @@ async function replyWithMockAi(msg: string) {
     return;
   }
 
-  // 一般聊天主入口用 /ai/chat，避免 profile 萃取失敗時影響正常對話。
   let replyText = '我收到你的訊息了。可以再補充這次想走的地區、天數或體力狀況，我會依照你的回答慢慢整理規劃。';
   try {
-    const res = await aiRouter.chat(msg);
-    replyText = res.reply;
+    const { data } = await api.post<{ reply: string }>('/chat', {
+      messages: buildChatRequestMessages(),
+      history_context: historyContext.value,
+    });
+    replyText = data.reply;
   } catch (_) {
     // 後端暫時不可用時保留自然回覆，不再固定要求同一組欄位。
   }
@@ -1497,7 +1521,7 @@ async function onFileUpload(e: Event) {
   // Set history context
   historyContext.value = `使用者上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，時間 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分。`;
 
-  // 呼叫後端 Claude Sonnet 進行真實體能分析
+  // 呼叫後端 GPT-4o 進行體能分析
   await sleep(500);
   typing.value = true;
 

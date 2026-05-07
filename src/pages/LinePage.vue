@@ -397,6 +397,11 @@ interface Message {
   time: string;
 }
 
+interface ApiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface QuickReply {
   label: string;
   action: string;
@@ -450,7 +455,24 @@ function cardOf(m: Message): RouteCard {
   return m.card!;
 }
 
-// ── Claude API Chat ────────────────────────
+function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
+  const apiMessages = messages.value
+    .filter((m) => m.id !== 1 && m.type === 'text' && m.text?.trim())
+    .map<ApiChatMessage>((m) => ({
+      role: m.role === 'bot' ? 'assistant' : 'user',
+      content: m.text!.trim(),
+    }));
+
+  const extra = extraUserContent?.trim();
+  const lastMessage = apiMessages.at(-1);
+  if (extra && !(lastMessage?.role === 'user' && lastMessage.content === extra)) {
+    apiMessages.push({ role: 'user', content: extra });
+  }
+
+  return apiMessages.slice(-16);
+}
+
+// ── AI Chat ────────────────────────
 async function sendUserMsg(text: string, clearInput = true) {
   const t = text.trim();
   if (!t) return;
@@ -512,17 +534,9 @@ async function sendUserMsg(text: string, clearInput = true) {
     return;
   }
 
-  // Build conversation history (text messages only)
-  const apiMessages = messages.value
-    .filter((m) => (m.type === 'text' || !m.type) && m.text)
-    .map((m) => ({
-      role: m.role === 'bot' ? 'assistant' : 'user',
-      content: m.text!,
-    }));
-
   try {
     const res = await api.post('/chat', {
-      messages: apiMessages,
+      messages: buildChatRequestMessages(),
       history_context: historyContext.value,
     });
 
@@ -796,20 +810,16 @@ async function onFileUpload(e: Event) {
     });
   }
 
-  // Store history context for Claude
+  // Store history context for AI analysis
   historyContext.value = `使用者上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，時間 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分。`;
 
-  // Auto-trigger Claude analysis
+  // Auto-trigger AI analysis
   await sleep(800);
   typing.value = true;
+  const analysisPrompt = `我上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，花費 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分鐘。請幫我分析體能表現並給建議。`;
   try {
     const res = await api.post('/chat', {
-      messages: [
-        {
-          role: 'user',
-          content: `我上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，花費 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分鐘。請幫我分析體能表現並給建議。`,
-        },
-      ],
+      messages: buildChatRequestMessages(analysisPrompt),
       history_context: historyContext.value,
     });
     messages.value.push({
