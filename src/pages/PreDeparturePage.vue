@@ -93,6 +93,17 @@
             </div>
           </div>
           <div class="line-header-actions">
+            <button
+              v-if="showAiModeToggle"
+              class="ai-mode-toggle"
+              :class="{ 'ai-mode-openai': aiChatMode === 'openai' }"
+              :title="
+                aiChatMode === 'mock' ? '目前使用假資料' : '目前使用 OpenAI'
+              "
+              @click="toggleAiChatMode"
+            >
+              {{ aiChatMode === 'mock' ? '假資料' : 'OpenAI' }}
+            </button>
             <!-- <button class="line-icon-btn" title="撥打電話">📞</button> -->
             <!-- <button class="line-icon-btn" title="視訊">📹</button> -->
             <!-- <button
@@ -372,7 +383,9 @@
             v-model="inputText"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
-            @keydown.enter.exact.prevent="!isComposing && sendUserMsg(inputText)"
+            @keydown.enter.exact.prevent="
+              !isComposing && sendUserMsg(inputText)
+            "
           />
           <button
             class="line-send-btn"
@@ -474,6 +487,68 @@
         </div>
       </div>
 
+      <!-- AI 裝備辨識 -->
+      <div v-if="planningRevealed" class="card anim-slide-up">
+        <div class="section-label">AI 裝備辨識</div>
+        <input
+          ref="gearPhotoInput"
+          type="file"
+          accept="image/*"
+          style="display: none"
+          @change="onGearPhotoSelected"
+        />
+        <div
+          class="yolo-area"
+          @click="doScan"
+          :style="{ minHeight: scanned ? 'auto' : '80px' }"
+        >
+          <div
+            v-if="!scanned && !scanning"
+            style="text-align: center; padding: 16px 0; pointer-events: none"
+          >
+            <div style="font-size: 28px; margin-bottom: 4px">📷</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted)">
+              點擊拍照或從相簿上傳裝備照片
+            </div>
+          </div>
+          <template v-if="scanning">
+            <div class="yolo-scanline" />
+            <div
+              style="
+                color: var(--summit-accent);
+                font-size: 0.8rem;
+                font-weight: 700;
+                padding: 16px;
+                z-index: 1;
+              "
+            >
+              裝備辨識中...
+            </div>
+          </template>
+          <div v-if="scanned" style="padding: 10px; width: 100%">
+            <div
+              style="
+                font-size: 0.8rem;
+                color: var(--summit-accent);
+                font-weight: 700;
+                margin-bottom: 6px;
+              "
+            >
+              辨識完成，已自動加入且勾選 {{ yoloItems.length }} 項
+            </div>
+            <div class="yolo-result">
+              <!-- <span v-for="it in yoloItems" :key="it.label" class="yolo-chip">{{ it.label }} {{ it.conf }}</span> -->
+              <span v-for="it in yoloItems" :key="it.label" class="yolo-chip">{{
+                it.label
+              }}</span>
+            </div>
+            <button class="yolo-rescan-btn" @click.stop="resetGearScan">
+              重新辨識
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 裝備清單 -->
       <div v-if="planningRevealed" class="card anim-slide-up">
         <div
@@ -532,10 +607,16 @@
                 />
               </svg>
             </div>
-            <span class="gear-icon">{{ item.icon }}</span>
-            <span style="font-size: 0.78rem; line-height: 1.2">{{
-              item.label
-            }}</span>
+            <!-- <span class="gear-icon">{{ item.icon }}</span> -->
+            <span
+              style="
+                font-size: 1em;
+                line-height: 1.2;
+                font-weight: 600;
+                letter-spacing: 0.07em;
+              "
+              >{{ item.label }}</span
+            >
             <button
               class="gear-remove-btn"
               title="刪除裝備"
@@ -547,62 +628,12 @@
         </div>
         <button
           class="gear-assess-btn"
-          :disabled="gearItems.length === 0"
+          :disabled="gearItems.length === 0 || gearAssessing"
           @click="assessGearList"
         >
-          AI 評估清單
+          {{ gearAssessing ? 'AI 評估中...' : 'AI 評估清單' }}
         </button>
-      </div>
-
-      <!-- AI 裝備辨識 -->
-      <div v-if="planningRevealed" class="card anim-slide-up">
-        <div class="section-label">AI 裝備辨識（YOLOv8）</div>
-        <div
-          class="yolo-area"
-          @click="doScan"
-          :style="{ minHeight: scanned ? 'auto' : '80px' }"
-        >
-          <div
-            v-if="!scanned && !scanning"
-            style="text-align: center; padding: 16px 0; pointer-events: none"
-          >
-            <div style="font-size: 28px; margin-bottom: 4px">📷</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted)">
-              點擊掃描裝備
-            </div>
-          </div>
-          <template v-if="scanning">
-            <div class="yolo-scanline" />
-            <div
-              style="
-                color: var(--summit-accent);
-                font-size: 0.8rem;
-                font-weight: 700;
-                padding: 16px;
-                z-index: 1;
-              "
-            >
-              辨識中...
-            </div>
-          </template>
-          <div v-if="scanned" style="padding: 10px; width: 100%">
-            <div
-              style="
-                font-size: 0.75rem;
-                color: var(--summit-accent);
-                font-weight: 700;
-                margin-bottom: 6px;
-              "
-            >
-              辨識完成，已自動加入或勾選 {{ yoloItems.length }} 項
-            </div>
-            <div class="yolo-result">
-              <span v-for="it in yoloItems" :key="it.label" class="yolo-chip"
-                >{{ it.label }} {{ it.conf }}</span
-              >
-            </div>
-          </div>
-        </div>
+        <!-- AI 評估內容 -->
         <div v-if="gearAssessment" class="gear-assessment-card">
           <div
             class="gear-score-ring"
@@ -629,9 +660,17 @@
 
       <!-- 天氣 -->
       <div v-if="planningRevealed" class="card anim-slide-up">
-        <div class="section-label">明日天氣</div>
+        <div class="section-label">
+          明日天氣
+          <span v-if="routeWeather?.location_name" style="margin-left: 8px; opacity: 0.72">
+            {{ routeWeather.location_name }}
+          </span>
+        </div>
+        <div v-if="weatherLoading" style="font-size: 0.78rem; color: var(--text-muted)">
+          正在取得中央氣象署資料...
+        </div>
         <div class="weather-cols">
-          <div v-for="w in weather" :key="w.label" class="weather-col">
+          <div v-for="w in displayedWeather" :key="w.label" class="weather-col">
             <div class="weather-icon">{{ w.icon }}</div>
             <div class="weather-temp">{{ w.temp }}</div>
             <div class="weather-label">{{ w.label }}</div>
@@ -649,7 +688,13 @@
             font-weight: 600;
           "
         >
-          建議 13:00 前下山，午後雷陣雨機率 75%
+          {{ weatherAdvice }}
+        </div>
+        <div
+          v-if="routeWeather?.source"
+          style="margin-top: 6px; font-size: 0.66rem; color: var(--text-muted)"
+        >
+          來源：{{ routeWeather.source }}
         </div>
       </div>
     </aside>
@@ -669,13 +714,26 @@
               >{{ routeDifficultyLabel(selectedRoute) }}</span
             >
           </div>
-          <button class="btn btn-primary" @click="router.push('/active')">
-            開始登山
-          </button>
+          <div class="p1-map-actions">
+            <div class="map-gpx-badge" title="已自動載入推薦路線 GPX">
+              <span class="material-icons">route</span>
+              <span>GPX 已載入</span>
+            </div>
+            <button class="btn btn-primary" @click="router.push('/active')">
+              開始登山
+            </button>
+          </div>
+        </div>
+        <div v-if="gpxMapTrack" class="gpx-map-status">
+          <span class="material-icons">timeline</span>
+          <strong>{{ gpxMapTrack.name }}</strong>
+          <span>{{ gpxMapTrack.distanceKm.toFixed(1) }} km</span>
+          <span>爬升 {{ Math.round(gpxMapTrack.elevationGain) }} m</span>
         </div>
         <MapPhase1
           :selected-route="selectedRoute"
           :theme="appStore.config.theme"
+          :gpx-track="gpxMapTrack"
           style="position: absolute; inset: 0"
         />
       </div>
@@ -684,8 +742,8 @@
 </template>
 
 <script setup lang="ts">
-import MapPhase1 from 'src/components/MapPhase1.vue';
 import { api } from 'src/boot/axios';
+import MapPhase1 from 'src/components/MapPhase1.vue';
 import { useAiRouter } from 'src/composables/useAiRouter';
 import {
   FITNESS_LABELS,
@@ -694,16 +752,30 @@ import {
   getRecommendations,
   type GearItem,
   type RecommendedRoute,
+  type UserProfile,
 } from 'src/data/hikingRoutes';
 import { useAppStore } from 'src/stores/app';
 import { useAuthStore } from 'src/stores/auth';
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const appStore = useAppStore();
 const aiRouter = useAiRouter();
 const auth = useAuthStore();
+const showAiModeToggle = import.meta.env.DEV;
+const aiChatMode = ref<'mock' | 'openai'>(showAiModeToggle ? 'mock' : 'openai');
+const shouldUseOpenAiChat = computed(
+  () => !showAiModeToggle || aiChatMode.value === 'openai',
+);
 
 // ── Types ───────────────────────────────────────
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
@@ -803,6 +875,52 @@ interface GearAssessment {
   tips: string[];
 }
 
+interface GearDetectItem {
+  name: string;
+  detected: boolean;
+  confidence: number;
+}
+
+interface GearDetectResponse {
+  items: GearDetectItem[];
+  missing_count: number;
+  model_used: string;
+  fallback?: boolean;
+}
+
+interface GearAssessResponse {
+  score: number;
+  level: string;
+  summary: string;
+  tips: string[];
+  model_used: string;
+  fallback?: boolean;
+}
+
+interface WeatherPeriod {
+  label: string;
+  icon: string;
+  temp: string;
+  condition: string;
+  rain_probability?: string | null;
+}
+
+interface RouteWeatherResponse {
+  location_name: string;
+  periods: WeatherPeriod[];
+  advice: string;
+  source: string;
+  model_used: string;
+  fallback?: boolean;
+}
+
+interface GpxMapTrack {
+  name: string;
+  points: [number, number][];
+  distanceKm: number;
+  elevationGain: number;
+}
+
 interface ProfileForm {
   age: number;
   weight: number;
@@ -882,11 +1000,18 @@ function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
 
   const extra = extraUserContent?.trim();
   const lastMessage = apiMessages.at(-1);
-  if (extra && !(lastMessage?.role === 'user' && lastMessage.content === extra)) {
+  if (
+    extra &&
+    !(lastMessage?.role === 'user' && lastMessage.content === extra)
+  ) {
     apiMessages.push({ role: 'user', content: extra });
   }
 
   return apiMessages.slice(-16);
+}
+
+function toggleAiChatMode() {
+  aiChatMode.value = aiChatMode.value === 'mock' ? 'openai' : 'mock';
 }
 
 const QUICK_IDLE: QuickReply[] = [
@@ -971,7 +1096,8 @@ function publishRouteRecommendations(
 
 function hasMinimumProfileInfo(text: string) {
   const hasAge = /(\d{1,3})\s*歲/.test(text);
-  const hasFitness = /體力|體能|新手|第一次|入門|進階|百岳|挑戰|體力好|普通|一般/.test(text);
+  const hasFitness =
+    /體力|體能|新手|第一次|入門|進階|百岳|挑戰|體力好|普通|一般/.test(text);
   const hasDays = /(\d+)\s*(?:天|日)|一天|兩天|三天/.test(text);
   return hasAge && hasFitness && hasDays;
 }
@@ -980,13 +1106,32 @@ function fallbackProfileFromText(text: string, fitness = 3): ProfileForm {
   const ageMatch = text.match(/(\d{1,3})\s*歲/);
   const weightMatch = text.match(/(\d{2,3})\s*(?:公斤|kg|KG)/);
   const daysMatch = text.match(/(\d+)\s*(?:天|日)/);
-  const targetDays = /兩天|2天/.test(text) ? 2 : /三天|3天/.test(text) ? 3 : Number(daysMatch?.[1] ?? 1);
+  const targetDays = /兩天|2天/.test(text)
+    ? 2
+    : /三天|3天/.test(text)
+      ? 3
+      : Number(daysMatch?.[1] ?? 1);
   return {
     age: Number(ageMatch?.[1] ?? 30),
     weight: Number(weightMatch?.[1] ?? 70),
     level: /新手|第一次|入門/.test(text) ? 'beginner' : 'experienced',
-    fitness: Math.min(5, Math.max(1, /進階|百岳|挑戰|體力好/.test(text) ? 4 : fitness)),
+    fitness: Math.min(
+      5,
+      Math.max(1, /進階|百岳|挑戰|體力好/.test(text) ? 4 : fitness),
+    ),
     target_days: Math.min(5, Math.max(1, targetDays || 1)),
+  };
+}
+
+function profileToRecommendationInput(profile: ProfileForm): UserProfile {
+  return {
+    age: String(profile.age),
+    weight: String(profile.weight),
+    height: '',
+    experience: profile.level,
+    fitness: profile.fitness,
+    slopeCoeff: 3,
+    targetDays: profile.target_days,
   };
 }
 
@@ -995,17 +1140,34 @@ function normalizeExtractedProfile(
   fallbackText: string,
 ): ProfileForm {
   const fallback = fallbackProfileFromText(fallbackText);
-  const experience = String(extracted?.experience ?? extracted?.level ?? fallback.level);
+  const experience = String(
+    extracted?.experience ?? extracted?.level ?? fallback.level,
+  );
   return {
     age: Number(extracted?.age ?? fallback.age),
     weight: Number(extracted?.weight ?? fallback.weight),
     level: experience === 'beginner' ? 'beginner' : 'experienced',
-    fitness: Math.min(5, Math.max(1, Number(extracted?.fitness ?? fallback.fitness))),
-    target_days: Math.min(5, Math.max(1, Number(extracted?.targetDays ?? extracted?.target_days ?? fallback.target_days))),
+    fitness: Math.min(
+      5,
+      Math.max(1, Number(extracted?.fitness ?? fallback.fitness)),
+    ),
+    target_days: Math.min(
+      5,
+      Math.max(
+        1,
+        Number(
+          extracted?.targetDays ??
+            extracted?.target_days ??
+            fallback.target_days,
+        ),
+      ),
+    ),
   };
 }
 
-async function extractProfileWithOpenAi(text: string): Promise<ProfileForm | null> {
+async function extractProfileWithOpenAi(
+  text: string,
+): Promise<ProfileForm | null> {
   try {
     const { data } = await api.post<{
       reply: string;
@@ -1026,8 +1188,18 @@ async function extractProfileWithOpenAi(text: string): Promise<ProfileForm | nul
 function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
   const local =
     ROUTES.find((r) => r.id === route.id) ??
-    ROUTES.find((r) => r.name === route.name || route.name.includes(r.name) || r.name.includes(route.name));
-  const risk = route.difficulty === 'easy' ? 'low' : route.difficulty === 'medium' ? 'mid' : 'high';
+    ROUTES.find(
+      (r) =>
+        r.name === route.name ||
+        route.name.includes(r.name) ||
+        r.name.includes(route.name),
+    );
+  const risk =
+    route.difficulty === 'easy'
+      ? 'low'
+      : route.difficulty === 'medium'
+        ? 'mid'
+        : 'high';
   return {
     ...(local ?? ROUTES[0]!),
     id: route.id,
@@ -1040,9 +1212,20 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
     minDays: route.days,
     highlight: `滑倒風險 ${route.risks.slip}、迷路風險 ${route.risks.lost}、偏離風險 ${route.risks.deviation}`,
     matchScore: risk === 'low' ? 88 : risk === 'mid' ? 74 : 58,
-    matchLabel: risk === 'low' ? '推薦' : risk === 'mid' ? '可考慮' : '需審慎評估',
-    matchBg: risk === 'low' ? 'rgba(34,197,94,0.10)' : risk === 'mid' ? 'rgba(251,146,60,0.12)' : 'rgba(239,68,68,0.10)',
-    matchColor: risk === 'low' ? 'var(--summit-accent)' : risk === 'mid' ? 'var(--risk-mid)' : 'var(--risk-high)',
+    matchLabel:
+      risk === 'low' ? '推薦' : risk === 'mid' ? '可考慮' : '需審慎評估',
+    matchBg:
+      risk === 'low'
+        ? 'rgba(34,197,94,0.10)'
+        : risk === 'mid'
+          ? 'rgba(251,146,60,0.12)'
+          : 'rgba(239,68,68,0.10)',
+    matchColor:
+      risk === 'low'
+        ? 'var(--summit-accent)'
+        : risk === 'mid'
+          ? 'var(--risk-mid)'
+          : 'var(--risk-high)',
     reasons: [
       { icon: '📏', text: `距離 ${route.distance_km}km` },
       { icon: '⬆', text: `累積爬升 ${route.elevation_gain}m` },
@@ -1062,13 +1245,18 @@ function getRouteRecommendCacheKey(profile: ProfileForm) {
   return `${ROUTE_RECOMMEND_CACHE_PREFIX}${JSON.stringify(normalized)}`;
 }
 
-function readCachedRouteRecommendations(profile: ProfileForm): RouteApiResponse[] | null {
+function readCachedRouteRecommendations(
+  profile: ProfileForm,
+): RouteApiResponse[] | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(getRouteRecommendCacheKey(profile));
     if (!raw) return null;
     const cached = JSON.parse(raw) as CachedRouteRecommendation;
-    if (!Array.isArray(cached.routes) || Date.now() - cached.savedAt > ROUTE_RECOMMEND_CACHE_TTL_MS) {
+    if (
+      !Array.isArray(cached.routes) ||
+      Date.now() - cached.savedAt > ROUTE_RECOMMEND_CACHE_TTL_MS
+    ) {
       window.localStorage.removeItem(getRouteRecommendCacheKey(profile));
       return null;
     }
@@ -1078,14 +1266,20 @@ function readCachedRouteRecommendations(profile: ProfileForm): RouteApiResponse[
   }
 }
 
-function writeCachedRouteRecommendations(profile: ProfileForm, routes: RouteApiResponse[]) {
+function writeCachedRouteRecommendations(
+  profile: ProfileForm,
+  routes: RouteApiResponse[],
+) {
   if (typeof window === 'undefined') return;
   try {
     const cached: CachedRouteRecommendation = {
       savedAt: Date.now(),
       routes,
     };
-    window.localStorage.setItem(getRouteRecommendCacheKey(profile), JSON.stringify(cached));
+    window.localStorage.setItem(
+      getRouteRecommendCacheKey(profile),
+      JSON.stringify(cached),
+    );
   } catch (_) {
     // localStorage 可能因隱私模式或容量限制失敗，失敗時仍維持原本 API 流程。
   }
@@ -1098,23 +1292,29 @@ async function recommendRoutesFromProfile(
   profileForm.value = profile;
   const cachedRoutes = readCachedRouteRecommendations(profile);
   if (cachedRoutes) {
-    publishRouteRecommendations(cachedRoutes.map(apiRouteToRecommendedRoute), sourceMessage, profile);
+    publishRouteRecommendations(
+      cachedRoutes.map(apiRouteToRecommendedRoute),
+      sourceMessage,
+      profile,
+    );
     return;
   }
 
   try {
-    const { data } = await api.post<RouteApiResponse[]>('/routes/recommend', profile);
+    const { data } = await api.post<RouteApiResponse[]>(
+      '/routes/recommend',
+      profile,
+    );
     writeCachedRouteRecommendations(profile, data);
-    publishRouteRecommendations(data.map(apiRouteToRecommendedRoute), sourceMessage, profile);
+    publishRouteRecommendations(
+      data.map(apiRouteToRecommendedRoute),
+      sourceMessage,
+      profile,
+    );
   } catch (_) {
-    const localRoutes = getRecommendations({
-      age: String(profile.age),
-      weight: String(profile.weight),
-      fitness: profile.fitness,
-      experience: profile.level,
-      slopeCoeff: 3,
-      targetDays: profile.target_days,
-    });
+    const localRoutes = getRecommendations(
+      profileToRecommendationInput(profile),
+    );
     publishRouteRecommendations(localRoutes, sourceMessage, profile);
   }
 }
@@ -1127,19 +1327,52 @@ async function completeProfileAndRecommend(sourceMessage: string, fitness = 3) {
   return true;
 }
 
+async function replyWithLocalRouteRecommendations(msg: string) {
+  await sleep(650);
+  typing.value = false;
+
+  if (/裝備|清單|gear/i.test(msg) && selectedRoute.value) {
+    showPlanningTools();
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      text: '我已把出發前檢查區打開。先確認登山鞋、雨衣、頭燈、保暖層、水與離線地圖；如果要快速檢查裝備，可以點下面的 AI 裝備辨識。',
+      time: nowTime(),
+    });
+    quickReplies.value = [
+      { label: '查詢明日天氣', action: 'weather' },
+      { label: '推薦路線', action: 'plan' },
+    ];
+    return;
+  }
+
+  const combinedText = `${historyContext.value}\n${msg}`.trim();
+  const profile = fallbackProfileFromText(
+    combinedText,
+    /體能|分析|GPX|紀錄/i.test(msg) || historyContext.value ? 3 : undefined,
+  );
+  const routes = getRecommendations(profileToRecommendationInput(profile));
+
+  messages.value.push({
+    id: Date.now() + 1,
+    role: 'bot',
+    type: 'text',
+    text: '開發模式先用假資料完成需求統整，以下是依目前對話推估出的推薦路線。',
+    time: nowTime(),
+  });
+  publishRouteRecommendations(routes, combinedText, profile);
+}
+
 async function replyWithMockAi(msg: string) {
   await sleep(650);
   typing.value = false;
 
   if (/裝備|清單|gear/i.test(msg)) {
     if (!selectedRoute.value) {
-      const routes = getRecommendations({
-        age: 28,
-        fitness: 2,
-        experience: 'beginner',
-        slopeComfort: 2,
-        days: 1,
-      });
+      const routes = getRecommendations(
+        profileToRecommendationInput(fallbackProfileFromText(msg, 2)),
+      );
       messages.value.push({
         id: Date.now() + 1,
         role: 'bot',
@@ -1166,13 +1399,11 @@ async function replyWithMockAi(msg: string) {
   }
 
   if (/體能|分析|GPX|紀錄/i.test(msg) || historyContext.value) {
-    const routes = getRecommendations({
-      age: 32,
-      fitness: 3,
-      experience: 'beginner',
-      slopeComfort: 2,
-      days: 1,
-    });
+    const routes = getRecommendations(
+      profileToRecommendationInput(
+        fallbackProfileFromText(`${historyContext.value}\n${msg}`, 3),
+      ),
+    );
     messages.value.push({
       id: Date.now() + 1,
       role: 'bot',
@@ -1184,7 +1415,8 @@ async function replyWithMockAi(msg: string) {
     return;
   }
 
-  let replyText = '我收到你的訊息了。可以再補充這次想走的地區、天數或體力狀況，我會依照你的回答慢慢整理規劃。';
+  let replyText =
+    '我收到你的訊息了。可以再補充這次想走的地區、天數或體力狀況，我會依照你的回答慢慢整理規劃。';
   try {
     const { data } = await api.post<{ reply: string }>('/chat', {
       messages: buildChatRequestMessages(),
@@ -1206,7 +1438,10 @@ async function replyWithMockAi(msg: string) {
   const combinedText = `${historyContext.value}\n${msg}`.trim();
   const recommended = await completeProfileAndRecommend(combinedText);
   if (!recommended && hasMinimumProfileInfo(combinedText)) {
-    await recommendRoutesFromProfile(fallbackProfileFromText(combinedText), combinedText);
+    await recommendRoutesFromProfile(
+      fallbackProfileFromText(combinedText),
+      combinedText,
+    );
   }
 }
 
@@ -1270,7 +1505,11 @@ async function sendUserMsg(text: string, clearInput = true) {
     return;
   }
 
-  await replyWithMockAi(msg);
+  if (shouldUseOpenAiChat.value) {
+    await replyWithMockAi(msg);
+  } else {
+    await replyWithLocalRouteRecommendations(msg);
+  }
 }
 
 function handleQuickReply(q: QuickReply) {
@@ -1316,6 +1555,7 @@ function selectRecommendedRoute(card: RouteCard) {
   if (!card.source) return;
   showPlanningTools();
   selectedRoute.value = card.source;
+  void loadRouteWeather(card.source);
   messages.value.push({
     id: Date.now(),
     role: 'bot',
@@ -1404,6 +1644,24 @@ function parseGpx(text: string): ParsedHistory {
     date: rawDate ?? '',
   };
 }
+
+const gpxMapTrack = computed<GpxMapTrack | null>(() => {
+  if (!selectedRoute.value?.polyline.length) return null;
+  const points = selectedRoute.value.polyline;
+  let distanceKm = 0;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1]!;
+    const curr = points[i]!;
+    distanceKm += haversine(prev[0], prev[1], curr[0], curr[1]);
+  }
+
+  return {
+    name: `${selectedRoute.value.name} GPX`,
+    points,
+    distanceKm: Number.parseFloat(selectedRoute.value.distance) || distanceKm,
+    elevationGain: Number.parseFloat(selectedRoute.value.elevation),
+  };
+});
 
 function analyzeHistory(record: ParsedHistory): AnalysisResult {
   const speedKmh =
@@ -1543,7 +1801,10 @@ async function onFileUpload(e: Event) {
   });
 
   await recommendRoutesFromProfile(
-    fallbackProfileFromText(historyContext.value, (analyzeHistory(record).fitnessEstimate)),
+    fallbackProfileFromText(
+      historyContext.value,
+      analyzeHistory(record).fitnessEstimate,
+    ),
     historyContext.value,
   );
 }
@@ -1578,18 +1839,24 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null 
     SpeechRecognition?: SpeechRecognitionConstructor;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
   };
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+  return (
+    speechWindow.SpeechRecognition ??
+    speechWindow.webkitSpeechRecognition ??
+    null
+  );
 }
 
 function isMediaRecorderSupported() {
   return Boolean(
     navigator.mediaDevices?.getUserMedia &&
-      typeof window.MediaRecorder !== 'undefined',
+    typeof window.MediaRecorder !== 'undefined',
   );
 }
 
 function isVoiceInputSupported() {
-  return isMediaRecorderSupported() || Boolean(getSpeechRecognitionConstructor());
+  return (
+    isMediaRecorderSupported() || Boolean(getSpeechRecognitionConstructor())
+  );
 }
 
 function getSupportedAudioMimeType() {
@@ -1814,6 +2081,7 @@ const gear = reactive<Record<string, boolean>>({});
 const gearItems = ref<GearItem[]>([]);
 const newGearLabel = ref('');
 const gearAssessment = ref<GearAssessment | null>(null);
+const gearAssessing = ref(false);
 const gearCount = computed(
   () => gearItems.value.filter((item) => gear[item.id]).length,
 );
@@ -1848,39 +2116,47 @@ function removeGear(id: string) {
   gearAssessment.value = null;
 }
 
-function assessGearList() {
-  const requiredIds = [
-    'water',
-    'food',
-    'rain',
-    'headlamp',
-    'firstaid',
-    'warm',
-    'map',
-  ];
-  const currentIds = new Set(gearItems.value.map((item) => item.id));
-  const checkedIds = new Set(
-    gearItems.value.filter((item) => gear[item.id]).map((item) => item.id),
-  );
-  const requiredPresent = requiredIds.filter((id) => currentIds.has(id)).length;
-  const requiredChecked = requiredIds.filter((id) => checkedIds.has(id)).length;
+async function assessGearList() {
+  if (gearAssessing.value || gearItems.value.length === 0) return;
+  gearAssessing.value = true;
+  try {
+    const { data } = await api.post<GearAssessResponse>('/gear/assess', {
+      items: gearItems.value.map((item) => ({
+        id: item.id,
+        label: item.label,
+        checked: Boolean(gear[item.id]),
+      })),
+      route: selectedRoute.value
+        ? {
+            name: selectedRoute.value.name,
+            risk: selectedRoute.value.risk,
+            difficulty: routeDifficulty(selectedRoute.value),
+            days: selectedRoute.value.minDays,
+          }
+        : null,
+    });
+    gearAssessment.value = {
+      score: data.score,
+      level: data.level,
+      summary: data.summary,
+      tips: data.tips,
+    };
+  } catch (_) {
+    assessGearListWithFallback();
+  } finally {
+    gearAssessing.value = false;
+  }
+}
+
+function assessGearListWithFallback() {
+  const checkedItems = gearItems.value.filter((item) => gear[item.id]);
+  const uncheckedItems = gearItems.value.filter((item) => !gear[item.id]);
   const checkedRatio = gearItems.value.length
     ? gearCount.value / gearItems.value.length
     : 0;
-  const coverageScore = Math.round((requiredPresent / requiredIds.length) * 45);
-  const readinessScore = Math.round(
-    (requiredChecked / requiredIds.length) * 40,
-  );
-  const checkScore = Math.round(checkedRatio * 15);
-  const score = Math.min(100, coverageScore + readinessScore + checkScore);
-  const missingRequired = requiredIds
-    .filter((id) => !currentIds.has(id))
-    .map((id) => GEAR_ITEMS.find((item) => item.id === id)?.label)
-    .filter(Boolean) as string[];
-  const uncheckedRequired = requiredIds
-    .filter((id) => currentIds.has(id) && !checkedIds.has(id))
-    .map((id) => GEAR_ITEMS.find((item) => item.id === id)?.label)
-    .filter(Boolean) as string[];
+  const riskPenalty = selectedRoute.value?.risk === 'high' ? 15 : selectedRoute.value?.risk === 'mid' ? 8 : 0;
+  const daysPenalty = (selectedRoute.value?.minDays ?? 1) >= 2 ? 8 : 0;
+  const score = Math.max(0, Math.min(100, Math.round(checkedRatio * 70) + 20 - riskPenalty - daysPenalty));
   const level =
     score >= 85
       ? '準備充足'
@@ -1890,21 +2166,18 @@ function assessGearList() {
           ? '需要補強'
           : '不建議出發';
   const tips = [
-    missingRequired.length
-      ? `建議補上：${missingRequired.slice(0, 4).join('、')}${missingRequired.length > 4 ? '等' : ''}。`
-      : '必備項目已列入清單。',
-    uncheckedRequired.length
-      ? `尚未確認：${uncheckedRequired.slice(0, 4).join('、')}。`
-      : '必備項目皆已勾選確認。',
+    uncheckedItems.length
+      ? `尚未確認：${uncheckedItems.slice(0, 4).map((item) => item.label).join('、')}。`
+      : '清單內裝備皆已勾選確認。',
     selectedRoute.value?.risk === 'high'
       ? '高風險路線請額外確認保暖、雨具、離線地圖與緊急通訊。'
-      : '出發前再檢查天氣與水量，避免午後風險。',
+      : 'OpenAI 暫時不可用，請依路線天數、天氣與個人狀態再次檢查裝備。',
   ];
 
   gearAssessment.value = {
     score,
     level,
-    summary: `目前 ${gearCount.value}/${gearItems.value.length} 項已確認，必備裝備覆蓋 ${requiredPresent}/${requiredIds.length} 項。`,
+    summary: `目前 ${checkedItems.length}/${gearItems.value.length} 項已確認。OpenAI 暫時不可用，這是保守 fallback 評估。`,
     tips,
   };
 }
@@ -1915,27 +2188,109 @@ const selectedRoute = ref<RecommendedRoute | null>(null);
 const scanning = ref(false);
 const scanned = ref(false);
 const yoloItems = ref<Array<{ label: string; conf: string }>>([]);
+const gearPhotoInput = ref<HTMLInputElement>();
+const lastDetectedGearIds = ref<Set<string>>(new Set());
+
+const GEAR_LABEL_TO_ID: Record<string, string> = {
+  登山鞋: 'boots',
+  登山靴: 'boots',
+  登山杖: 'poles',
+  頭燈: 'headlamp',
+  手電筒: 'headlamp',
+  雨衣: 'rain',
+  防水外套: 'rain',
+  保暖層: 'warm',
+  羽絨衣: 'warm',
+  急救包: 'firstaid',
+  水壺: 'water',
+  水瓶: 'water',
+  地圖: 'map',
+  指南針: 'map',
+  行動糧: 'food',
+  糧食: 'food',
+};
+
+function gearItemFromDetectedLabel(label: string): GearItem {
+  const knownId = GEAR_LABEL_TO_ID[label];
+  const known = knownId ? GEAR_ITEMS.find((item) => item.id === knownId) : null;
+  return known ?? { id: normalizeGearId(label), label, icon: '🎒' };
+}
 
 function doScan() {
-  if (scanning.value || scanned.value) return;
+  if (scanning.value) return;
+  gearPhotoInput.value?.click();
+}
+
+function resetGearScan() {
+  if (scanning.value) return;
+  removeLastDetectedGearItems();
+  scanned.value = false;
+  yoloItems.value = [];
+  gearPhotoInput.value?.click();
+}
+
+function removeLastDetectedGearItems() {
+  if (lastDetectedGearIds.value.size === 0) return;
+  gearItems.value = gearItems.value.filter((item) => {
+    const shouldRemove = lastDetectedGearIds.value.has(item.id);
+    if (shouldRemove) {
+      delete gear[item.id];
+    }
+    return !shouldRemove;
+  });
+  lastDetectedGearIds.value = new Set();
+  gearAssessment.value = null;
+}
+
+function addDetectedGearItem(item: GearItem) {
+  const existed = gearItems.value.some(
+    (gearItem) => gearItem.id === item.id || gearItem.label === item.label,
+  );
+  addGearItem(item, true);
+  if (!existed) {
+    lastDetectedGearIds.value.add(item.id);
+  }
+}
+
+async function onGearPhotoSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file || scanning.value) return;
+
   scanning.value = true;
-  setTimeout(() => {
-    const autoItems = ['boots', 'poles', 'headlamp', 'rain'];
-    autoItems.forEach((k) => {
-      const sourceItem = GEAR_ITEMS.find((item) => item.id === k);
-      if (sourceItem) {
-        addGearItem(sourceItem, true);
-      }
+  scanned.value = false;
+  try {
+    const form = new FormData();
+    form.append('image', file);
+    const { data } = await api.post<GearDetectResponse>('/gear/detect', form, {
+      timeout: 30000,
     });
-    yoloItems.value = [
-      { label: '登山鞋', conf: '97%' },
-      { label: '登山杖', conf: '93%' },
-      { label: '頭燈', conf: '89%' },
-      { label: '雨衣', conf: '84%' },
-    ];
+
+    const detectedItems = data.items.filter((item) => item.detected);
+    detectedItems.forEach((item) => {
+      addDetectedGearItem(gearItemFromDetectedLabel(item.name));
+    });
+    yoloItems.value = detectedItems.map((item) => ({
+      label: item.name,
+      conf: `${Math.round(item.confidence * 100)}%`,
+    }));
+    if (yoloItems.value.length === 0) {
+      yoloItems.value = [{ label: '未偵測到裝備', conf: '' }];
+    }
+  } catch (_) {
+    const fallbackLabels = ['登山鞋', '登山杖', '頭燈', '雨衣'];
+    fallbackLabels.forEach((label) => {
+      addDetectedGearItem(gearItemFromDetectedLabel(label));
+    });
+    yoloItems.value = fallbackLabels.map((label, index) => ({
+      label,
+      conf: `${[97, 93, 89, 84][index]}%`,
+    }));
+  } finally {
     scanning.value = false;
     scanned.value = true;
-  }, 2000);
+  }
 }
 
 // ── Static data ───────────────────────────────────
@@ -1951,10 +2306,40 @@ const weatherData = [
 ];
 
 const weather = [
-  { icon: '⛅', temp: '12°C', label: '早晨' },
-  { icon: '☀', temp: '18°C', label: '中午' },
-  { icon: '🌧', temp: '9°C', label: '下午' },
+  { icon: '⛅', temp: '12°C', label: '早晨', condition: '多雲' },
+  { icon: '☀', temp: '18°C', label: '中午', condition: '晴時多雲' },
+  { icon: '🌧', temp: '9°C', label: '下午', condition: '午後陣雨' },
 ];
+
+const routeWeather = ref<RouteWeatherResponse | null>(null);
+const weatherLoading = ref(false);
+const displayedWeather = computed<WeatherPeriod[]>(() =>
+  routeWeather.value?.periods?.length ? routeWeather.value.periods : weather,
+);
+const weatherAdvice = computed(
+  () =>
+    routeWeather.value?.advice ??
+    '建議 13:00 前下山，午後雷陣雨機率偏高。請攜帶雨具與保暖層，若山區雲霧變厚應提前折返。',
+);
+
+async function loadRouteWeather(route: RecommendedRoute) {
+  weatherLoading.value = true;
+  routeWeather.value = null;
+  try {
+    const { data } = await api.post<RouteWeatherResponse>('/weather/forecast', {
+      route_name: route.name,
+      location: route.region,
+      risk: route.risk,
+      difficulty: routeDifficulty(route),
+      days: route.minDays,
+    });
+    routeWeather.value = data;
+  } catch (_) {
+    routeWeather.value = null;
+  } finally {
+    weatherLoading.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -3043,7 +3428,34 @@ const weather = [
 
 .line-header-actions {
   display: flex;
+  align-items: center;
   gap: 4px;
+}
+
+.ai-mode-toggle {
+  height: 30px;
+  min-width: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0 10px;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.ai-mode-toggle:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.ai-mode-openai {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.92);
+  color: #047a34;
 }
 
 .line-icon-btn {

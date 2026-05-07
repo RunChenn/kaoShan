@@ -17,6 +17,20 @@
     height: auto;
     overflow: visible;
   }
+
+  .p1-map-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .p1-map-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .gpx-map-status {
+    top: 108px;
+  }
 }
 
 /* Sidebar — 無地圖時滿版置中，有地圖時固定靠左 */
@@ -25,7 +39,7 @@
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 24px 12px;
   background: var(--bg-surface);
   /* 置中：內容最寬 680px，左右 auto margin */
   width: 100%;
@@ -78,8 +92,9 @@
   left: 12px;
   right: 12px;
   display: flex;
-  align-items: center;
+  align-items: start;
   justify-content: space-between;
+  gap: 10px;
   z-index: 10;
 }
 .route-label-pill {
@@ -93,6 +108,67 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.p1-map-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.map-gpx-badge {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(4, 16, 28, 0.82);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.map-gpx-badge .material-icons {
+  font-size: 18px;
+  color: #fb923c;
+}
+
+.gpx-map-status {
+  position: absolute;
+  top: 62px;
+  left: 12px;
+  z-index: 10;
+  max-width: min(520px, calc(100% - 24px));
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.86);
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+}
+
+.gpx-map-status .material-icons {
+  color: #fb923c;
+  font-size: 18px;
+}
+
+.gpx-map-status strong {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Risk Ring */
@@ -216,7 +292,7 @@
 .gear-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 12px 8px;
 }
 .gear-item {
   display: flex;
@@ -227,8 +303,8 @@
   cursor: pointer;
   border: 1px solid var(--border);
   background: var(--bg-base);
-  font-size: 0.82rem;
-  font-weight: 500;
+  font-size: 1em;
+  font-weight: 600;
   transition: all 0.2s var(--ease-spring);
 }
 .gear-item.checked {
@@ -294,7 +370,7 @@
 
 .gear-assess-btn {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 16px;
   padding: 10px 12px;
   border: none;
   border-radius: 12px;
@@ -340,7 +416,7 @@
 }
 
 .gear-assessment-card {
-  margin-top: 10px;
+  margin-top: 24px;
   padding: 12px;
   border-radius: 14px;
   border: 1px solid rgba(34, 197, 94, 0.2);
@@ -475,17 +551,34 @@
 .yolo-result {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 8px;
+  gap: 12px 8px;
   padding: 8px;
 }
 .yolo-chip {
   padding: 3px 9px;
   border-radius: 9px;
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 600;
   background: rgba(34, 197, 94, 0.15);
   color: var(--risk-low);
   border: 1px solid rgba(34, 197, 94, 0.3);
+  letter-spacing: 0.07em;
+}
+.yolo-rescan-btn {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid rgba(34, 197, 94, 0.36);
+  border-radius: 10px;
+  background: var(--bg-green);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 800;
+  padding: 9px 10px;
+  letter-spacing: 0.05em;
+}
+.yolo-rescan-btn:active {
+  transform: scale(0.98);
 }
 
 /* Weather */

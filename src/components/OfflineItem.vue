@@ -12,6 +12,7 @@
         <span class="item-name">{{ item.name }}</span>
         <span class="item-size">{{ item.size }}</span>
       </div>
+      <div v-if="item.detail" class="item-detail">{{ item.detail }}</div>
       <div v-if="started && !done" class="item-progress-bar q-mt-xs">
         <div class="item-progress-fill" />
       </div>
@@ -23,7 +24,7 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  item: { name: string; size: string; threshold: number }
+  item: { name: string; size: string; threshold: number; detail?: string }
   progress: number
 }>()
 
@@ -53,6 +54,12 @@ const done    = computed(() => props.progress >= props.item.threshold + 12 || pr
 
 .item-name { font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em; }
 .item-size { font-size: 0.7rem; opacity: 0.4; }
+.item-detail {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  opacity: 0.5;
+}
 
 .item-progress-bar {
   height: 3px;

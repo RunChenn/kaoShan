@@ -175,7 +175,7 @@
           label="下載離線包"
           class="full-width btn-glow-primary"
           style="border-radius: 16px; height: 50px; font-weight: 700"
-          @click="$router.push('/plan/offline')"
+          @click="downloadOfflinePackage"
         />
       </div>
     </div>
@@ -347,7 +347,7 @@
               margin-top: 2px;
             "
           >
-            YOLOV8 AI ENGINE
+            點擊掃描裝備
           </div>
         </div>
         <div v-else class="camera-scanning column items-center justify-center">
@@ -355,16 +355,24 @@
             <div class="scan-ring-inner" />
           </div>
           <div class="text-caption text-primary q-mt-sm text-weight-bold">
-            YOLOv8 辨識中...
+            裝備辨識中...
           </div>
         </div>
       </div>
+
+      <input
+        ref="gearPhotoInput"
+        type="file"
+        accept="image/*"
+        style="display: none"
+        @change="onGearPhotoSelected"
+      />
 
       <q-btn
         unelevated
         color="primary"
         icon="photo_camera"
-        :label="scanning ? '辨識中...' : '拍照辨識裝備'"
+        :label="scanning ? '辨識中...' : '拍照或從相簿上傳辨識裝備'"
         class="full-width btn-glow-primary q-mb-lg"
         style="border-radius: 16px; height: 50px; font-weight: 700"
         :loading="scanning"
@@ -384,6 +392,16 @@
             {{ item.name }}
           </div>
         </div>
+        <q-btn
+          unelevated
+          outline
+          color="primary"
+          icon="refresh"
+          label="重新辨識"
+          class="full-width q-mb-md"
+          style="border-radius: 14px; height: 44px; font-weight: 700"
+          @click="resetGearScan"
+        />
 
         <div v-if="missingItems.length > 0" class="alert-strip q-mb-md">
           <q-icon name="warning" color="white" size="18px" />
@@ -530,7 +548,9 @@
 </template>
 
 <script setup lang="ts">
+import { api } from 'src/boot/axios';
 import RiskGauge from 'src/components/RiskGauge.vue';
+import type { GearItem } from 'src/mocks/gear';
 import { mockGearResults } from 'src/mocks/gear';
 import { mockRoutes } from 'src/mocks/routes';
 import {
@@ -541,14 +561,27 @@ import {
 } from 'src/mocks/weather';
 import { usePlanStore } from 'src/stores/plan';
 import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const vRoute = useRoute();
+const router = useRouter();
 const plan = usePlanStore();
 const tab = ref('info');
 const scanning = ref(false);
 const gearScanned = ref(false);
 const gearResults = ref(mockGearResults);
+const gearPhotoInput = ref<HTMLInputElement>();
+
+interface GearDetectResponse {
+  items: Array<{
+    name: string;
+    detected: boolean;
+    confidence: number;
+  }>;
+  missing_count: number;
+  model_used: string;
+  fallback?: boolean;
+}
 
 const route = computed(() => mockRoutes.find((r) => r.id === vRoute.params.id));
 const routeWeather = computed(
@@ -609,6 +642,13 @@ const tabs = [
   { value: 'supply', icon: 'restaurant', label: '補給' },
 ];
 
+function downloadOfflinePackage() {
+  if (route.value) {
+    plan.selectRoute(route.value.id);
+  }
+  void router.push('/plan/offline');
+}
+
 function accidentIcon(type: string) {
   return (
     (
@@ -630,13 +670,83 @@ function riskLabel(level: string) {
   );
 }
 
-async function scanGear() {
+function scanGear() {
+  if (scanning.value) return;
+  gearPhotoInput.value?.click();
+}
+
+function resetGearScan() {
+  if (scanning.value) return;
+  gearScanned.value = false;
+  gearPhotoInput.value?.click();
+}
+
+async function onGearPhotoSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file || scanning.value) return;
+
   scanning.value = true;
   gearScanned.value = false;
-  await new Promise((r) => setTimeout(r, 2200));
-  scanning.value = false;
-  gearScanned.value = true;
-  plan.setGearResults(gearResults.value);
+  try {
+    const form = new FormData();
+    form.append('image', file);
+    const { data } = await api.post<GearDetectResponse>('/gear/detect', form, {
+      timeout: 30000,
+    });
+    gearResults.value = mergeGearDetectionWithRouteChecklist(data.items);
+  } catch (_) {
+    gearResults.value = mockGearResults;
+  } finally {
+    scanning.value = false;
+    gearScanned.value = true;
+    plan.setGearResults(gearResults.value);
+  }
+}
+
+function mergeGearDetectionWithRouteChecklist(
+  items: GearDetectResponse['items'],
+): GearItem[] {
+  const detected = new Map(
+    items
+      .filter((item) => item.detected)
+      .map((item) => [normalizeGearLabel(item.name), item.confidence]),
+  );
+  const checklist = route.value
+    ? [...route.value.gear.required, ...route.value.gear.optional]
+    : items.map((item) => item.name);
+
+  const merged = checklist.map((name) => {
+    const normalizedName = normalizeGearLabel(name);
+    const confidence = detected.get(normalizedName) ?? 0;
+    return {
+      name,
+      detected: confidence > 0,
+      confidence,
+    };
+  });
+
+  items.forEach((item) => {
+    if (!item.detected) return;
+    const exists = merged.some(
+      (existing) =>
+        normalizeGearLabel(existing.name) === normalizeGearLabel(item.name),
+    );
+    if (!exists) merged.push(item);
+  });
+
+  return merged;
+}
+
+function normalizeGearLabel(label: string) {
+  return label
+    .replace(/（.*?）/g, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/防水外套/g, '雨衣')
+    .replace(/登山靴/g, '登山鞋')
+    .replace(/手電筒/g, '頭燈')
+    .trim();
 }
 </script>
 
@@ -841,6 +951,7 @@ async function scanGear() {
   font-size: 0.7rem;
   font-weight: 700;
   color: white;
+  letter-spacing: 0.08em;
 }
 .risk-low {
   background: rgba(46, 204, 113, 0.75);

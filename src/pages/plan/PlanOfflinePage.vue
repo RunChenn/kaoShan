@@ -48,6 +48,41 @@
       </q-card-section>
     </q-card>
 
+    <q-card class="hiking-card offline-card full-width q-mt-md anim-slide-up" style="animation-delay:0.12s;max-width:400px">
+      <q-card-section class="q-pa-lg">
+        <div class="text-subtitle2 text-weight-bold q-mb-md">離線路線資料</div>
+        <div class="route-data-grid">
+          <div v-for="row in routeDataRows" :key="row.label" class="route-data-row">
+            <span>{{ row.label }}</span>
+            <strong>{{ row.value }}</strong>
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+
+    <q-card class="hiking-card offline-card full-width q-mt-md anim-slide-up" style="animation-delay:0.14s;max-width:400px">
+      <q-card-section class="q-pa-lg">
+        <div class="row items-center justify-between q-mb-sm">
+          <div class="text-subtitle2 text-weight-bold">離線裝備清單</div>
+          <q-chip dense color="primary" text-color="white">
+            {{ gearChecklist.length }} 項
+          </q-chip>
+        </div>
+        <div class="gear-list">
+          <q-chip
+            v-for="item in gearChecklist"
+            :key="item.label"
+            dense
+            :outline="item.type === 'optional'"
+            :color="item.type === 'required' ? 'primary' : 'grey-6'"
+            :text-color="item.type === 'required' ? 'white' : 'grey-8'"
+          >
+            {{ item.label }}
+          </q-chip>
+        </div>
+      </q-card-section>
+    </q-card>
+
     <!-- CTA -->
     <div class="full-width q-mt-xl anim-slide-up" style="animation-delay:0.15s;max-width:400px">
       <q-btn
@@ -89,10 +124,33 @@
 import { computed } from 'vue'
 import { usePlanStore } from 'src/stores/plan'
 import OfflineItem from 'src/components/OfflineItem.vue'
+import { mockRoutes } from 'src/mocks/routes'
 
 const plan     = usePlanStore()
 const status   = computed(() => plan.offlineStatus)
 const progress = computed(() => plan.offlineProgress)
+const selectedRoute = computed(() =>
+  mockRoutes.find((route) => route.id === plan.selectedRouteId) ?? mockRoutes[0]!,
+)
+
+const difficultyLabel: Record<string, string> = {
+  easy: '入門',
+  medium: '中級',
+  hard: '進階',
+  expert: '專家',
+}
+
+const slopeMetersPerKm = computed(() =>
+  Math.round(selectedRoute.value.elevationGain / Math.max(selectedRoute.value.distanceKm, 1)),
+)
+
+const slopeLabel = computed(() => {
+  const slope = slopeMetersPerKm.value
+  if (slope >= 120) return '急陡坡'
+  if (slope >= 80) return '陡坡'
+  if (slope >= 45) return '中坡'
+  return '緩坡'
+})
 
 const statusIcon = computed(() => ({
   done: 'check_circle', downloading: 'downloading', idle: 'cloud_download',
@@ -108,16 +166,43 @@ const statusTitle = computed(() => ({
 
 const statusDesc = computed(() => ({
   done:        '所有資料已快取，可在無網路環境使用',
-  downloading: '正在下載地圖圖磚、路線資料與 AI 模型',
-  idle:        '下載後可在無網路環境登山，約 85 MB',
+  downloading: '正在下載地圖圖磚、路線資料、裝備清單與 AI 模型',
+  idle:        '下載後可在無網路環境登山，約 92 MB',
 }[status.value] ?? ''))
 
-const downloadItems = [
-  { name: '地圖圖磚',    size: '42 MB', threshold: 0  },
-  { name: '路線 GPX',   size: '3 MB',  threshold: 50 },
-  { name: 'AI 風險模型', size: '28 MB', threshold: 60 },
-  { name: '緊急求救資料', size: '12 MB', threshold: 88 },
-]
+const routeDataRows = computed(() => [
+  { label: '路線', value: selectedRoute.value.name },
+  { label: '地點', value: selectedRoute.value.location },
+  { label: '時間', value: `${selectedRoute.value.estimatedHours} 小時 / ${selectedRoute.value.days} 天` },
+  { label: '距離', value: `${selectedRoute.value.distanceKm} km` },
+  { label: '坡度', value: `${slopeLabel.value}（${slopeMetersPerKm.value} m/km）` },
+  { label: '爬升', value: `${selectedRoute.value.elevationGain} m` },
+  { label: '難度', value: difficultyLabel[selectedRoute.value.difficulty] ?? selectedRoute.value.difficulty },
+])
+
+const gearChecklist = computed(() => [
+  ...selectedRoute.value.gear.required.map((label) => ({ label, type: 'required' as const })),
+  ...selectedRoute.value.gear.optional.map((label) => ({ label, type: 'optional' as const })),
+])
+
+const downloadItems = computed(() => [
+  { name: '地圖圖磚', size: '42 MB', threshold: 0, detail: '登山區域周邊底圖與等高線' },
+  {
+    name: '路線資料',
+    size: '5 MB',
+    threshold: 42,
+    detail: `${selectedRoute.value.name}：時間、距離、坡度、爬升、難度、風險`,
+  },
+  { name: '路線 GPX 軌跡', size: '3 MB', threshold: 52, detail: '起終點、路徑軌跡與定位參考' },
+  {
+    name: '裝備清單',
+    size: '2 MB',
+    threshold: 60,
+    detail: `必備 ${selectedRoute.value.gear.required.length} 項，建議 ${selectedRoute.value.gear.optional.length} 項`,
+  },
+  { name: 'AI 風險模型', size: '28 MB', threshold: 68, detail: '滑倒、迷路、偏離與路線負荷評估' },
+  { name: '緊急求救資料', size: '12 MB', threshold: 88, detail: '緊急聯絡資訊與離線求救提示' },
+])
 
 function startDownload() { plan.startOfflineDownload() }
 </script>
@@ -147,6 +232,34 @@ function startDownload() { plan.startOfflineDownload() }
 }
 
 .offline-card { border-radius: 24px !important; }
+
+.route-data-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.route-data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+}
+
+.route-data-row span {
+  opacity: 0.55;
+}
+
+.route-data-row strong {
+  text-align: right;
+  font-size: 0.84rem;
+}
+
+.gear-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 
 @keyframes breathe-green {
   0%, 100% { box-shadow: 0 0 0 8px rgba(26,140,85,0.04); }
