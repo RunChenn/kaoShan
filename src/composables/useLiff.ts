@@ -61,7 +61,21 @@ export function useLiff() {
       if (liffAPI.isLoggedIn()) {
         const idToken = liffAPI.getIDToken()
         if (!idToken) throw new Error('LIFF id_token 取得失敗')
-        await authenticateWithBackend(idToken, liffAPI.getAccessToken())
+        try {
+          await authenticateWithBackend(idToken, liffAPI.getAccessToken())
+        } catch {
+          // 後端不可用時（如 GitHub Pages demo），直接用 LIFF profile 登入
+          const profile = await liffAPI.getProfile()
+          auth.setLoggedIn(
+            {
+              userId: profile.userId,
+              displayName: profile.displayName,
+              pictureUrl: profile.pictureUrl ?? '',
+            },
+            'liff_only',
+            'line'
+          )
+        }
       }
     } catch (e) {
       console.warn('[LIFF] init error:', e)
@@ -86,7 +100,20 @@ export function useLiff() {
 
     const idToken = liffAPI.getIDToken()
     if (!idToken) throw new Error('LIFF id_token 取得失敗')
-    await authenticateWithBackend(idToken, liffAPI.getAccessToken())
+    try {
+      await authenticateWithBackend(idToken, liffAPI.getAccessToken())
+    } catch {
+      const profile = await liffAPI.getProfile()
+      auth.setLoggedIn(
+        {
+          userId: profile.userId,
+          displayName: profile.displayName,
+          pictureUrl: profile.pictureUrl ?? '',
+        },
+        'liff_only',
+        'line'
+      )
+    }
   }
 
   async function loginWithGoogle(): Promise<void> {
