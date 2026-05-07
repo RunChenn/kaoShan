@@ -683,6 +683,7 @@
 
 <script setup lang="ts">
 import MapPhase1 from 'src/components/MapPhase1.vue';
+import { useAiRouter } from 'src/composables/useAiRouter';
 import {
   FITNESS_LABELS,
   GEAR_ITEMS,
@@ -698,6 +699,7 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const appStore = useAppStore();
+const aiRouter = useAiRouter();
 const auth = useAuthStore();
 
 // ── Types ───────────────────────────────────────
@@ -927,11 +929,21 @@ async function replyWithMockAi(msg: string) {
     slopeComfort: /陡|挑戰|百岳/.test(msg) ? 4 : 2,
     days: /兩天|2天|三天|3天/.test(msg) ? 2 : 1,
   });
+
+  // 呼叫後端 GPT-4o 取得真實回覆
+  let replyText = '收到！根據你的需求，我幫你篩選了適合的路線，請看下方推薦。';
+  try {
+    const res = await aiRouter.chat(msg);
+    replyText = res.reply;
+  } catch (_) {
+    // API 未啟動時保留預設文字
+  }
+
   messages.value.push({
     id: Date.now() + 1,
     role: 'bot',
     type: 'text',
-    text: '收到。我會先用假資料模擬 AI 規劃流程：依照你的需求，先抓「行程天數、體能負荷、坡度接受度、天氣風險」四個條件來篩選。',
+    text: replyText,
     time: nowTime(),
   });
   setTimeout(
@@ -1255,10 +1267,26 @@ async function onFileUpload(e: Event) {
   // Set history context
   historyContext.value = `使用者上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，時間 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分。`;
 
-  // Auto-trigger mock analysis
-  await sleep(800);
+  // 呼叫後端 Claude Sonnet 進行真實體能分析
+  await sleep(500);
   typing.value = true;
-  await replyWithMockAi('分析我的體能');
+
+  let analysisReply = '根據你的紀錄，建議選擇爬升較緩的路線作為熱身。';
+  try {
+    const res = await aiRouter.hikingRecord(historyContext.value);
+    analysisReply = res.reply;
+  } catch (_) {
+    // API 未啟動時保留預設文字
+  }
+
+  typing.value = false;
+  messages.value.push({
+    id: Date.now() + 10,
+    role: 'bot',
+    type: 'text',
+    text: analysisReply,
+    time: nowTime(),
+  });
 }
 
 function sleep(ms: number) {

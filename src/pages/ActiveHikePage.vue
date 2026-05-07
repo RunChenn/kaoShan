@@ -112,15 +112,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from 'src/stores/app'
-import { TIMELINE_NODES, ALERTS_BY_RISK, AI_REPLIES } from 'src/data/hikingRoutes'
+import { TIMELINE_NODES, ALERTS_BY_RISK } from 'src/data/hikingRoutes'
 import MapPhase2 from 'src/components/MapPhase2.vue'
+import { useAiRouter } from 'src/composables/useAiRouter'
 
 const appStore = useAppStore()
+const aiRouter = useAiRouter()
 const riskLevel = computed(() => appStore.config.risk)
 const alert     = computed(() => ALERTS_BY_RISK[riskLevel.value] ?? ALERTS_BY_RISK.low)
 
 const listening = ref(false)
 const aiReply   = ref<string | null>(null)
+
+let mediaRecorder: MediaRecorder | null = null
+let audioChunks: Blob[] = []
 const fatigue   = ref(42)
 const liveStats = ref({ alt: 2340, spd: 2.3, hr: 118, temp: 14 })
 
@@ -151,14 +156,46 @@ onMounted(() => {
 
 onUnmounted(() => { if (liveTimer) clearInterval(liveTimer) })
 
-function handleVoice() {
-  if (listening.value) return
-  listening.value = true
-  aiReply.value = null
-  setTimeout(() => {
-    listening.value = false
-    aiReply.value = AI_REPLIES[Math.floor(Math.random() * AI_REPLIES.length)]
-  }, 2500)
+async function handleVoice() {
+  // 第二次點擊：停止錄音並送出
+  if (listening.value) {
+    mediaRecorder?.stop()
+    return
+  }
+
+  // 第一次點擊：開始錄音
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    audioChunks = []
+    mediaRecorder = new MediaRecorder(stream)
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data)
+    }
+
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop())
+      listening.value = false
+      aiReply.value = null
+
+      const blob = new Blob(audioChunks, { type: 'audio/webm' })
+      try {
+        const res = await aiRouter.voice(blob)
+        aiReply.value = `[${res.model_used}] ${res.reply}`
+      } catch (_) {
+        aiReply.value = '語音辨識失敗，請確認後端服務與 OPENAI_API_KEY 已設定。'
+      }
+    }
+
+    mediaRecorder.start()
+    listening.value = true
+    aiReply.value = null
+
+    // 最長錄音 10 秒自動停止
+    setTimeout(() => { if (listening.value) mediaRecorder?.stop() }, 10000)
+  } catch (_) {
+    aiReply.value = '無法存取麥克風，請確認瀏覽器權限。'
+  }
 }
 
 function handleSOS() {

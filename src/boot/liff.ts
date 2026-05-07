@@ -50,6 +50,5 @@ export default boot(async ({ router }) => {
   sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY)
   sessionStorage.removeItem(LIFF_REDIRECT_PENDING_KEY)
 
-  // LINE App callback 有時會停在 /{LIFF_ID}，不論 query 是否已被 LIFF SDK 清掉，都回到出發前頁面。
-  router.replace(auth.isLoggedIn || isLiffEndpointPath || isLiffCallback ? postLoginRedirect : { path: '/' })
+  router.replace(auth.isLoggedIn ? postLoginRedirect : { path: '/' })
 })

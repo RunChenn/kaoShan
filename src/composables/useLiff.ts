@@ -1,4 +1,5 @@
 import { useAuthStore } from 'src/stores/auth'
+import { api } from 'src/boot/axios'
 import { ref } from 'vue'
 
 const liffInitialized = ref(false)
@@ -8,13 +9,35 @@ export function useLiff() {
   const auth = useAuthStore()
   const loading = ref(false)
 
+  async function authenticateWithBackend(idToken: string, accessToken?: string | null): Promise<void> {
+    const { data } = await api.post<{
+      jwt_token: string
+      user_id: string
+      display_name: string
+      picture_url?: string | null
+    }>('/auth/line', {
+      id_token: idToken,
+      access_token: accessToken ?? undefined,
+    })
+
+    auth.setLoggedIn(
+      {
+        userId: data.user_id,
+        displayName: data.display_name,
+        pictureUrl: data.picture_url ?? '',
+      },
+      data.jwt_token,
+      'line'
+    )
+  }
+
   async function initLiff(): Promise<void> {
     if (liffInitialized.value) return
 
     const liffId = import.meta.env.VITE_LIFF_ID
 
-    // DEV 模式：直接 mock 登入
     if (!liffId || liffId === 'your_liff_id_here') {
+      console.warn('[LIFF] VITE_LIFF_ID 未設定，LINE 實際登入不可用')
       liffInitialized.value = true
       auth.setLiffReady()
       return
@@ -27,20 +50,12 @@ export function useLiff() {
       auth.setLiffReady()
 
       if (liffAPI.isLoggedIn()) {
-        const profile = await liffAPI.getProfile()
-        const token = liffAPI.getIDToken() ?? ''
-        auth.setLoggedIn(
-          {
-            userId: profile.userId,
-            displayName: profile.displayName,
-            pictureUrl: profile.pictureUrl ?? '',
-            statusMessage: profile.statusMessage,
-          },
-          token
-        )
+        const idToken = liffAPI.getIDToken()
+        if (!idToken) throw new Error('LIFF id_token 取得失敗')
+        await authenticateWithBackend(idToken, liffAPI.getAccessToken())
       }
     } catch (e) {
-      console.warn('[LIFF] init error, fallback to mock:', e)
+      console.warn('[LIFF] init error:', e)
       liffInitialized.value = true
       auth.setLiffReady()
     }
@@ -50,22 +65,19 @@ export function useLiff() {
     const liffId = import.meta.env.VITE_LIFF_ID
 
     if (!liffId || liffId === 'your_liff_id_here') {
-      // Mock 登入
-      auth.setLoggedIn(
-        {
-          userId: 'mock_user_001',
-          displayName: '王小明',
-          pictureUrl: 'https://i.pravatar.cc/150?img=32',
-          statusMessage: '愛好登山',
-        },
-        'mock_id_token'
-      )
-      return
+      throw new Error('VITE_LIFF_ID 未設定，無法使用 LINE 實際登入')
     }
 
     sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirectPath)
     const liffAPI = await import('@line/liff').then(m => m.default)
-    liffAPI.login()
+    if (!liffAPI.isLoggedIn()) {
+      liffAPI.login()
+      return
+    }
+
+    const idToken = liffAPI.getIDToken()
+    if (!idToken) throw new Error('LIFF id_token 取得失敗')
+    await authenticateWithBackend(idToken, liffAPI.getAccessToken())
   }
 
   async function loginWithGoogle(): Promise<void> {

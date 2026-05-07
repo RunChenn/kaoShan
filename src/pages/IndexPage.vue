@@ -204,7 +204,11 @@ async function handleLogin() {
   loading.value = true;
   try {
     await login();
-    router.push({ name: 'pre-departure' });
+    if (auth.isLoggedIn) {
+      router.push({ name: 'pre-departure' });
+    }
+  } catch (e) {
+    window.alert(e instanceof Error ? e.message : 'LINE 登入失敗，請稍後再試');
   } finally {
     loading.value = false;
   }
