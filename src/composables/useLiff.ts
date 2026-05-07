@@ -10,6 +10,10 @@ function getLiffId(): string {
   return import.meta.env.VITE_LIFF_ID || DEFAULT_LIFF_ID
 }
 
+function getLiffRedirectUri(): string {
+  return new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+}
+
 export function useLiff() {
   const auth = useAuthStore()
   const loading = ref(false)
@@ -76,7 +80,7 @@ export function useLiff() {
     sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirectPath)
     const liffAPI = await import('@line/liff').then(m => m.default)
     if (!liffAPI.isLoggedIn()) {
-      liffAPI.login()
+      liffAPI.login({ redirectUri: getLiffRedirectUri() })
       return
     }
 
