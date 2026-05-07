@@ -370,12 +370,14 @@
             class="line-input"
             placeholder="傳訊息給 KaoShan..."
             v-model="inputText"
-            @keydown.enter="sendUserMsg(inputText)"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @keydown.enter.exact.prevent="!isComposing && sendUserMsg(inputText)"
           />
           <button
             class="line-send-btn"
             :class="{ active: inputText.trim() }"
-            @click="sendUserMsg(inputText)"
+            @click.prevent="sendUserMsg(inputText)"
           >
             發送
           </button>
@@ -683,6 +685,7 @@
 
 <script setup lang="ts">
 import MapPhase1 from 'src/components/MapPhase1.vue';
+import { api } from 'src/boot/axios';
 import { useAiRouter } from 'src/composables/useAiRouter';
 import {
   FITNESS_LABELS,
@@ -694,7 +697,7 @@ import {
 } from 'src/data/hikingRoutes';
 import { useAppStore } from 'src/stores/app';
 import { useAuthStore } from 'src/stores/auth';
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -703,6 +706,29 @@ const aiRouter = useAiRouter();
 const auth = useAuthStore();
 
 // ── Types ───────────────────────────────────────
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
+interface SpeechRecognitionEventResult {
+  isFinal: boolean;
+  0: { transcript: string };
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: SpeechRecognitionEventResult[];
+}
+
+interface SpeechRecognitionInstance {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
 interface ParsedHistory {
   name: string;
   distanceKm: number;
@@ -772,16 +798,49 @@ interface GearAssessment {
   tips: string[];
 }
 
+interface ProfileForm {
+  age: number;
+  weight: number;
+  level: 'beginner' | 'experienced';
+  fitness: number;
+  target_days: number;
+}
+
+interface RouteApiResponse {
+  id: string;
+  name: string;
+  location: string;
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  days: number;
+  distance_km: number;
+  estimated_hours: number;
+  elevation_gain: number;
+  risks: {
+    slip: number;
+    lost: number;
+    deviation: number;
+  };
+}
+
+interface CachedRouteRecommendation {
+  savedAt: number;
+  routes: RouteApiResponse[];
+}
+
 // ── LINE Chatbox ─────────────────────────────────
+const ROUTE_RECOMMEND_CACHE_PREFIX = 'kaoshan:routes:recommend:';
+const ROUTE_RECOMMEND_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 const msgListEl = ref<HTMLDivElement>();
 const msgEndEl = ref<HTMLDivElement>();
 const inputText = ref('');
+const isComposing = ref(false);
 const typing = ref(false);
 const showContacts = ref(false);
 const chatCollapsed = ref(false);
 const recommendationsVisible = ref(false);
 const planningRevealed = ref(false);
 const historyContext = ref('');
+const profileForm = ref<ProfileForm | null>(null);
 const recommendedRouteCards = ref<RouteCard[]>([]);
 const demandSummary = ref<DemandSummary>({
   goal: '尚未建立',
@@ -847,11 +906,34 @@ function buildDemandSummary(msg: string): DemandSummary {
   };
 }
 
+function buildDemandSummaryFromProfile(
+  profile: ProfileForm,
+  sourceMessage: string,
+): DemandSummary {
+  return {
+    goal: /GPX|JSON|紀錄|體能/.test(sourceMessage)
+      ? '依歷史紀錄推薦'
+      : /百岳|挑戰|進階/.test(sourceMessage)
+        ? '進階挑戰路線'
+        : '出發前路線規劃',
+    days: `${profile.target_days} 日行程`,
+    fitness: `${FITNESS_LABELS[profile.fitness]}（${profile.fitness}/5）`,
+    risk:
+      profile.level === 'experienced' && profile.fitness >= 4
+        ? '可接受中風險'
+        : '優先低風險',
+    note: '已取得 ProfileForm，並透過 POST /api/v1/routes/recommend 取得推薦路線。',
+  };
+}
+
 function publishRouteRecommendations(
   routes: RecommendedRoute[],
   sourceMessage: string,
+  profile?: ProfileForm,
 ) {
-  demandSummary.value = buildDemandSummary(sourceMessage);
+  demandSummary.value = profile
+    ? buildDemandSummaryFromProfile(profile, sourceMessage)
+    : buildDemandSummary(sourceMessage);
   recommendedRouteCards.value = routes.slice(0, 3).map(toRouteCard);
   recommendationsVisible.value = true;
   chatCollapsed.value = true;
@@ -863,6 +945,164 @@ function publishRouteRecommendations(
     time: nowTime(),
   });
   quickReplies.value = [];
+}
+
+function hasMinimumProfileInfo(text: string) {
+  const hasAge = /(\d{1,3})\s*歲/.test(text);
+  const hasFitness = /體力|體能|新手|第一次|入門|進階|百岳|挑戰|體力好|普通|一般/.test(text);
+  const hasDays = /(\d+)\s*(?:天|日)|一天|兩天|三天/.test(text);
+  return hasAge && hasFitness && hasDays;
+}
+
+function fallbackProfileFromText(text: string, fitness = 3): ProfileForm {
+  const ageMatch = text.match(/(\d{1,3})\s*歲/);
+  const weightMatch = text.match(/(\d{2,3})\s*(?:公斤|kg|KG)/);
+  const daysMatch = text.match(/(\d+)\s*(?:天|日)/);
+  const targetDays = /兩天|2天/.test(text) ? 2 : /三天|3天/.test(text) ? 3 : Number(daysMatch?.[1] ?? 1);
+  return {
+    age: Number(ageMatch?.[1] ?? 30),
+    weight: Number(weightMatch?.[1] ?? 70),
+    level: /新手|第一次|入門/.test(text) ? 'beginner' : 'experienced',
+    fitness: Math.min(5, Math.max(1, /進階|百岳|挑戰|體力好/.test(text) ? 4 : fitness)),
+    target_days: Math.min(5, Math.max(1, targetDays || 1)),
+  };
+}
+
+function normalizeExtractedProfile(
+  extracted: Record<string, unknown> | null | undefined,
+  fallbackText: string,
+): ProfileForm {
+  const fallback = fallbackProfileFromText(fallbackText);
+  const experience = String(extracted?.experience ?? extracted?.level ?? fallback.level);
+  return {
+    age: Number(extracted?.age ?? fallback.age),
+    weight: Number(extracted?.weight ?? fallback.weight),
+    level: experience === 'beginner' ? 'beginner' : 'experienced',
+    fitness: Math.min(5, Math.max(1, Number(extracted?.fitness ?? fallback.fitness))),
+    target_days: Math.min(5, Math.max(1, Number(extracted?.targetDays ?? extracted?.target_days ?? fallback.target_days))),
+  };
+}
+
+async function extractProfileWithClaude(text: string): Promise<ProfileForm | null> {
+  try {
+    const { data } = await api.post<{
+      reply: string;
+      ready: boolean;
+      extracted_profile?: Record<string, unknown> | null;
+    }>('/chat', {
+      messages: [{ role: 'user', content: text }],
+      history_context: historyContext.value,
+    });
+    if (!data.ready && !data.extracted_profile) return null;
+    return normalizeExtractedProfile(data.extracted_profile, text);
+  } catch (_) {
+    if (!hasMinimumProfileInfo(text)) return null;
+    return fallbackProfileFromText(text);
+  }
+}
+
+function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
+  const local =
+    ROUTES.find((r) => r.id === route.id) ??
+    ROUTES.find((r) => r.name === route.name || route.name.includes(r.name) || r.name.includes(route.name));
+  const risk = route.difficulty === 'easy' ? 'low' : route.difficulty === 'medium' ? 'mid' : 'high';
+  return {
+    ...(local ?? ROUTES[0]!),
+    id: route.id,
+    name: route.name,
+    region: route.location,
+    risk,
+    distance: `${route.distance_km}km`,
+    elevation: `${route.elevation_gain}m`,
+    time: `${route.estimated_hours}h`,
+    minDays: route.days,
+    highlight: `滑倒風險 ${route.risks.slip}、迷路風險 ${route.risks.lost}、偏離風險 ${route.risks.deviation}`,
+    matchScore: risk === 'low' ? 88 : risk === 'mid' ? 74 : 58,
+    matchLabel: risk === 'low' ? '推薦' : risk === 'mid' ? '可考慮' : '需審慎評估',
+    matchBg: risk === 'low' ? 'rgba(34,197,94,0.10)' : risk === 'mid' ? 'rgba(251,146,60,0.12)' : 'rgba(239,68,68,0.10)',
+    matchColor: risk === 'low' ? 'var(--summit-accent)' : risk === 'mid' ? 'var(--risk-mid)' : 'var(--risk-high)',
+    reasons: [
+      { icon: '📏', text: `距離 ${route.distance_km}km` },
+      { icon: '⬆', text: `累積爬升 ${route.elevation_gain}m` },
+      { icon: '⏱', text: `預估 ${route.estimated_hours} 小時` },
+    ],
+  };
+}
+
+function getRouteRecommendCacheKey(profile: ProfileForm) {
+  const normalized = {
+    age: Math.round(profile.age),
+    weight: Math.round(profile.weight),
+    level: profile.level,
+    fitness: Math.round(profile.fitness),
+    target_days: Math.round(profile.target_days),
+  };
+  return `${ROUTE_RECOMMEND_CACHE_PREFIX}${JSON.stringify(normalized)}`;
+}
+
+function readCachedRouteRecommendations(profile: ProfileForm): RouteApiResponse[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(getRouteRecommendCacheKey(profile));
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as CachedRouteRecommendation;
+    if (!Array.isArray(cached.routes) || Date.now() - cached.savedAt > ROUTE_RECOMMEND_CACHE_TTL_MS) {
+      window.localStorage.removeItem(getRouteRecommendCacheKey(profile));
+      return null;
+    }
+    return cached.routes;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeCachedRouteRecommendations(profile: ProfileForm, routes: RouteApiResponse[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    const cached: CachedRouteRecommendation = {
+      savedAt: Date.now(),
+      routes,
+    };
+    window.localStorage.setItem(getRouteRecommendCacheKey(profile), JSON.stringify(cached));
+  } catch (_) {
+    // localStorage 可能因隱私模式或容量限制失敗，失敗時仍維持原本 API 流程。
+  }
+}
+
+async function recommendRoutesFromProfile(
+  profile: ProfileForm,
+  sourceMessage: string,
+) {
+  profileForm.value = profile;
+  const cachedRoutes = readCachedRouteRecommendations(profile);
+  if (cachedRoutes) {
+    publishRouteRecommendations(cachedRoutes.map(apiRouteToRecommendedRoute), sourceMessage, profile);
+    return;
+  }
+
+  try {
+    const { data } = await api.post<RouteApiResponse[]>('/routes/recommend', profile);
+    writeCachedRouteRecommendations(profile, data);
+    publishRouteRecommendations(data.map(apiRouteToRecommendedRoute), sourceMessage, profile);
+  } catch (_) {
+    const localRoutes = getRecommendations({
+      age: String(profile.age),
+      weight: String(profile.weight),
+      fitness: profile.fitness,
+      experience: profile.level,
+      slopeCoeff: 3,
+      targetDays: profile.target_days,
+    });
+    publishRouteRecommendations(localRoutes, sourceMessage, profile);
+  }
+}
+
+async function completeProfileAndRecommend(sourceMessage: string, fitness = 3) {
+  const extracted = await extractProfileWithClaude(sourceMessage);
+  if (!extracted) return false;
+  if (fitness !== 3) extracted.fitness = fitness;
+  await recommendRoutesFromProfile(extracted, sourceMessage);
+  return true;
 }
 
 async function replyWithMockAi(msg: string) {
@@ -922,38 +1162,56 @@ async function replyWithMockAi(msg: string) {
     return;
   }
 
-  const routes = getRecommendations({
-    age: 28,
-    fitness: /進階|挑戰|百岳|兩天|2天/.test(msg) ? 4 : 2,
-    experience: /新手|第一次|入門/.test(msg) ? 'beginner' : 'experienced',
-    slopeComfort: /陡|挑戰|百岳/.test(msg) ? 4 : 2,
-    days: /兩天|2天|三天|3天/.test(msg) ? 2 : 1,
-  });
+  // 用 /chat（Claude Haiku）進行多輪對話，傳完整歷史，AI 自動問問題、收集體能後推薦路線
+  const history = messages.value
+    .filter((m) => m.type === 'text')
+    .map((m) => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.text ?? '' }));
 
-  // 呼叫後端 GPT-4o 取得真實回覆
-  let replyText = '收到！根據你的需求，我幫你篩選了適合的路線，請看下方推薦。';
   try {
-    const res = await aiRouter.chat(msg);
-    replyText = res.reply;
-  } catch (_) {
-    // API 未啟動時保留預設文字
-  }
+    const { data } = await api.post<{
+      reply: string;
+      ready: boolean;
+      extracted_profile?: Record<string, unknown> | null;
+    }>('/chat', {
+      messages: history,
+      history_context: historyContext.value,
+    });
 
-  messages.value.push({
-    id: Date.now() + 1,
-    role: 'bot',
-    type: 'text',
-    text: replyText,
-    time: nowTime(),
-  });
-  setTimeout(
-    () =>
-      publishRouteRecommendations(
-        routes.length ? routes : ROUTES.slice(0, 3),
-        msg,
-      ),
-    650,
-  );
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      text: data.reply,
+      time: nowTime(),
+    });
+
+    if (data.ready && data.extracted_profile) {
+      const profile = normalizeExtractedProfile(data.extracted_profile, msg);
+      await recommendRoutesFromProfile(profile, msg);
+    }
+  } catch (_) {
+    // 後端不可用時：用本地 regex 萃取，資訊足夠就直接推薦
+    const combinedText = `${historyContext.value}\n${msg}`.trim();
+    if (hasMinimumProfileInfo(combinedText)) {
+      const profile = fallbackProfileFromText(combinedText);
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        text: '根據您的描述，我來幫您推薦適合的路線！',
+        time: nowTime(),
+      });
+      await recommendRoutesFromProfile(profile, combinedText);
+    } else {
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        text: '請告訴我您的年齡、體力（1-5 分）和想走幾天，我就能幫您推薦適合的路線！',
+        time: nowTime(),
+      });
+    }
+  }
 }
 
 async function sendUserMsg(text: string, clearInput = true) {
@@ -1287,6 +1545,11 @@ async function onFileUpload(e: Event) {
     text: analysisReply,
     time: nowTime(),
   });
+
+  await recommendRoutesFromProfile(
+    fallbackProfileFromText(historyContext.value, (analyzeHistory(record).fitnessEstimate)),
+    historyContext.value,
+  );
 }
 
 function sleep(ms: number) {
@@ -1299,129 +1562,237 @@ const voiceOverlay = ref(false);
 const overlayPhase = ref<'recording' | 'confirming' | 'sending'>('recording');
 const overlayLive = ref('');
 const overlayFinal = ref('');
-let overlayRecognition: SpeechRecognition | null = null;
+const recordedVoiceBlob = ref<Blob | null>(null);
+let mediaRecorder: MediaRecorder | null = null;
+let mediaStream: MediaStream | null = null;
+let mediaChunks: Blob[] = [];
+let speechRecognition: SpeechRecognitionInstance | null = null;
 
 onMounted(() => {
-  const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
-      .SpeechRecognition ||
-    (
-      window as typeof window & {
-        webkitSpeechRecognition?: typeof SpeechRecognition;
-      }
-    ).webkitSpeechRecognition;
-  if (SR) voiceSupported.value = true;
+  voiceSupported.value = isVoiceInputSupported();
   scrollToBottom();
 });
 
-function openVoiceOverlay() {
-  if (!voiceSupported.value) return;
-  overlayFinal.value = '';
-  overlayLive.value = '';
-  overlayPhase.value = 'recording';
-  voiceOverlay.value = true;
-  startOverlayRecognition();
+onBeforeUnmount(() => {
+  stopVoiceCapture();
+});
+
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
+  const speechWindow = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
 }
 
-function startOverlayRecognition() {
-  const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
-      .SpeechRecognition ||
-    (
-      window as typeof window & {
-        webkitSpeechRecognition?: typeof SpeechRecognition;
-      }
-    ).webkitSpeechRecognition;
-  if (!SR) return;
+function isMediaRecorderSupported() {
+  return Boolean(
+    navigator.mediaDevices?.getUserMedia &&
+      typeof window.MediaRecorder !== 'undefined',
+  );
+}
 
-  if (overlayRecognition) {
-    try {
-      overlayRecognition.abort();
-    } catch (_) {
-      /* ignore */
-    }
+function isVoiceInputSupported() {
+  return isMediaRecorderSupported() || Boolean(getSpeechRecognitionConstructor());
+}
+
+function getSupportedAudioMimeType() {
+  const types = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/mpeg',
+    'audio/wav',
+  ];
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
+}
+
+function openVoiceOverlay() {
+  voiceSupported.value = isVoiceInputSupported();
+  if (!voiceSupported.value) {
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'text',
+      text: '目前瀏覽器不支援語音輸入，請改用文字輸入。',
+      time: nowTime(),
+    });
+    return;
+  }
+  overlayFinal.value = '';
+  overlayLive.value = '';
+  recordedVoiceBlob.value = null;
+  overlayPhase.value = 'recording';
+  voiceOverlay.value = true;
+  void startOverlayRecording();
+}
+
+async function startOverlayRecording() {
+  if (mediaRecorder?.state === 'recording') return;
+  if (!isMediaRecorderSupported()) {
+    startSpeechRecognitionFallback();
+    return;
+  }
+  mediaChunks = [];
+  overlayLive.value = '錄音中，停止後會送至 Whisper 轉文字。';
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = getSupportedAudioMimeType();
+    mediaRecorder = new MediaRecorder(
+      mediaStream,
+      mimeType ? { mimeType } : undefined,
+    );
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) mediaChunks.push(event.data);
+    };
+    mediaRecorder.onstop = () => {
+      recordedVoiceBlob.value = new Blob(mediaChunks, {
+        type: mediaRecorder?.mimeType || 'audio/webm',
+      });
+      mediaStream?.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+      overlayLive.value = '';
+      overlayFinal.value = '錄音已完成，確認後送出分析。';
+      overlayPhase.value = 'confirming';
+    };
+    mediaRecorder.start();
+  } catch (e) {
+    console.warn('MediaRecorder error:', e);
+    overlayLive.value = '';
+    overlayFinal.value = '無法啟用麥克風，請確認瀏覽器權限。';
+    overlayPhase.value = 'confirming';
+  }
+}
+
+function startSpeechRecognitionFallback() {
+  const SpeechRecognition = getSpeechRecognitionConstructor();
+  if (!SpeechRecognition) {
+    overlayLive.value = '';
+    overlayFinal.value = '目前瀏覽器不支援語音輸入，請改用文字輸入。';
+    overlayPhase.value = 'confirming';
+    return;
   }
 
-  const r = new SR();
-  r.lang = 'zh-TW';
-  r.interimResults = true;
-  r.continuous = true;
-  r.maxAlternatives = 1;
-
-  r.onresult = (e: SpeechRecognitionEvent) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const result = e.results[i];
-      if (!result) continue;
-      if (result.isFinal) {
-        overlayFinal.value += result[0]?.transcript ?? '';
-        overlayLive.value = '';
-      } else {
-        interim += result[0]?.transcript ?? '';
-      }
+  speechRecognition = new SpeechRecognition();
+  speechRecognition.lang = 'zh-TW';
+  speechRecognition.continuous = true;
+  speechRecognition.interimResults = true;
+  overlayLive.value = '語音辨識中，停止後可確認文字內容。';
+  speechRecognition.onresult = (event) => {
+    let finalText = '';
+    let interimText = '';
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const transcript = event.results[i]?.[0]?.transcript ?? '';
+      if (event.results[i]?.isFinal) finalText += transcript;
+      else interimText += transcript;
     }
-    overlayLive.value = interim;
+    if (finalText) overlayFinal.value += finalText;
+    overlayLive.value = interimText;
   };
-
-  r.onend = () => {
-    if (overlayPhase.value === 'recording') {
-      overlayLive.value = '';
-      overlayPhase.value = 'confirming';
+  speechRecognition.onerror = () => {
+    overlayLive.value = '';
+    if (!overlayFinal.value.trim()) {
+      overlayFinal.value = '無法啟用語音辨識，請確認瀏覽器權限。';
     }
+    overlayPhase.value = 'confirming';
   };
-
-  r.onerror = (e: SpeechRecognitionErrorEvent) => {
-    if (e.error !== 'no-speech') console.warn('Voice error:', e.error);
-    if (overlayPhase.value === 'recording') {
-      overlayLive.value = '';
-      overlayPhase.value = 'confirming';
-    }
+  speechRecognition.onend = () => {
+    overlayLive.value = '';
+    overlayPhase.value = 'confirming';
   };
-
-  overlayRecognition = r;
   try {
-    r.start();
+    speechRecognition.start();
   } catch (_) {
-    /* ignore */
+    overlayLive.value = '';
+    overlayFinal.value = '無法啟用語音辨識，請確認瀏覽器權限。';
+    overlayPhase.value = 'confirming';
   }
 }
 
 function stopOverlayRecording() {
-  overlayPhase.value = 'confirming';
-  overlayLive.value = '';
-  if (overlayRecognition) {
-    try {
-      overlayRecognition.stop();
-    } catch (_) {
-      /* ignore */
-    }
+  if (mediaRecorder?.state === 'recording') {
+    mediaRecorder.stop();
+  } else if (speechRecognition) {
+    speechRecognition.stop();
+  } else {
+    overlayPhase.value = 'confirming';
   }
 }
 
 function retryOverlayRecording() {
   overlayFinal.value = '';
   overlayLive.value = '';
+  recordedVoiceBlob.value = null;
   overlayPhase.value = 'recording';
-  startOverlayRecognition();
+  void startOverlayRecording();
+}
+
+async function processVoiceBlob(blob: Blob) {
+  messages.value.push({
+    id: Date.now(),
+    role: 'user',
+    type: 'text',
+    text: '已送出語音輸入',
+    time: nowTime(),
+  });
+  typing.value = true;
+  try {
+    const res = await aiRouter.voice(blob, 'voice.webm');
+    typing.value = false;
+    if (res.transcribed_text) {
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        text: `Whisper 轉文字：${res.transcribed_text}`,
+        time: nowTime(),
+      });
+    }
+    messages.value.push({
+      id: Date.now() + 2,
+      role: 'bot',
+      type: 'text',
+      text: `${res.reply}\n\n模型路由：${res.model_used}`,
+      time: nowTime(),
+    });
+    await completeProfileAndRecommend(res.transcribed_text || res.reply);
+  } catch (_) {
+    typing.value = false;
+    messages.value.push({
+      id: Date.now() + 3,
+      role: 'bot',
+      type: 'text',
+      text: '語音分析暫時無法使用，請改用文字輸入描述需求。',
+      time: nowTime(),
+    });
+  }
 }
 
 function confirmOverlaySend() {
-  const text = overlayFinal.value.trim();
-  if (!text) return;
+  const blob = recordedVoiceBlob.value;
   overlayPhase.value = 'sending';
   voiceOverlay.value = false;
-  void sendUserMsg(text, false);
+  if (blob) {
+    void processVoiceBlob(blob);
+    return;
+  }
+  const text = overlayFinal.value.trim();
+  if (text) void sendUserMsg(text, false);
 }
 
 function closeVoiceOverlay() {
-  if (overlayRecognition) {
-    try {
-      overlayRecognition.abort();
-    } catch (_) {
-      /* ignore */
-    }
-  }
+  stopVoiceCapture();
   voiceOverlay.value = false;
+}
+
+function stopVoiceCapture() {
+  speechRecognition?.stop();
+  speechRecognition = null;
+  if (mediaRecorder?.state === 'recording') {
+    mediaRecorder.stop();
+  }
+  mediaStream?.getTracks().forEach((track) => track.stop());
+  mediaStream = null;
 }
 
 function notifyContact(c: { name: string }) {
