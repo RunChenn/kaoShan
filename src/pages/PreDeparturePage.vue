@@ -1162,55 +1162,27 @@ async function replyWithMockAi(msg: string) {
     return;
   }
 
-  // 用 /chat（Claude Haiku）進行多輪對話，傳完整歷史，AI 自動問問題、收集體能後推薦路線
-  const history = messages.value
-    .filter((m) => m.type === 'text')
-    .map((m) => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.text ?? '' }));
-
+  // 一般聊天主入口用 /ai/chat，避免 profile 萃取失敗時影響正常對話。
+  let replyText = '我收到你的訊息了。可以再補充這次想走的地區、天數或體力狀況，我會依照你的回答慢慢整理規劃。';
   try {
-    const { data } = await api.post<{
-      reply: string;
-      ready: boolean;
-      extracted_profile?: Record<string, unknown> | null;
-    }>('/chat', {
-      messages: history,
-      history_context: historyContext.value,
-    });
-
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'bot',
-      type: 'text',
-      text: data.reply,
-      time: nowTime(),
-    });
-
-    if (data.ready && data.extracted_profile) {
-      const profile = normalizeExtractedProfile(data.extracted_profile, msg);
-      await recommendRoutesFromProfile(profile, msg);
-    }
+    const res = await aiRouter.chat(msg);
+    replyText = res.reply;
   } catch (_) {
-    // 後端不可用時：用本地 regex 萃取，資訊足夠就直接推薦
-    const combinedText = `${historyContext.value}\n${msg}`.trim();
-    if (hasMinimumProfileInfo(combinedText)) {
-      const profile = fallbackProfileFromText(combinedText);
-      messages.value.push({
-        id: Date.now() + 1,
-        role: 'bot',
-        type: 'text',
-        text: '根據您的描述，我來幫您推薦適合的路線！',
-        time: nowTime(),
-      });
-      await recommendRoutesFromProfile(profile, combinedText);
-    } else {
-      messages.value.push({
-        id: Date.now() + 1,
-        role: 'bot',
-        type: 'text',
-        text: '請告訴我您的年齡、體力（1-5 分）和想走幾天，我就能幫您推薦適合的路線！',
-        time: nowTime(),
-      });
-    }
+    // 後端暫時不可用時保留自然回覆，不再固定要求同一組欄位。
+  }
+
+  messages.value.push({
+    id: Date.now() + 1,
+    role: 'bot',
+    type: 'text',
+    text: replyText,
+    time: nowTime(),
+  });
+
+  const combinedText = `${historyContext.value}\n${msg}`.trim();
+  const recommended = await completeProfileAndRecommend(combinedText);
+  if (!recommended && hasMinimumProfileInfo(combinedText)) {
+    await recommendRoutesFromProfile(fallbackProfileFromText(combinedText), combinedText);
   }
 }
 
