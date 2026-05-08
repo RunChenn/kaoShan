@@ -27,19 +27,17 @@
       <template v-if="!auth.isLoggedIn">
         <div class="login-card anim-slide-up" style="animation-delay: 0.1s">
           <div class="login-card-inner">
-            <div class="hero-copy q-mb-md">
-              <div class="hero-kicker">SMART HIKING SAFETY</div>
-              <h1 class="hero-title">安全上山，平安下山</h1>
-              <p class="hero-subtitle">
-                有 <span class="brand-word">靠山</span>，走得更
-                <span class="risk-pill">低風險</span>
-              </p>
+            <div
+              class="text-h6 text-white text-weight-bold q-mb-xs"
+              style="letter-spacing: 0.06rem"
+            >
+              安全上山，平安下山，有靠山，沒風險
             </div>
             <div
               class="text-body2 q-mb-lg"
               style="color: rgba(255, 255, 255, 0.62)"
             >
-              AI 風險評估 · 緊急求救 · 家人守護
+              AI 即時風險評估 · 緊急求救 · 家人守護
             </div>
 
             <div class="feature-row q-mb-xl">
@@ -48,7 +46,7 @@
               }}</span>
             </div>
 
-            <!-- <q-btn
+            <q-btn
               unelevated
               size="lg"
               class="full-width line-btn"
@@ -61,9 +59,9 @@
 
             <div class="login-divider">
               <span>或</span>
-            </div> -->
+            </div>
 
-            <!-- <q-btn
+            <q-btn
               unelevated
               size="lg"
               class="full-width google-btn"
@@ -95,16 +93,7 @@
                 />
               </svg>
               使用 Google 登入
-            </q-btn> -->
-
-            <button
-              unelevated
-              size="lg"
-              class="guest-btn full-width line-btn"
-              @click="handleGuestLogin"
-            >
-              訪客體驗 →
-            </button>
+            </q-btn>
           </div>
         </div>
       </template>
@@ -119,7 +108,7 @@
           <div class="q-ml-sm">
             <div
               class="text-subtitle2 text-white text-weight-bold"
-              style="letter-spacing: -0.015em"
+              style="letter-spacing: 0.06rem"
             >
               {{ auth.profile?.displayName }}
             </div>
@@ -211,11 +200,7 @@ async function handleLogin() {
   loading.value = true;
   try {
     await login();
-    if (auth.isLoggedIn) {
-      router.push({ name: 'pre-departure' });
-    }
-  } catch (e) {
-    window.alert(e instanceof Error ? e.message : 'LINE 登入失敗，請稍後再試');
+    router.push({ name: 'line' });
   } finally {
     loading.value = false;
   }
@@ -225,29 +210,10 @@ async function handleGoogleLogin() {
   loadingGoogle.value = true;
   try {
     await loginWithGoogle();
-    if (auth.isLoggedIn) {
-      router.push({ name: 'pre-departure' });
-    }
-  } catch (e) {
-    window.alert(
-      e instanceof Error ? e.message : 'Google 登入失敗，請稍後再試',
-    );
+    router.push({ name: 'line' });
   } finally {
     loadingGoogle.value = false;
   }
-}
-
-function handleGuestLogin() {
-  auth.setLoggedIn(
-    {
-      userId: 'guest_001',
-      displayName: '訪客',
-      pictureUrl: 'https://i.pravatar.cc/150?img=12',
-    },
-    'guest_token',
-    'guest',
-  );
-  router.push({ name: 'pre-departure' });
 }
 </script>
 
@@ -315,7 +281,7 @@ function handleGuestLogin() {
   position: relative;
   z-index: 1;
   padding-top: max(72px, env(safe-area-inset-top, 0px) + 56px);
-  gap: 15px;
+  gap: 10px;
 }
 
 .logo-box {
@@ -342,17 +308,16 @@ function handleGuestLogin() {
   color: #fff;
   font-size: 2.4rem;
   font-weight: 800;
-  letter-spacing: -0.045em;
+  letter-spacing: 0.06rem;
   text-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   line-height: 1;
 }
 
 .app-tagline {
-  margin-top: 6px;
   color: rgba(255, 255, 255, 0.38);
   font-size: 0.62rem;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.06rem;
 }
 
 // ── Bottom area ───────────────────────────────────────────
@@ -379,61 +344,6 @@ function handleGuestLogin() {
   padding: 28px 24px 24px;
 }
 
-.hero-copy {
-  max-width: 320px;
-}
-
-.hero-kicker {
-  margin-bottom: 8px;
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
-.hero-title {
-  margin: 0;
-  color: #fff;
-  font-size: 1.72rem;
-  line-height: 1.22;
-  font-weight: 850;
-  letter-spacing: 0;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.32);
-}
-
-.hero-subtitle {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0 0;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 1rem;
-  line-height: 1.5;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-}
-
-.brand-word {
-  color: #fff;
-  font-weight: 850;
-}
-
-.risk-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: rgba(26, 140, 85, 0.28);
-  border: 1px solid rgba(46, 204, 113, 0.48);
-  color: #dfffe9;
-  font-size: 0.9rem;
-  font-weight: 850;
-  box-shadow: 0 0 20px rgba(46, 204, 113, 0.16);
-  letter-spacing: 0.08em;
-}
-
 .feature-row {
   display: flex;
   flex-wrap: wrap;
@@ -448,7 +358,7 @@ function handleGuestLogin() {
   color: rgba(255, 255, 255, 0.82);
   font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.06rem;
   backdrop-filter: blur(8px);
 }
 
@@ -459,7 +369,7 @@ function handleGuestLogin() {
   border-radius: 18px !important;
   font-size: 1rem !important;
   font-weight: 700 !important;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
   height: 54px;
   box-shadow:
     0 4px 24px rgba(6, 199, 85, 0.55),
@@ -506,7 +416,7 @@ function handleGuestLogin() {
     color: rgba(255, 255, 255, 0.38);
     font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.06rem;
   }
 }
 
@@ -516,7 +426,7 @@ function handleGuestLogin() {
   border-radius: 18px !important;
   font-size: 1rem !important;
   font-weight: 700 !important;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
   height: 54px;
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.25),
@@ -545,26 +455,6 @@ function handleGuestLogin() {
   flex-shrink: 0;
 }
 
-// ── Guest button ──────────────────────────────────────────
-.guest-btn {
-  margin-top: 10px;
-  width: 100%;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  padding: 8px;
-  font-family: inherit;
-  transition: color 0.2s;
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.75);
-  }
-}
-
 // ── Action buttons ────────────────────────────────────────
 .action-btn {
   width: 100%;
@@ -578,7 +468,7 @@ function handleGuestLogin() {
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: 0.06rem;
   transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
 
   &:active {

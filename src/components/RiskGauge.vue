@@ -32,13 +32,13 @@ defineProps<{ label: string; value: number; color: string; icon: string }>()
   background: rgba(0,0,0,0.03);
 }
 
-.gauge-val { font-size: 0.72rem; letter-spacing: -0.02em; line-height: 1; }
+.gauge-val { font-size: 0.72rem; letter-spacing: 0.06rem; line-height: 1; }
 
 .gauge-label {
   font-size: 0.65rem;
   opacity: 0.55;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
   max-width: 64px;
   line-height: 1.3;
 }

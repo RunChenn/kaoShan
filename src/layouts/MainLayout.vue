@@ -78,7 +78,7 @@
             <q-avatar size="76px" class="profile-avatar">
               <img :src="auth.profile?.pictureUrl || 'https://i.pravatar.cc/150'" />
             </q-avatar>
-            <div class="text-h6 text-white text-weight-bold q-mt-sm" style="letter-spacing:-0.02em">
+            <div class="text-h6 text-white text-weight-bold q-mt-sm" style="letter-spacing: 0.06rem">
               {{ auth.profile?.displayName }}
             </div>
             <div class="text-caption text-white" style="opacity:0.6">
@@ -205,7 +205,7 @@ async function handleLogout() {
 
 .header-title {
   font-size: 1.05rem;
-  letter-spacing: -0.025em;
+  letter-spacing: 0.06rem;
 }
 
 .header-action-btn {
@@ -277,7 +277,7 @@ async function handleLogout() {
   .nav-label {
     font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.06rem;
     line-height: 1;
   }
 

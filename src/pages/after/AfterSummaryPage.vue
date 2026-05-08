@@ -1,7 +1,6 @@
 <template>
   <q-page padding class="q-pb-xl">
-    <div class="text-h5 text-weight-bold text-primary q-mb-xs anim-slide-down" style="letter-spacing:-0.03em">本次摘要</div>
-    <div class="text-caption text-grey-6 q-mb-lg anim-slide-down" style="animation-delay:0.04s;opacity:0.55">{{ summary.date }} · {{ summary.routeName }}</div>
+    <div class="text-h5 text-weight-bold text-primary q-mb-xs anim-slide-down" style="letter-spacing: 0.06rem;opacity:0.55">{{ summary.date }} · {{ summary.routeName }}</div>
 
     <!-- 2x2 統計卡片 -->
     <div class="row q-gutter-sm q-mb-lg anim-slide-up">

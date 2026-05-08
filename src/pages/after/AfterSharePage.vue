@@ -5,18 +5,7 @@
       class="full-width q-pt-md q-pb-sm anim-slide-down"
       style="max-width: 380px"
     >
-      <div class="text-h5 text-weight-bold" style="letter-spacing: -0.03em">
-        分享成果
-      </div>
-      <div class="text-body2 q-mt-xs" style="opacity: 0.5">
-        將您的登山紀錄分享給家人與朋友
-      </div>
-    </div>
-
-    <!-- Safe return card -->
-    <div
-      class="safe-card anim-slide-up"
-      style="animation-delay: 0.06s; max-width: 380px; width: 100%"
+      <div class="text-h5 text-weight-bold" style="letter-spacing: 0.06rem; max-width: 380px; width: 100%"
     >
       <div class="safe-orb safe-orb-1" />
       <div class="safe-orb safe-orb-2" />
@@ -26,31 +15,7 @@
         </div>
         <div
           class="text-h6 text-white text-weight-bold q-mt-md"
-          style="letter-spacing: -0.025em"
-        >
-          平安返回通知
-        </div>
-        <div
-          class="text-body2 text-white q-mt-xs q-mb-lg"
-          style="opacity: 0.65"
-        >
-          發送平安訊息給家人，讓他們安心
-        </div>
-        <q-btn
-          unelevated
-          class="full-width safe-btn"
-          icon="chat"
-          label="傳送 LINE 平安通知"
-          :loading="sendingReturn"
-          @click="sendSafeReturn"
-        />
-      </div>
-    </div>
-
-    <!-- Preview label -->
-    <div
-      class="full-width q-mt-xl q-mb-sm anim-slide-up"
-      style="animation-delay: 0.1s; max-width: 380px"
+          style="letter-spacing: 0.06rem; max-width: 380px"
     >
       <div class="section-label">分享成果卡片預覽</div>
     </div>
@@ -75,45 +40,7 @@
           </div>
           <div
             class="text-white text-h6 text-weight-bold"
-            style="letter-spacing: -0.025em"
-          >
-            {{ summary.routeName }}
-          </div>
-          <div class="text-white text-caption q-mt-xs" style="opacity: 0.72">
-            {{ summary.date }}
-          </div>
-        </div>
-      </div>
-
-      <!-- Stats row -->
-      <div class="flex-stats">
-        <div class="flex-stat" v-for="s in previewStats" :key="s.label">
-          <div class="flex-stat-val" :class="`text-${s.color}`">
-            {{ s.val }}
-          </div>
-          <div class="flex-stat-lbl">{{ s.label }}</div>
-        </div>
-      </div>
-
-      <!-- Achievements -->
-      <div class="flex-chips q-mx-md q-mb-sm">
-        <div class="achiev-chip chip-fire">
-          <q-icon name="local_fire_department" size="13px" />
-          {{ summary.calories }} kcal
-        </div>
-        <div class="achiev-chip chip-star">
-          <q-icon name="star" size="13px" />
-          評分 {{ routeScore }}/10
-        </div>
-      </div>
-
-      <div class="flex-footer">登山助理 · 安全上山平安下山</div>
-    </div>
-
-    <!-- Share buttons -->
-    <div
-      class="full-width q-mt-xl q-gutter-y-sm anim-slide-up"
-      style="animation-delay: 0.16s; max-width: 380px"
+            style="letter-spacing: 0.06rem; max-width: 380px"
     >
       <q-btn
         unelevated
@@ -148,34 +75,7 @@
           </div>
           <div
             class="text-h5 text-white text-weight-bold q-mt-md"
-            style="letter-spacing: -0.025em"
-          >
-            平安通知已發送！
-          </div>
-        </div>
-        <q-card-section class="q-pa-lg">
-          <div class="text-body2 text-center q-mb-xs" style="opacity: 0.65">
-            已透過 LINE 通知家人您已平安返回
-          </div>
-          <div class="text-caption text-center q-mb-lg" style="opacity: 0.4">
-            傳送給：3 位家人
-          </div>
-          <div class="safe-message-preview">
-            📍 {{ summary.routeName }} 登山完成！<br />
-            ✅ 本人已平安下山<br />
-            📅 {{ summary.date }}<br />
-            🏔️ 爬升 {{ summary.elevationGain }}m · 距離
-            {{ summary.distanceKm }}km
-          </div>
-        </q-card-section>
-        <q-card-actions align="center" class="q-pb-lg">
-          <q-btn
-            unelevated
-            color="positive"
-            label="確認"
-            class="col-8"
-            style="
-              border-radius: 14px;
+            style="letter-spacing: 0.06rem;
               height: 46px;
               font-weight: 700;
               margin: 0 auto;
@@ -263,7 +163,7 @@ async function copyLink() {
 .section-label {
   font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   opacity: 0.38;
 }
@@ -411,7 +311,7 @@ async function copyLink() {
 .flex-stat-val {
   font-size: 1.3rem;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: 0.06rem;
   line-height: 1;
 }
 .flex-stat-lbl {

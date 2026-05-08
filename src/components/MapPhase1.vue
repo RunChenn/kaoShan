@@ -90,7 +90,7 @@ onUnmounted(() => { if (map) { map.remove(); map = null } })
   color: #111827;
   font-size: 10px;
   font-weight: 900;
-  letter-spacing: 0;
+  letter-spacing: 0.06rem;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
 }
 

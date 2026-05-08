@@ -6,8 +6,7 @@
       </q-avatar>
     </div>
     <div class="recovery-text">
-      <div class="text-subtitle2 text-weight-bold" style="letter-spacing:-0.015em">{{ label }}</div>
-      <div class="text-caption" style="opacity:0.55;margin-top:2px;line-height:1.45">{{ desc }}</div>
+      <div class="text-subtitle2 text-weight-bold" style="letter-spacing: 0.06rem;margin-top:2px;line-height:1.45">{{ desc }}</div>
     </div>
   </div>
 </template>

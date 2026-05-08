@@ -4,66 +4,7 @@
     <!-- Header -->
     <div class="row full-width items-center q-px-md q-pt-safe">
       <q-btn flat round icon="arrow_back" color="white" style="opacity:0.75" @click="$router.back()" />
-      <div class="text-h6 text-white text-weight-bold q-ml-sm" style="letter-spacing:-0.02em">緊急求救</div>
-      <q-space />
-      <div class="sos-status-badge">EMERGENCY</div>
-    </div>
-
-    <!-- SOS Button -->
-    <div class="sos-center column items-center">
-      <div class="sos-hint text-white text-center q-mb-xl" style="opacity:0.7">
-        長按 SOS 按鈕 3 秒發送求救訊號
-      </div>
-
-      <div
-        class="sos-wrapper"
-        @touchstart.prevent="startPress"
-        @touchend.prevent="endPress"
-        @mousedown="startPress"
-        @mouseup="endPress"
-        @mouseleave="endPress"
-      >
-        <!-- Pulse rings -->
-        <div class="sos-pulse sos-pulse-1" />
-        <div class="sos-pulse sos-pulse-2" />
-
-        <!-- Progress arc -->
-        <q-circular-progress
-          v-if="pressing"
-          :value="pressProgress"
-          size="200px"
-          :thickness="0.06"
-          color="white"
-          track-color="rgba(255,255,255,0.15)"
-          class="sos-arc"
-        />
-
-        <!-- Main button -->
-        <div class="sos-btn" :class="{ 'sos-pressing': pressing }">
-          <q-icon name="sos" size="3.2rem" color="white" />
-        </div>
-      </div>
-
-      <div class="text-caption text-white q-mt-xl" style="opacity:0.55;letter-spacing:0.04em">
-        {{ pressing ? `保持按住... ${Math.round(pressProgress)}%` : '觸碰並長按以啟動' }}
-      </div>
-    </div>
-
-    <!-- Bottom info -->
-    <div class="q-pa-lg full-width">
-      <!-- Location card -->
-      <div class="location-card q-mb-lg">
-        <div class="row items-center q-mb-sm">
-          <div class="loc-icon-ring">
-            <q-icon name="location_on" color="white" size="18px" />
-          </div>
-          <span class="text-subtitle2 text-white text-weight-bold q-ml-sm" style="letter-spacing:-0.015em">
-            當前位置
-          </span>
-          <q-space />
-          <div class="gps-dot" />
-        </div>
-        <div class="text-body2 text-white q-mb-xs" style="opacity:0.85;font-weight:500">
+      <div class="text-h6 text-white text-weight-bold q-ml-sm" style="letter-spacing: 0.06rem;font-weight:500">
           {{ formatCoords(pos) }}
         </div>
         <div class="text-caption text-white" style="opacity:0.5">
@@ -93,18 +34,7 @@
       <q-card class="sos-dialog">
         <div class="sos-dialog-header">
           <q-icon name="sos" size="2.5rem" color="white" />
-          <div class="text-h5 text-white text-weight-bold q-mt-sm" style="letter-spacing:-0.025em">
-            確認求救
-          </div>
-        </div>
-        <q-card-section class="q-pa-lg">
-          <div class="text-body2 q-mb-md" style="opacity:0.65">將傳送以下求救訊息：</div>
-          <div class="confirm-msg">
-            緊急求救！位置：{{ formatCoords(pos) }}，海拔 {{ pos?.altitude ?? 3245 }}m。請立即派遣搜救人員。
-          </div>
-        </q-card-section>
-        <q-card-actions class="q-px-lg q-pb-lg" style="gap:10px">
-          <q-btn flat label="取消" color="grey-5" class="col" style="border-radius:12px;height:44px;font-weight:600" v-close-popup />
+          <div class="text-h5 text-white text-weight-bold q-mt-sm" style="letter-spacing: 0.06rem;height:44px;font-weight:600" v-close-popup />
           <q-btn unelevated label="確認發送" color="negative" icon="send" class="col"
                  style="border-radius:12px;height:44px;font-weight:700;box-shadow:0 4px 16px rgba(217,48,37,0.4)"
                  @click="confirmSos" />
@@ -119,17 +49,7 @@
           <div class="success-ring">
             <q-icon name="check" size="2rem" color="white" />
           </div>
-          <div class="text-h5 text-white text-weight-bold q-mt-md" style="letter-spacing:-0.025em">
-            求救已發送！
-          </div>
-        </div>
-        <q-card-section class="text-center q-pa-lg">
-          <div class="text-body2 q-mb-xs" style="opacity:0.75">搜救團隊已收到您的位置，請保持冷靜</div>
-          <div class="text-caption" style="opacity:0.45">預計到達時間：2–4 小時</div>
-        </q-card-section>
-        <q-card-actions align="center" class="q-pb-lg">
-          <q-btn unelevated color="positive" label="確認" class="col-8"
-                 style="border-radius:14px;height:46px;font-weight:700;margin:0 auto" v-close-popup />
+          <div class="text-h5 text-white text-weight-bold q-mt-md" style="letter-spacing: 0.06rem;height:46px;font-weight:700;margin:0 auto" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -211,11 +131,11 @@ onUnmounted(endPress)
   background: rgba(255,255,255,0.15);
   border: 1px solid rgba(255,255,255,0.25);
   color: white; font-size: 0.62rem; font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06rem;
 }
 
 .sos-center { position: relative; z-index: 1; }
-.sos-hint   { font-size: 0.85rem; letter-spacing: 0.01em; }
+.sos-hint   { font-size: 0.85rem; letter-spacing: 0.06rem; }
 
 // ── SOS button ────────────────────────────────────────────
 .sos-wrapper {

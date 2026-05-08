@@ -239,7 +239,7 @@ function speakStatus() {
   display: flex; align-items: center; gap: 5px;
   font-size: 0.78rem; font-weight: 700;
   border: 1px solid rgba(255,255,255,0.1);
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
 }
 
 .chip-warn   { background: rgba(200,144,42,0.88) !important; border-color: transparent !important; }

@@ -7,10 +7,10 @@
       <div class="trails-hero-orb orb-1" />
       <div class="trails-hero-orb orb-2" />
       <div class="trails-hero-content q-px-md q-pt-md q-pb-lg">
-        <div class="text-caption text-white q-mb-xs" style="opacity:0.55;letter-spacing:0.08em;text-transform:uppercase">
+        <div class="text-caption text-white q-mb-xs" style="opacity:0.55;letter-spacing: 0.06rem;text-transform:uppercase">
           Taiwan Trails
         </div>
-        <div class="text-h4 text-white text-weight-bold" style="letter-spacing:-0.04em;line-height:1.1">
+        <div class="text-h4 text-white text-weight-bold" style="letter-spacing: 0.06rem;line-height:1.1">
           步道探索
         </div>
         <div class="text-body2 text-white q-mt-xs" style="opacity:0.65">
@@ -309,7 +309,7 @@ function goDetail(id: string) {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
   transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
   white-space: nowrap;
   outline: none;
@@ -376,7 +376,7 @@ function goDetail(id: string) {
 .result-count {
   font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   opacity: 0.35;
 }
@@ -433,7 +433,7 @@ function goDetail(id: string) {
   color: white;
   font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06rem;
 }
 
 .type-badge {
@@ -447,14 +447,14 @@ function goDetail(id: string) {
   color: white;
   font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06rem;
 }
 
 // ── Trail body ────────────────────────────────────────────
 .trail-name {
   font-size: 1rem;
   font-weight: 800;
-  letter-spacing: -0.025em;
+  letter-spacing: 0.06rem;
   line-height: 1.2;
 }
 

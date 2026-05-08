@@ -128,7 +128,7 @@ function selectRoute(id: string) {
   padding-top: 20px;
 }
 .page-title {
-  letter-spacing: -0.03em;
+  letter-spacing: 0.06rem;
 }
 .page-subtitle {
   opacity: 0.5;
@@ -141,7 +141,7 @@ function selectRoute(id: string) {
 .filter-label {
   font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   opacity: 0.4;
   margin-bottom: 7px;
@@ -162,7 +162,7 @@ function selectRoute(id: string) {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
   outline: none;
 
   &:active { transform: scale(0.95); }
@@ -191,7 +191,7 @@ function selectRoute(id: string) {
 .result-count {
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
   opacity: 0.35;
   text-transform: uppercase;
 }

@@ -4,8 +4,8 @@ import { ref } from 'vue'
 
 const liffInitialized = ref(false)
 const POST_LOGIN_REDIRECT_KEY = '__liff_post_login_redirect__'
-const DEFAULT_LIFF_ID = '2009970633-zYGV9XSy'
-const GOOGLE_SCRIPT_ID = 'google-identity-services'
+const DEFAULT_LIFF_ID = import.meta.env.VITE_LIFF_ID || '2009970633-zYGV9XSy'
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 declare global {
   interface Window {
@@ -45,7 +45,7 @@ function loadGoogleIdentityScript(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve()
 
   return new Promise((resolve, reject) => {
-    const existing = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null
+    const existing = document.getElementById(GOOGLE_CLIENT_ID) as HTMLScriptElement | null
     if (existing) {
       existing.addEventListener('load', () => resolve(), { once: true })
       existing.addEventListener('error', () => reject(new Error('Google Identity Services 載入失敗')), { once: true })
@@ -53,7 +53,7 @@ function loadGoogleIdentityScript(): Promise<void> {
     }
 
     const script = document.createElement('script')
-    script.id = GOOGLE_SCRIPT_ID
+    script.id = GOOGLE_CLIENT_ID
     script.src = 'https://accounts.google.com/gsi/client'
     script.async = true
     script.defer = true

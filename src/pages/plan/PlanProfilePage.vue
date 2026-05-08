@@ -1,7 +1,6 @@
 <template>
   <q-page padding class="q-pb-xl">
-    <div class="text-h5 text-weight-bold text-primary q-mb-xs anim-slide-down" style="letter-spacing:-0.03em">體力評估</div>
-    <div class="text-body2 text-grey-6 q-mb-lg anim-slide-down" style="animation-delay:0.04s;opacity:0.65">輸入您的身體狀況，AI 為您計算安全等級評分</div>
+    <div class="text-h5 text-weight-bold text-primary q-mb-xs anim-slide-down" style="letter-spacing: 0.06rem;opacity:0.65">輸入您的身體狀況，AI 為您計算安全等級評分</div>
 
     <!-- 基本資料 -->
     <q-card class="hiking-card q-mb-md anim-slide-up" style="animation-delay:0s">

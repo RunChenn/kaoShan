@@ -52,7 +52,7 @@ const done    = computed(() => props.progress >= props.item.threshold + 12 || pr
 .icon-active { background: rgba(26,140,85,0.12); animation: breathe-green 1.5s ease-in-out infinite; }
 .icon-done   { background: rgba(46,204,113,0.15); }
 
-.item-name { font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em; }
+.item-name { font-size: 0.85rem; font-weight: 500; letter-spacing: 0.06rem; }
 .item-size { font-size: 0.7rem; opacity: 0.4; }
 .item-detail {
   margin-top: 2px;

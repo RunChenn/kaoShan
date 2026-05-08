@@ -37,7 +37,7 @@
             color: oklch(68% 0.18 148);
             font-weight: 700;
             font-size: 12px;
-            letter-spacing: -0.01em;
+            letter-spacing: 0.06rem;
           "
         >
           Tweaks Panel
@@ -214,7 +214,7 @@ const PanelRow = {
           'div',
           {
             style:
-              'color:rgba(255,255,255,0.38);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px',
+              'color:rgba(255,255,255,0.38);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing: 0.06rem;margin-bottom:5px',
           },
           props.label,
         ),

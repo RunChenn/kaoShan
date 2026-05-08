@@ -11,12 +11,7 @@
         <template v-if="overlayPhase === 'recording'">
           <div class="voice-overlay-title">語音輸入</div>
           <div class="voice-wave-lg">
-            <div
-              v-for="i in 5"
-              :key="i"
-              class="voice-bar-lg"
-              :style="{ animationDelay: `${i * 0.12}s` }"
-            />
+            <div v-for="i in 5" :key="i" class="voice-bar-lg" />
           </div>
           <div class="voice-overlay-live">
             <span class="voice-final-text">{{ overlayFinal }}</span>
@@ -33,40 +28,15 @@
           </button>
         </template>
 
-        <!-- Confirming phase -->
-        <template v-else-if="overlayPhase === 'confirming'">
-          <div class="voice-overlay-title">確認訊息內容</div>
-          <div class="voice-confirm-label">我聽到的是：</div>
-          <textarea
-            class="voice-confirm-textarea"
-            v-model="overlayFinal"
-            rows="4"
-            placeholder="（可直接編輯文字）"
-          />
-          <div class="voice-confirm-actions">
-            <button class="voice-btn-secondary" @click="retryOverlayRecording">
-              重錄
-            </button>
-            <button
-              class="voice-btn-primary"
-              :disabled="!overlayFinal.trim()"
-              @click="confirmOverlaySend"
-            >
-              確認送出
-            </button>
-          </div>
-        </template>
-
         <!-- Sending phase -->
         <template v-else>
-          <div class="voice-overlay-title">傳送中...</div>
+          <div class="voice-overlay-title">轉文字中...</div>
           <div class="voice-wave-lg">
-            <div
-              v-for="i in 5"
-              :key="i"
-              class="voice-bar-lg"
-              :style="{ animationDelay: `${i * 0.12}s`, opacity: 0.4 }"
-            />
+            <div v-for="i in 5" :key="i" class="voice-bar-lg" />
+          </div>
+          <div class="voice-overlay-live">
+            <span class="voice-final-text">{{ overlayFinal }}</span>
+            <span class="voice-placeholder">正在把語音放進輸入框...</span>
           </div>
         </template>
       </div>
@@ -95,7 +65,7 @@
           <div class="line-header-actions">
             <button
               v-if="showAiModeToggle"
-              class="ai-mode-toggle"
+              class="chat-small-btn ai-mode-toggle"
               :class="{ 'ai-mode-openai': aiChatMode === 'openai' }"
               :title="
                 aiChatMode === 'mock' ? '目前使用假資料' : '目前使用 OpenAI'
@@ -103,6 +73,24 @@
               @click="toggleAiChatMode"
             >
               {{ aiChatMode === 'mock' ? '假資料' : 'OpenAI' }}
+            </button>
+            <button
+              v-if="recommendationsVisible && !chatCollapsed"
+              class="chat-small-btn chat-collapse-btn"
+              title="收合對話"
+              @click="toggleChatCollapsed"
+            >
+              <span class="material-icons">unfold_less</span>
+              <span>收合對話</span>
+            </button>
+            <button
+              v-if="recommendationsVisible"
+              class="chat-small-btn chat-reset-chat-btn"
+              title="重新聊天"
+              @click="resetChatConversation"
+            >
+              <span class="material-icons">restart_alt</span>
+              <span>重新聊天</span>
             </button>
             <!-- <button class="line-icon-btn" title="撥打電話">📞</button> -->
             <!-- <button class="line-icon-btn" title="視訊">📹</button> -->
@@ -125,7 +113,7 @@
               {{ demandSummary.fitness }}
             </div>
           </div>
-          <button class="chat-expand-btn" @click="chatCollapsed = false">
+          <button class="chat-expand-btn" @click="toggleChatCollapsed">
             查看對話
           </button>
         </div>
@@ -203,7 +191,7 @@
                 </div>
                 <div class="route-card-actions">
                   <button
-                    class="route-action-btn"
+                    class="custom-btn route-action-btn"
                     @click="selectRecommendedRoute(cardOf(m))"
                   >
                     {{
@@ -213,7 +201,7 @@
                     }}
                   </button>
                   <button
-                    class="route-action-ghost route-action-btn"
+                    class="custom-btn route-action-ghost route-action-btn"
                     @click="sendUserMsg('告訴我更多關於 ' + cardOf(m).name)"
                   >
                     了解更多
@@ -277,14 +265,14 @@
                 <div class="chat-progress-label">
                   AI 分析「{{ (m.cardData as ProgressData).name }}」中...
                 </div>
-                <div class="chat-progress-track">
-                  <div
-                    class="chat-progress-fill"
-                    :style="{
-                      width: `${(m.cardData as ProgressData).progress}%`,
-                    }"
-                  />
-                </div>
+                <q-linear-progress
+                  :value="(m.cardData as ProgressData).progress / 100"
+                  color="primary"
+                  track-color="grey-4"
+                  size="6px"
+                  rounded
+                  class="chat-progress-track"
+                />
                 <div class="chat-progress-pct">
                   {{ (m.cardData as ProgressData).progress }}%
                 </div>
@@ -323,7 +311,10 @@
                 <div :class="['msg-bubble', `msg-${m.role}`]">{{ m.text }}</div>
                 <div
                   class="msg-time"
-                  :style="{ textAlign: m.role === 'user' ? 'right' : 'left' }"
+                  :class="{
+                    'msg-time-user': m.role === 'user',
+                    'msg-time-bot': m.role === 'bot',
+                  }"
                 >
                   {{ m.time }}
                 </div>
@@ -366,7 +357,7 @@
               type="file"
               accept=".gpx,.json"
               @change="onFileUpload"
-              style="display: none"
+              hidden
             />
           </label>
           <button
@@ -404,7 +395,7 @@
         <div class="section-label">需求統整</div>
         <div class="demand-grid">
           <div class="demand-item">
-            <span>目標</span>
+            <span>地區</span>
             <strong>{{ demandSummary.goal }}</strong>
           </div>
           <div class="demand-item">
@@ -422,7 +413,18 @@
         </div>
         <div class="demand-note">{{ demandSummary.note }}</div>
 
-        <div class="section-label recommendation-label">推薦路線</div>
+        <div class="recommendation-header">
+          <div class="section-label recommendation-label">推薦路線</div>
+          <button
+            class="custom-btn recommendation-reroll-btn"
+            title="重新推薦"
+            :disabled="rerollingRecommendations"
+            @click="rerollRecommendations"
+          >
+            <span class="material-icons">refresh</span>
+            <span>換路線</span>
+          </button>
+        </div>
         <div class="recommendation-list">
           <div
             v-for="card in recommendedRouteCards"
@@ -467,7 +469,7 @@
             <div class="route-card-highlight">{{ card.highlight }}</div>
             <div class="route-card-actions">
               <button
-                class="route-action-btn"
+                class="custom-btn route-action-btn"
                 @click="selectRecommendedRoute(card)"
               >
                 {{
@@ -477,7 +479,7 @@
                 }}
               </button>
               <button
-                class="route-action-ghost route-action-btn"
+                class="custom-btn route-action-ghost route-action-btn"
                 @click="askMoreAboutRoute(card)"
               >
                 了解更多
@@ -494,46 +496,24 @@
           ref="gearPhotoInput"
           type="file"
           accept="image/*"
-          style="display: none"
+          hidden
           @change="onGearPhotoSelected"
         />
         <div
           class="yolo-area"
           @click="doScan"
-          :style="{ minHeight: scanned ? 'auto' : '80px' }"
+          :class="{ 'yolo-area-scanned': scanned }"
         >
-          <div
-            v-if="!scanned && !scanning"
-            style="text-align: center; padding: 16px 0; pointer-events: none"
-          >
-            <div style="font-size: 28px; margin-bottom: 4px">📷</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted)">
-              點擊拍照或從相簿上傳裝備照片
-            </div>
+          <div v-if="!scanned && !scanning" class="yolo-empty-state">
+            <div class="yolo-empty-icon">📷</div>
+            <div class="yolo-empty-copy">點擊拍照或從相簿上傳裝備照片</div>
           </div>
           <template v-if="scanning">
             <div class="yolo-scanline" />
-            <div
-              style="
-                color: var(--summit-accent);
-                font-size: 0.8rem;
-                font-weight: 700;
-                padding: 16px;
-                z-index: 1;
-              "
-            >
-              裝備辨識中...
-            </div>
+            <div class="yolo-scanning-text">裝備辨識中...</div>
           </template>
-          <div v-if="scanned" style="padding: 10px; width: 100%">
-            <div
-              style="
-                font-size: 0.8rem;
-                color: var(--summit-accent);
-                font-weight: 700;
-                margin-bottom: 6px;
-              "
-            >
+          <div v-if="scanned" class="yolo-scanned-wrap">
+            <div class="yolo-scanned-title">
               辨識完成，已自動加入且勾選 {{ yoloItems.length }} 項
             </div>
             <div class="yolo-result">
@@ -551,22 +531,13 @@
 
       <!-- 裝備清單 -->
       <div v-if="planningRevealed" class="card anim-slide-up">
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px;
-          "
-        >
-          <div class="section-label" style="margin-bottom: 0">裝備清單</div>
+        <div class="gear-header-row">
+          <div class="section-label section-label-compact">裝備清單</div>
           <span
-            style="font-size: 0.78rem; font-weight: 700"
-            :style="{
-              color:
-                gearItems.length > 0 && gearCount === gearItems.length
-                  ? 'var(--risk-low)'
-                  : 'var(--text-muted)',
+            class="gear-count"
+            :class="{
+              'gear-count-ok':
+                gearItems.length > 0 && gearCount === gearItems.length,
             }"
             >{{ gearCount }}/{{ gearItems.length }}</span
           >
@@ -587,8 +558,12 @@
           <div
             v-for="(item, i) in gearItems"
             :key="item.id"
-            :class="['gear-item', 'stagger-item', { checked: gear[item.id] }]"
-            :style="{ animationDelay: `${i * 0.03}s` }"
+            :class="[
+              'gear-item',
+              'stagger-item',
+              `stagger-${Math.min(i + 1, 12)}`,
+              { checked: gear[item.id] },
+            ]"
             @click="gear[item.id] = !gear[item.id]"
           >
             <div class="gear-check">
@@ -608,15 +583,7 @@
               </svg>
             </div>
             <!-- <span class="gear-icon">{{ item.icon }}</span> -->
-            <span
-              style="
-                font-size: 1em;
-                line-height: 1.2;
-                font-weight: 600;
-                letter-spacing: 0.07em;
-              "
-              >{{ item.label }}</span
-            >
+            <span class="gear-label">{{ item.label }}</span>
             <button
               class="gear-remove-btn"
               title="刪除裝備"
@@ -635,13 +602,17 @@
         </button>
         <!-- AI 評估內容 -->
         <div v-if="gearAssessment" class="gear-assessment-card">
-          <div
-            class="gear-score-ring"
-            :style="{ '--score': gearAssessment.score }"
-          >
+          <div class="gear-score-ring">
             <svg viewBox="0 0 96 96" aria-hidden="true">
               <circle class="gear-score-track" cx="48" cy="48" r="40" />
-              <circle class="gear-score-bar" cx="48" cy="48" r="40" />
+              <circle
+                class="gear-score-bar"
+                cx="48"
+                cy="48"
+                r="40"
+                :stroke-dashoffset="gearScoreDashOffset"
+                :stroke-dasharray="gearScoreCircumference"
+              />
             </svg>
             <div class="gear-score-label">
               <strong>{{ gearAssessment.score }}</strong>
@@ -659,15 +630,32 @@
       </div>
 
       <!-- 天氣 -->
-      <div v-if="planningRevealed" class="card anim-slide-up">
-        <div class="section-label">
-          明日天氣
-          <span v-if="routeWeather?.location_name" style="margin-left: 8px; opacity: 0.72">
-            {{ routeWeather.location_name }}
-          </span>
+        <div v-if="planningRevealed" class="card anim-slide-up">
+        <div class="section-label weather-section-header">
+          <div class="weather-section-title">
+            明日天氣
+            <span v-if="routeWeather?.location_name" class="weather-location">
+              {{ routeWeather.location_name }}
+            </span>
+          </div>
+          <button
+            v-if="showWeatherModeToggle"
+            class="chat-small-btn weather-mode-toggle"
+            :class="{ 'ai-mode-openai': weatherMode === 'openai' }"
+            :title="
+              weatherMode === 'mock' ? '目前使用假資料' : '目前使用 OpenAI'
+            "
+            @click="toggleWeatherMode"
+          >
+            {{ weatherMode === 'mock' ? '假資料' : 'OpenAI' }}
+          </button>
         </div>
-        <div v-if="weatherLoading" style="font-size: 0.78rem; color: var(--text-muted)">
-          正在取得中央氣象署資料...
+        <div v-if="weatherLoading" class="weather-loading">
+          {{
+            weatherMode === 'mock'
+              ? '正在產生本地假天氣建議...'
+              : '正在取得中央氣象署資料並呼叫 OpenAI...'
+          }}
         </div>
         <div class="weather-cols">
           <div v-for="w in displayedWeather" :key="w.label" class="weather-col">
@@ -676,25 +664,14 @@
             <div class="weather-label">{{ w.label }}</div>
           </div>
         </div>
-        <div
-          style="
-            margin-top: 10px;
-            padding: 8px 10px;
-            background: rgba(251, 146, 60, 0.1);
-            border-radius: 10px;
-            border: 1px solid rgba(251, 146, 60, 0.25);
-            font-size: 0.78rem;
-            color: var(--risk-mid);
-            font-weight: 600;
-          "
-        >
+        <div class="weather-advice-box">
           {{ weatherAdvice }}
         </div>
-        <div
-          v-if="routeWeather?.source"
-          style="margin-top: 6px; font-size: 0.66rem; color: var(--text-muted)"
-        >
+        <div v-if="routeWeather?.source" class="weather-source">
           來源：{{ routeWeather.source }}
+        </div>
+        <div v-if="showWeatherModeToggle" class="weather-ai-status" :class="weatherAiStatusClass">
+          {{ weatherAiStatusLabel }}
         </div>
       </div>
 
@@ -709,7 +686,9 @@
           @click="downloadOfflinePackage"
         >
           <span class="material-icons">download</span>
-          <span>{{ offlinePackageDownloading ? '建立中...' : '離線下載包' }}</span>
+          <span>{{
+            offlinePackageDownloading ? '建立中...' : '離線下載包'
+          }}</span>
         </button>
       </div>
     </aside>
@@ -749,7 +728,7 @@
           :selected-route="selectedRoute"
           :theme="appStore.config.theme"
           :gpx-track="gpxMapTrack"
-          style="position: absolute; inset: 0"
+          class="p1-map-layer"
         />
       </div>
     </Transition>
@@ -790,6 +769,13 @@ const showAiModeToggle = import.meta.env.DEV;
 const aiChatMode = ref<'mock' | 'openai'>(showAiModeToggle ? 'mock' : 'openai');
 const shouldUseOpenAiChat = computed(
   () => !showAiModeToggle || aiChatMode.value === 'openai',
+);
+const showWeatherModeToggle = import.meta.env.DEV;
+const weatherMode = ref<'mock' | 'openai'>(
+  showWeatherModeToggle ? 'mock' : 'openai',
+);
+const shouldUseOpenAiWeather = computed(
+  () => !showWeatherModeToggle || weatherMode.value === 'openai',
 );
 
 // ── Types ───────────────────────────────────────
@@ -927,6 +913,8 @@ interface RouteWeatherResponse {
   source: string;
   model_used: string;
   fallback?: boolean;
+  fallback_stage?: string | null;
+  fallback_reason?: string | null;
 }
 
 interface GpxMapTrack {
@@ -992,6 +980,12 @@ const planningRevealed = ref(false);
 const historyContext = ref('');
 const profileForm = ref<ProfileForm | null>(null);
 const recommendedRouteCards = ref<RouteCard[]>([]);
+const rerollingRecommendations = ref(false);
+const lastRecommendationContext = ref<{
+  routes: RecommendedRoute[];
+  sourceMessage: string;
+  profile?: ProfileForm;
+} | null>(null);
 const demandSummary = ref<DemandSummary>({
   goal: '尚未建立',
   days: '待確認',
@@ -1017,6 +1011,18 @@ const messages = ref<Message[]>([
   },
 ]);
 
+function createInitialMessages(): Message[] {
+  return [
+    {
+      id: 1,
+      role: 'bot',
+      type: 'text',
+      time: nowTime(),
+      text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
+    },
+  ];
+}
+
 function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
   const apiMessages = messages.value
     .filter((m) => m.id !== 1 && m.type === 'text' && m.text?.trim())
@@ -1041,6 +1047,59 @@ function toggleAiChatMode() {
   aiChatMode.value = aiChatMode.value === 'mock' ? 'openai' : 'mock';
 }
 
+function toggleChatCollapsed() {
+  chatCollapsed.value = !chatCollapsed.value;
+}
+
+function resetChatConversation() {
+  stopVoiceCapture();
+  voiceOverlay.value = false;
+  voiceDraftSnapshot.value = '';
+  voiceDraftCommitted.value = false;
+  recordedVoiceBlob.value = null;
+  overlayFinal.value = '';
+  overlayLive.value = '';
+  overlayPhase.value = 'recording';
+
+  inputText.value = '';
+  typing.value = false;
+  showContacts.value = false;
+  chatCollapsed.value = false;
+  recommendationsVisible.value = false;
+  planningRevealed.value = false;
+  historyContext.value = '';
+  profileForm.value = null;
+  recommendedRouteCards.value = [];
+  rerollingRecommendations.value = false;
+  lastRecommendationContext.value = null;
+  demandSummary.value = {
+    goal: '尚未建立',
+    days: '待確認',
+    fitness: '待確認',
+    risk: '待確認',
+    note: '完成 AI 對話後，這裡會整理本次登山需求與推薦路線。',
+  };
+
+  selectedRoute.value = null;
+  routeWeather.value = null;
+  weatherLoading.value = false;
+
+  gearItems.value = [];
+  gearAssessment.value = null;
+  scanned.value = false;
+  scanning.value = false;
+  yoloItems.value = [];
+  lastDetectedGearIds.value = new Set();
+  gearPhotoInput.value && (gearPhotoInput.value.value = '');
+  for (const key of Object.keys(gear)) {
+    delete gear[key];
+  }
+
+  messages.value = createInitialMessages();
+  quickReplies.value = QUICK_IDLE;
+  void nextTick(() => scrollToBottom());
+}
+
 const QUICK_IDLE: QuickReply[] = [
   { label: '規劃登山路線', action: 'plan' },
   { label: '查詢明日天氣', action: 'weather' },
@@ -1060,11 +1119,9 @@ function showPlanningTools() {
 
 function buildDemandSummary(msg: string): DemandSummary {
   return {
-    goal: /新手|第一次|入門/.test(msg)
-      ? '新手友善路線'
-      : /百岳|挑戰|進階/.test(msg)
-        ? '進階挑戰路線'
-        : '出發前路線規劃',
+    goal: /北部|中部|南部|東部/.test(msg)
+      ? (msg.match(/(北部|中部|南部|東部)/)?.[1] ?? '待確認地區')
+      : '待確認地區',
     days: /兩天|2天/.test(msg)
       ? '2 天 1 夜'
       : /三天|3天/.test(msg)
@@ -1085,11 +1142,9 @@ function buildDemandSummaryFromProfile(
   sourceMessage: string,
 ): DemandSummary {
   return {
-    goal: /GPX|JSON|紀錄|體能/.test(sourceMessage)
-      ? '依歷史紀錄推薦'
-      : /百岳|挑戰|進階/.test(sourceMessage)
-        ? '進階挑戰路線'
-        : '出發前路線規劃',
+    goal: /北部|中部|南部|東部/.test(sourceMessage)
+      ? (sourceMessage.match(/(北部|中部|南部|東部)/)?.[1] ?? '待確認地區')
+      : '待確認地區',
     days: `${profile.target_days} 日行程`,
     fitness: `${FITNESS_LABELS[profile.fitness]}（${profile.fitness}/5）`,
     risk:
@@ -1105,9 +1160,22 @@ function publishRouteRecommendations(
   sourceMessage: string,
   profile?: ProfileForm,
 ) {
-  demandSummary.value = profile
+  lastRecommendationContext.value = {
+    routes,
+    sourceMessage,
+    profile,
+  };
+  const summary = profile
     ? buildDemandSummaryFromProfile(profile, sourceMessage)
     : buildDemandSummary(sourceMessage);
+  const uniqueRegions = [...new Set(routes.map((route) => route.region))];
+  summary.goal =
+    uniqueRegions.length > 0
+      ? uniqueRegions.length === 1
+        ? uniqueRegions[0]!
+        : uniqueRegions.slice(0, 2).join('、')
+      : '待確認地區';
+  demandSummary.value = summary;
   recommendedRouteCards.value = routes.slice(0, 3).map(toRouteCard);
   recommendationsVisible.value = true;
   chatCollapsed.value = true;
@@ -1119,6 +1187,21 @@ function publishRouteRecommendations(
     time: nowTime(),
   });
   quickReplies.value = [];
+}
+
+function rerollRecommendations() {
+  const context = lastRecommendationContext.value;
+  if (!context || rerollingRecommendations.value) return;
+  rerollingRecommendations.value = true;
+  try {
+    publishRouteRecommendations(
+      context.routes,
+      context.sourceMessage,
+      context.profile,
+    );
+  } finally {
+    rerollingRecommendations.value = false;
+  }
 }
 
 function hasMinimumProfileInfo(text: string) {
@@ -1582,6 +1665,7 @@ function selectRecommendedRoute(card: RouteCard) {
   if (!card.source) return;
   showPlanningTools();
   selectedRoute.value = card.source;
+  // 執行動作，不回傳結果
   void loadRouteWeather(card.source);
   messages.value.push({
     id: Date.now(),
@@ -1843,10 +1927,12 @@ function sleep(ms: number) {
 // ── Voice Overlay ────────────────────────────────
 const voiceSupported = ref(false);
 const voiceOverlay = ref(false);
-const overlayPhase = ref<'recording' | 'confirming' | 'sending'>('recording');
+const overlayPhase = ref<'recording' | 'sending'>('recording');
 const overlayLive = ref('');
 const overlayFinal = ref('');
 const recordedVoiceBlob = ref<Blob | null>(null);
+const voiceDraftSnapshot = ref('');
+const voiceDraftCommitted = ref(false);
 let mediaRecorder: MediaRecorder | null = null;
 let mediaStream: MediaStream | null = null;
 let mediaChunks: Blob[] = [];
@@ -1909,6 +1995,8 @@ function openVoiceOverlay() {
     });
     return;
   }
+  voiceDraftSnapshot.value = inputText.value;
+  voiceDraftCommitted.value = false;
   overlayFinal.value = '';
   overlayLive.value = '';
   recordedVoiceBlob.value = null;
@@ -1942,15 +2030,17 @@ async function startOverlayRecording() {
       mediaStream?.getTracks().forEach((track) => track.stop());
       mediaStream = null;
       overlayLive.value = '';
-      overlayFinal.value = '錄音已完成，確認後送出分析。';
-      overlayPhase.value = 'confirming';
+      overlayPhase.value = 'sending';
+      if (recordedVoiceBlob.value) {
+        void processVoiceBlob(recordedVoiceBlob.value);
+      }
     };
     mediaRecorder.start();
   } catch (e) {
     console.warn('MediaRecorder error:', e);
     overlayLive.value = '';
     overlayFinal.value = '無法啟用麥克風，請確認瀏覽器權限。';
-    overlayPhase.value = 'confirming';
+    overlayPhase.value = 'sending';
   }
 }
 
@@ -1959,7 +2049,7 @@ function startSpeechRecognitionFallback() {
   if (!SpeechRecognition) {
     overlayLive.value = '';
     overlayFinal.value = '目前瀏覽器不支援語音輸入，請改用文字輸入。';
-    overlayPhase.value = 'confirming';
+    overlayPhase.value = 'sending';
     return;
   }
 
@@ -1967,7 +2057,7 @@ function startSpeechRecognitionFallback() {
   speechRecognition.lang = 'zh-TW';
   speechRecognition.continuous = true;
   speechRecognition.interimResults = true;
-  overlayLive.value = '語音辨識中，停止後可確認文字內容。';
+  overlayLive.value = '語音辨識中，文字會直接填入輸入框。';
   speechRecognition.onresult = (event) => {
     let finalText = '';
     let interimText = '';
@@ -1978,24 +2068,28 @@ function startSpeechRecognitionFallback() {
     }
     if (finalText) overlayFinal.value += finalText;
     overlayLive.value = interimText;
+    inputText.value = composeVoiceDraft(
+      `${overlayFinal.value}${overlayLive.value}`,
+    );
+    voiceDraftCommitted.value = true;
   };
   speechRecognition.onerror = () => {
     overlayLive.value = '';
     if (!overlayFinal.value.trim()) {
       overlayFinal.value = '無法啟用語音辨識，請確認瀏覽器權限。';
     }
-    overlayPhase.value = 'confirming';
+    overlayPhase.value = 'sending';
   };
   speechRecognition.onend = () => {
     overlayLive.value = '';
-    overlayPhase.value = 'confirming';
+    overlayPhase.value = 'sending';
   };
   try {
     speechRecognition.start();
   } catch (_) {
     overlayLive.value = '';
     overlayFinal.value = '無法啟用語音辨識，請確認瀏覽器權限。';
-    overlayPhase.value = 'confirming';
+    overlayPhase.value = 'sending';
   }
 }
 
@@ -2005,16 +2099,16 @@ function stopOverlayRecording() {
   } else if (speechRecognition) {
     speechRecognition.stop();
   } else {
-    overlayPhase.value = 'confirming';
+    overlayPhase.value = 'sending';
   }
 }
 
-function retryOverlayRecording() {
-  overlayFinal.value = '';
-  overlayLive.value = '';
-  recordedVoiceBlob.value = null;
-  overlayPhase.value = 'recording';
-  void startOverlayRecording();
+function composeVoiceDraft(transcript: string) {
+  const prefix = voiceDraftSnapshot.value.trim();
+  const content = transcript.trim();
+  if (!prefix) return content;
+  if (!content) return prefix;
+  return `${prefix} ${content}`.trim();
 }
 
 async function processVoiceBlob(blob: Blob) {
@@ -2030,6 +2124,9 @@ async function processVoiceBlob(blob: Blob) {
     const res = await aiRouter.voice(blob, 'voice.webm');
     typing.value = false;
     if (res.transcribed_text) {
+      overlayFinal.value = res.transcribed_text;
+      inputText.value = composeVoiceDraft(res.transcribed_text);
+      voiceDraftCommitted.value = true;
       messages.value.push({
         id: Date.now() + 1,
         role: 'bot',
@@ -2046,6 +2143,7 @@ async function processVoiceBlob(blob: Blob) {
       time: nowTime(),
     });
     await completeProfileAndRecommend(res.transcribed_text || res.reply);
+    closeVoiceOverlay();
   } catch (_) {
     typing.value = false;
     messages.value.push({
@@ -2058,20 +2156,11 @@ async function processVoiceBlob(blob: Blob) {
   }
 }
 
-function confirmOverlaySend() {
-  const blob = recordedVoiceBlob.value;
-  overlayPhase.value = 'sending';
-  voiceOverlay.value = false;
-  if (blob) {
-    void processVoiceBlob(blob);
-    return;
-  }
-  const text = overlayFinal.value.trim();
-  if (text) void sendUserMsg(text, false);
-}
-
 function closeVoiceOverlay() {
   stopVoiceCapture();
+  if (!voiceDraftCommitted.value) {
+    inputText.value = voiceDraftSnapshot.value;
+  }
   voiceOverlay.value = false;
 }
 
@@ -2109,6 +2198,12 @@ const gearItems = ref<GearItem[]>([]);
 const newGearLabel = ref('');
 const gearAssessment = ref<GearAssessment | null>(null);
 const gearAssessing = ref(false);
+const gearScoreCircumference = 2 * Math.PI * 40;
+const gearScoreDashOffset = computed(() =>
+  gearAssessment.value
+    ? gearScoreCircumference * (1 - gearAssessment.value.score / 100)
+    : gearScoreCircumference,
+);
 const gearCount = computed(
   () => gearItems.value.filter((item) => gear[item.id]).length,
 );
@@ -2181,9 +2276,20 @@ function assessGearListWithFallback() {
   const checkedRatio = gearItems.value.length
     ? gearCount.value / gearItems.value.length
     : 0;
-  const riskPenalty = selectedRoute.value?.risk === 'high' ? 15 : selectedRoute.value?.risk === 'mid' ? 8 : 0;
+  const riskPenalty =
+    selectedRoute.value?.risk === 'high'
+      ? 15
+      : selectedRoute.value?.risk === 'mid'
+        ? 8
+        : 0;
   const daysPenalty = (selectedRoute.value?.minDays ?? 1) >= 2 ? 8 : 0;
-  const score = Math.max(0, Math.min(100, Math.round(checkedRatio * 70) + 20 - riskPenalty - daysPenalty));
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(checkedRatio * 70) + 20 - riskPenalty - daysPenalty,
+    ),
+  );
   const level =
     score >= 85
       ? '準備充足'
@@ -2194,7 +2300,10 @@ function assessGearListWithFallback() {
           : '不建議出發';
   const tips = [
     uncheckedItems.length
-      ? `尚未確認：${uncheckedItems.slice(0, 4).map((item) => item.label).join('、')}。`
+      ? `尚未確認：${uncheckedItems
+          .slice(0, 4)
+          .map((item) => item.label)
+          .join('、')}。`
       : '清單內裝備皆已勾選確認。',
     selectedRoute.value?.risk === 'high'
       ? '高風險路線請額外確認保暖、雨具、離線地圖與緊急通訊。'
@@ -2332,6 +2441,45 @@ const weatherData = [
   { icon: '🌧', temp: '9°C', label: '下午' },
 ];
 
+const weatherAdviceMock = {
+  low: '天氣穩定，適合出發。建議早點上山，午後仍要預留雲霧與驟雨變化的彈性。',
+  mid: '建議清晨出發、午前完成主要路段。午後天氣較不穩，雨具與保暖層要帶齊。',
+  high: '風險偏高，建議延後或縮短行程。若仍要前往，務必保留折返時間並密切注意天候。',
+} as const;
+
+function buildMockRouteWeather(
+  route: RecommendedRoute,
+): RouteWeatherResponse {
+  const riskKey = route.risk === 'low' ? 'low' : route.risk === 'mid' ? 'mid' : 'high';
+  const periods =
+    riskKey === 'high'
+      ? [
+          { icon: '⛅', temp: '9°C', label: '早晨', condition: '雲量偏多', rain_probability: '30%' },
+          { icon: '🌧', temp: '12°C', label: '中午', condition: '午後轉雨', rain_probability: '70%' },
+          { icon: '⛈', temp: '8°C', label: '下午', condition: '雷陣雨', rain_probability: '85%' },
+        ]
+      : riskKey === 'mid'
+        ? [
+            { icon: '⛅', temp: '11°C', label: '早晨', condition: '多雲', rain_probability: '20%' },
+            { icon: '☀', temp: '16°C', label: '中午', condition: '晴時多雲', rain_probability: '35%' },
+            { icon: '🌧', temp: '10°C', label: '下午', condition: '午後陣雨', rain_probability: '65%' },
+          ]
+        : [
+            { icon: '⛅', temp: '13°C', label: '早晨', condition: '多雲', rain_probability: '15%' },
+            { icon: '☀', temp: '18°C', label: '中午', condition: '晴時多雲', rain_probability: '20%' },
+            { icon: '⛅', temp: '14°C', label: '下午', condition: '局部短暫雨', rain_probability: '40%' },
+          ];
+
+  return {
+    location_name: `${route.region} · ${route.name}`,
+    periods,
+    advice: weatherAdviceMock[riskKey],
+    source: '本地假資料',
+    model_used: 'mock',
+    fallback: true,
+  };
+}
+
 const weather = [
   { icon: '⛅', temp: '12°C', label: '早晨', condition: '多雲' },
   { icon: '☀', temp: '18°C', label: '中午', condition: '晴時多雲' },
@@ -2349,11 +2497,51 @@ const weatherAdvice = computed(
     routeWeather.value?.advice ??
     '建議 13:00 前下山，午後雷陣雨機率偏高。請攜帶雨具與保暖層，若山區雲霧變厚應提前折返。',
 );
+const weatherAiStatusLabel = computed(() => {
+  if (weatherMode.value === 'mock') return '本地假資料';
+  if (weatherLoading.value) return 'OpenAI 檢查中...';
+  if (!routeWeather.value) return 'OpenAI 未回應';
+  if (routeWeather.value.fallback || routeWeather.value.model_used === 'fallback') {
+    const stage = routeWeather.value.fallback_stage;
+    const prefix =
+      stage === 'cwa'
+        ? 'CWA 失敗'
+        : stage === 'openai'
+          ? 'OpenAI 失敗'
+          : '失敗';
+    return routeWeather.value.fallback_reason
+      ? `${prefix}：${routeWeather.value.fallback_reason}`
+      : `${prefix}，已切回假資料`;
+  }
+  if (routeWeather.value.model_used && routeWeather.value.model_used !== 'mock') {
+    return 'OpenAI 成功';
+  }
+  return 'OpenAI 狀態未確認';
+});
+const weatherAiStatusClass = computed(() => ({
+  success:
+    weatherMode.value === 'openai' &&
+    !!routeWeather.value &&
+    !routeWeather.value.fallback &&
+    routeWeather.value.model_used !== 'fallback' &&
+    routeWeather.value.model_used !== 'mock',
+  warning:
+    weatherMode.value === 'openai' &&
+    (!routeWeather.value ||
+      routeWeather.value.fallback ||
+      routeWeather.value.model_used === 'fallback' ||
+      routeWeather.value.model_used === 'mock'),
+  mock: weatherMode.value === 'mock',
+}));
 
 async function loadRouteWeather(route: RecommendedRoute) {
   weatherLoading.value = true;
   routeWeather.value = null;
   try {
+    if (!shouldUseOpenAiWeather.value) {
+      routeWeather.value = buildMockRouteWeather(route);
+      return;
+    }
     const { data } = await api.post<RouteWeatherResponse>('/weather/forecast', {
       route_name: route.name,
       location: route.region,
@@ -2363,9 +2551,16 @@ async function loadRouteWeather(route: RecommendedRoute) {
     });
     routeWeather.value = data;
   } catch (_) {
-    routeWeather.value = null;
+    routeWeather.value = buildMockRouteWeather(route);
   } finally {
     weatherLoading.value = false;
+  }
+}
+
+function toggleWeatherMode() {
+  weatherMode.value = weatherMode.value === 'mock' ? 'openai' : 'mock';
+  if (selectedRoute.value) {
+    void loadRouteWeather(selectedRoute.value);
   }
 }
 
@@ -2425,9 +2620,21 @@ function buildOfflinePackagePdf(
     meta: OfflinePackageMeta | null;
     route: Record<string, unknown>;
     gpx: { file_name: string; format: string; xml: string };
-    gear: { items: Array<{ id: string; label: string; checked: boolean; source: string }>; assessment: GearAssessment | null };
+    gear: {
+      items: Array<{
+        id: string;
+        label: string;
+        checked: boolean;
+        source: string;
+      }>;
+      assessment: GearAssessment | null;
+    };
     ai_risk_assessment: Record<string, unknown>;
-    emergency: { contacts: Array<{ name: string; rel: string }>; numbers: string[]; reminder: string };
+    emergency: {
+      contacts: Array<{ name: string; rel: string }>;
+      numbers: string[];
+      reminder: string;
+    };
     created_at: string;
   },
 ) {
@@ -2550,7 +2757,8 @@ async function downloadOfflinePackage() {
       emergency: {
         contacts,
         numbers: ['119', '110', '112'],
-        reminder: '離線狀態請優先報平安、保留電量、回到可通訊位置後再送出位置。',
+        reminder:
+          '離線狀態請優先報平安、保留電量、回到可通訊位置後再送出位置。',
       },
       created_at: new Date().toISOString(),
     };
@@ -2594,7 +2802,7 @@ async function downloadOfflinePackage() {
   font-size: 1.1rem;
   font-weight: 700;
   color: #fff;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06rem;
 }
 
 /* Wave bars */
@@ -2870,7 +3078,7 @@ async function downloadOfflinePackage() {
   font-size: 0.72rem;
   font-weight: 700;
   color: #06c755;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -2928,7 +3136,7 @@ async function downloadOfflinePackage() {
   font-size: 0.85rem;
   font-weight: 800;
   color: #fff;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
 }
 
 .line-chat-status {
@@ -3248,7 +3456,7 @@ async function downloadOfflinePackage() {
   font-size: 0.85rem;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.06rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3314,12 +3522,12 @@ async function downloadOfflinePackage() {
   font-size: 1rem;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06rem;
 }
 
 .chat-collapsed-sub {
   margin-top: 2px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
   line-height: 1.4;
 }
@@ -3337,10 +3545,185 @@ async function downloadOfflinePackage() {
   font-family: inherit;
 }
 
+.chat-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--text-gray-light);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-gray-light);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.chat-collapse-btn:hover {
+  border-color: #06c755;
+  background: rgba(6, 199, 85, 0.08);
+}
+
+.chat-collapse-btn .material-icons {
+  font-size: 16px;
+}
+
+.recommendation-reroll-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--bg-orange);
+  border-radius: 16px;
+  background: var(--bg-orange);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.recommendation-reroll-btn:hover:not(:disabled) {
+  background: rgba(217, 119, 7, 0.6);
+}
+
+.recommendation-reroll-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.recommendation-reroll-btn .material-icons {
+  font-size: 16px;
+}
+
 .recommendation-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.recommendation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gear-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+
+.section-label-compact {
+  margin-bottom: 0;
+}
+
+.gear-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.gear-count-ok {
+  color: var(--risk-low);
+}
+
+.gear-label {
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.06rem;
+}
+
+.weather-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.weather-section-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.weather-location {
+  margin-left: 8px;
+  opacity: 0.72;
+}
+
+.weather-loading {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.weather-advice-box {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(251, 146, 60, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(251, 146, 60, 0.25);
+  font-size: 0.78rem;
+  color: var(--risk-mid);
+  font-weight: 600;
+}
+
+.weather-source {
+  margin-top: 6px;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.weather-ai-status {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.weather-ai-status.success {
+  background: rgba(22, 163, 74, 0.14);
+  color: #16a34a;
+}
+
+.weather-ai-status.warning {
+  background: rgba(217, 119, 6, 0.14);
+  color: #d97706;
+}
+
+.weather-ai-status.mock {
+  background: rgba(107, 114, 128, 0.14);
+  color: #6b7280;
+}
+
+.weather-mode-toggle {
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+
+.p1-map-layer {
+  position: absolute;
+  inset: 0;
 }
 
 .demand-grid {
@@ -3359,7 +3742,7 @@ async function downloadOfflinePackage() {
 .demand-item span {
   display: block;
   margin-bottom: 3px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -3485,7 +3868,7 @@ async function downloadOfflinePackage() {
 
 .route-card-full .route-card-region {
   margin-top: 3px;
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-muted);
 }
@@ -3521,10 +3904,10 @@ async function downloadOfflinePackage() {
 .route-card-full .route-card-meta .route-card-meta-title {
   display: block;
   margin-bottom: 3px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: var(--text-muted);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06rem;
 }
 
 .route-card-full .route-card-meta .route-card-meta-data {
@@ -3532,8 +3915,8 @@ async function downloadOfflinePackage() {
   margin-bottom: 3px;
   font-size: 1rem;
   font-weight: 800;
-  color: var(--text-green);
-  letter-spacing: 0.05em;
+  color: var(--text-green-light);
+  letter-spacing: 0.06rem;
 }
 
 .route-card-full .route-card-highlight {
@@ -3545,7 +3928,7 @@ async function downloadOfflinePackage() {
   background: rgba(255, 255, 255, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.42);
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   line-height: 1.6;
 }
 
@@ -3562,9 +3945,7 @@ async function downloadOfflinePackage() {
 
 .route-card-full .route-action-btn {
   min-height: 38px;
-  border-radius: 11px;
-  font-size: 0.78rem;
-  box-shadow: 0 8px 20px rgba(6, 199, 85, 0.22);
+  border-radius: 10px;
 }
 
 .route-card-full .route-action-ghost {
@@ -3595,7 +3976,7 @@ async function downloadOfflinePackage() {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  background: #06c755;
+  background: var(--bg-green);
   flex-shrink: 0;
   box-shadow: 0 2px 12px rgba(6, 199, 85, 0.25);
 }
@@ -3621,7 +4002,6 @@ async function downloadOfflinePackage() {
   font-size: 1rem;
   font-weight: 800;
   color: #fff;
-  letter-spacing: -0.015em;
 }
 
 .line-bot-status {
@@ -3656,6 +4036,26 @@ async function downloadOfflinePackage() {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.chat-small-btn {
+  height: 30px;
+  min-width: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0 10px;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.chat-small-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .ai-mode-toggle {
@@ -3714,7 +4114,7 @@ async function downloadOfflinePackage() {
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -3805,7 +4205,7 @@ async function downloadOfflinePackage() {
   font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
   padding: 4px 0 8px;
 }
 
@@ -3823,7 +4223,7 @@ async function downloadOfflinePackage() {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #06c755;
+  background: var(--bg-green);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3858,6 +4258,54 @@ async function downloadOfflinePackage() {
   font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: 3px;
+}
+
+.msg-time-user {
+  text-align: right;
+}
+
+.msg-time-bot {
+  text-align: left;
+}
+
+.yolo-empty-state {
+  text-align: center;
+  padding: 16px 0;
+  pointer-events: none;
+}
+
+.yolo-empty-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.yolo-empty-copy {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.yolo-scanning-text {
+  color: var(--summit-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 16px;
+  z-index: 1;
+}
+
+.yolo-scanned-wrap {
+  padding: 10px;
+  width: 100%;
+}
+
+.yolo-scanned-title {
+  font-size: 0.8rem;
+  color: var(--summit-accent);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.yolo-area-scanned {
+  min-height: auto;
 }
 
 .msg-sos {
@@ -3929,7 +4377,7 @@ async function downloadOfflinePackage() {
   font-size: 0.88rem;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -0.015em;
+  letter-spacing: 0.06rem;
 }
 
 .route-card-region {
@@ -3989,16 +4437,6 @@ async function downloadOfflinePackage() {
 
 .route-action-btn {
   flex: 1;
-  padding: 6px;
-  border: none;
-  border-radius: 8px;
-  background: #06c755;
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  transition: opacity 0.15s;
 }
 
 .route-action-btn:hover {
@@ -4024,7 +4462,7 @@ async function downloadOfflinePackage() {
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   margin-bottom: 10px;
 }
@@ -4059,7 +4497,7 @@ async function downloadOfflinePackage() {
   font-size: 0.78rem;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06rem;
   margin-bottom: 6px;
 }
 

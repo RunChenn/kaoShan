@@ -7,10 +7,7 @@
     </div>
 
     <!-- Title -->
-    <div class="text-h5 text-weight-bold q-mt-lg q-mb-xs anim-slide-up" style="letter-spacing:-0.03em">
-      {{ statusTitle }}
-    </div>
-    <div class="text-body2 text-center q-mb-xl anim-slide-up" style="animation-delay:0.05s;opacity:0.55;max-width:280px">
+    <div class="text-h5 text-weight-bold q-mt-lg q-mb-xs anim-slide-up" style="letter-spacing: 0.06rem;opacity:0.55;max-width:280px">
       {{ statusDesc }}
     </div>
 
@@ -20,7 +17,7 @@
 
         <!-- Progress -->
         <div class="row justify-between items-center q-mb-xs">
-          <span class="text-caption text-weight-bold" style="opacity:0.55;letter-spacing:0.04em;text-transform:uppercase">
+          <span class="text-caption text-weight-bold" style="opacity:0.55;letter-spacing: 0.06rem;text-transform:uppercase">
             下載進度
           </span>
           <span class="text-subtitle2 text-weight-bold" :class="`text-${statusColor}`">

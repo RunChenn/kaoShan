@@ -3,8 +3,7 @@
 
     <!-- Header -->
     <div class="q-px-md q-pt-md q-pb-sm">
-      <div class="text-h5 text-weight-bold anim-slide-down" style="letter-spacing:-0.03em">歷史紀錄</div>
-      <div class="text-caption anim-slide-down" style="animation-delay:0.04s;opacity:0.4;margin-top:2px">
+      <div class="text-h5 text-weight-bold anim-slide-down" style="letter-spacing: 0.06rem;opacity:0.4;margin-top:2px">
         {{ history.length }} 筆登山紀錄
       </div>
     </div>
@@ -52,7 +51,7 @@
             </div>
 
             <!-- Risk chart -->
-            <div class="text-caption q-mb-xs" style="opacity:0.4;font-size:0.65rem;letter-spacing:0.04em;text-transform:uppercase">
+            <div class="text-caption q-mb-xs" style="opacity:0.4;font-size:0.65rem;letter-spacing: 0.06rem;text-transform:uppercase">
               風險曲線
             </div>
             <RiskCurveChart :data="record.riskCurve" />
@@ -138,14 +137,14 @@ function difficultyColor(d: string) { return diffMap[d as keyof typeof diffMap]?
 .diff-hard   { background: rgba(200,144,42,0.11); }
 .diff-expert { background: rgba(217,48,37,0.11); }
 
-.hcard-title { font-size: 0.9rem; font-weight: 700; letter-spacing: -0.02em; }
+.hcard-title { font-size: 0.9rem; font-weight: 700; letter-spacing: 0.06rem; }
 .hcard-date  { font-size: 0.7rem; opacity: 0.45; margin-top: 2px; }
 
 .hcard-right { display: flex; align-items: center; flex-shrink: 0; }
 
 .diff-badge {
   padding: 3px 9px; border-radius: 20px;
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.02em;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06rem;
 }
 .dbadge-easy   { background: rgba(46,204,113,0.14); color: #27AE60; }
 .dbadge-medium { background: rgba(230,126,34,0.14); color: #C0672A; }
@@ -166,7 +165,7 @@ function difficultyColor(d: string) { return diffMap[d as keyof typeof diffMap]?
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   min-width: 52px;
 }
-.hstat-val { font-size: 0.8rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.hstat-val { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06rem; line-height: 1.1; }
 .hstat-lbl { font-size: 0.6rem; opacity: 0.4; line-height: 1; }
 
 // ── Transition ────────────────────────────────────────────

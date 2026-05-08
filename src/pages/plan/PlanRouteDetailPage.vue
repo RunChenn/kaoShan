@@ -26,19 +26,7 @@
           <div class="hero-img-content">
             <div
               class="text-h5 text-white text-weight-bold"
-              style="letter-spacing: -0.03em"
-            >
-              {{ route.name }}
-            </div>
-            <div class="text-caption text-white q-mt-xs" style="opacity: 0.75">
-              <q-icon name="location_on" size="12px" /> {{ route.location }}
-            </div>
-          </div>
-        </div>
-
-        <div
-          class="text-body2 q-mt-md q-mb-lg anim-slide-up"
-          style="opacity: 0.65; line-height: 1.7"
+              style="letter-spacing: 0.06rem; line-height: 1.7"
         >
           {{ route.description }}
         </div>
@@ -149,18 +137,7 @@
                 <q-item-section>
                   <q-item-label
                     class="text-weight-bold"
-                    style="font-size: 0.85rem; letter-spacing: -0.01em"
-                  >
-                    {{ acc.year }} · {{ acc.type }}
-                  </q-item-label>
-                  <q-item-label caption style="opacity: 0.55"
-                    >{{ acc.desc.slice(0, 28) }}...</q-item-label
-                  >
-                </q-item-section>
-              </template>
-              <div
-                class="q-pa-md text-body2"
-                style="opacity: 0.7; line-height: 1.6"
+                    style="font-size: 0.85rem; letter-spacing: 0.06rem; line-height: 1.6"
               >
                 {{ acc.desc }}
               </div>
@@ -198,7 +175,7 @@
               <div class="q-ml-lg">
                 <div
                   class="text-h3 text-white text-weight-bold"
-                  style="letter-spacing: -0.04em; line-height: 1"
+                  style="letter-spacing: 0.06rem; line-height: 1"
                 >
                   {{ routeWeather.temp }}°
                 </div>
@@ -343,7 +320,7 @@
             style="
               opacity: 0.28;
               font-size: 0.65rem;
-              letter-spacing: 0.04em;
+              letter-spacing: 0.06rem;
               margin-top: 2px;
             "
           >
@@ -474,69 +451,7 @@
                 </div>
                 <div
                   class="text-h4 text-weight-bold text-info q-mt-xs"
-                  style="letter-spacing: -0.04em"
-                >
-                  {{ waterLiters }}L
-                </div>
-                <div class="text-caption" style="opacity: 0.5">建議水量</div>
-              </div>
-              <div class="supply-big col text-center">
-                <div class="supply-icon-ring ring-negative">
-                  <q-icon
-                    name="local_fire_department"
-                    color="negative"
-                    size="24px"
-                  />
-                </div>
-                <div
-                  class="text-h4 text-weight-bold text-negative q-mt-xs"
-                  style="letter-spacing: -0.04em"
-                >
-                  {{ caloriesToday }}
-                </div>
-                <div class="text-caption" style="opacity: 0.5">
-                  每天熱量 kcal
-                </div>
-              </div>
-            </div>
-            <div class="premium-divider q-my-md" />
-            <div class="row q-gutter-xs">
-              <div class="supply-mini-chip">
-                <q-icon
-                  name="medical_services"
-                  size="13px"
-                  color="orange-7"
-                />止痛藥 × 6
-              </div>
-              <div class="supply-mini-chip">
-                <q-icon name="healing" size="13px" color="red-4" />OK 繃 × 10
-              </div>
-              <div class="supply-mini-chip">
-                <q-icon name="thermostat" size="13px" color="blue-5" />體溫計 ×
-                1
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <div
-          v-for="(s, i) in supplyCards"
-          :key="s.title"
-          class="hiking-card q-mb-md anim-slide-up"
-          :style="`animation-delay:${0.05 + i * 0.06}s`"
-        >
-          <q-card-section class="row items-start q-pa-md" style="gap: 14px">
-            <div class="supply-card-icon" :class="`sicon-${s.colorKey}`">
-              <q-icon :name="s.icon" :color="s.color" size="20px" />
-            </div>
-            <div class="col">
-              <div
-                class="text-subtitle2 text-weight-bold q-mb-xs"
-                style="letter-spacing: -0.015em"
-              >
-                {{ s.title }}
-              </div>
-              <div class="text-body2" style="opacity: 0.6; line-height: 1.6">
+                  style="letter-spacing: 0.06rem; line-height: 1.6">
                 {{ s.text }}
               </div>
             </div>
@@ -800,7 +715,7 @@ function normalizeGearLabel(label: string) {
   opacity: 0.45;
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
   &:active {
     transform: scale(0.95);
   }
@@ -824,7 +739,7 @@ function normalizeGearLabel(label: string) {
   align-items: center;
   font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   opacity: 0.4;
   margin-bottom: 10px;
@@ -856,7 +771,7 @@ function normalizeGearLabel(label: string) {
 .stat-mini-val {
   font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.06rem;
   line-height: 1.2;
 }
 .stat-mini-lbl {
@@ -951,7 +866,7 @@ function normalizeGearLabel(label: string) {
   font-size: 0.7rem;
   font-weight: 700;
   color: white;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06rem;
 }
 .risk-low {
   background: rgba(46, 204, 113, 0.75);
@@ -991,7 +906,7 @@ function normalizeGearLabel(label: string) {
 .forecast-temp {
   font-size: 1rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.06rem;
 }
 
 .alert-strip {

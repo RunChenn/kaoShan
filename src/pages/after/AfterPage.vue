@@ -5,7 +5,7 @@
     <div class="stats-hero anim-fade">
       <div class="stats-hero-bg" />
       <div class="stats-hero-content q-pa-lg">
-        <div class="text-caption text-white q-mb-xs" style="opacity:0.55;letter-spacing:0.06em;text-transform:uppercase">
+        <div class="text-caption text-white q-mb-xs" style="opacity:0.55;letter-spacing: 0.06rem;text-transform:uppercase">
           最近一次 · {{ latestSummary?.routeName ?? '--' }}
         </div>
         <div class="row q-gutter-md text-center q-mt-sm">
@@ -128,14 +128,14 @@ const navCards = computed(() => [
 .stat-hero-val {
   font-size: 1.7rem;
   font-weight: 800;
-  letter-spacing: -0.045em;
+  letter-spacing: 0.06rem;
   line-height: 1;
 }
 .stat-hero-lbl {
   font-size: 0.65rem;
   opacity: 0.45;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06rem;
   margin-top: 3px;
 }
 .stat-hero-divider {
@@ -180,7 +180,7 @@ const navCards = computed(() => [
 
 .nav-card-title {
   font-size: 0.92rem; font-weight: 700;
-  letter-spacing: -0.02em; line-height: 1.2;
+  letter-spacing: 0.06rem; line-height: 1.2;
 }
 .nav-card-desc {
   font-size: 0.72rem; opacity: 0.5;

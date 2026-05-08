@@ -32,7 +32,7 @@ defineProps<{ icon: string; label: string; value: string; color: string }>()
 
 .stat-value {
   font-size: 0.95rem;
-  letter-spacing: -0.025em;
+  letter-spacing: 0.06rem;
   line-height: 1.2;
 }
 .stat-label {

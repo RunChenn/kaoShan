@@ -108,7 +108,7 @@ const metrics = computed(() => [
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06rem;
   backdrop-filter: blur(10px);
 
   &.badge-easy   { background: rgba(46,204,113,0.82); color: #fff; }
@@ -121,7 +121,7 @@ const metrics = computed(() => [
 .route-name {
   font-size: 1rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.06rem;
   line-height: 1.25;
   padding-right: 20px;
 }
@@ -149,7 +149,7 @@ const metrics = computed(() => [
   .metric-val {
     font-size: 0.78rem;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.06rem;
     line-height: 1.1;
   }
   .metric-lbl {

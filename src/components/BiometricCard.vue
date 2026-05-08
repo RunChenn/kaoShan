@@ -59,7 +59,7 @@ defineProps<{
 /* typography */
 .bio-value {
   font-size: 1.18rem;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.06rem;
   line-height: 1.1;
 }
 .bio-unit  { font-size: 0.6rem; opacity: 0.45; margin-top: 1px; }

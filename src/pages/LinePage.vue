@@ -159,11 +159,14 @@
             </div>
             <div class="route-card-highlight">{{ cardOf(m).highlight }}</div>
             <div class="route-card-actions">
-              <button class="route-action-btn" @click="goToPlan(cardOf(m))">
+              <button
+                class="custom-btn route-action-btn"
+                @click="goToPlan(cardOf(m))"
+              >
                 出發前規劃
               </button>
               <button
-                class="route-action-ghost route-action-btn"
+                class="custom-btn route-action-ghost route-action-btn"
                 @click="sendUserMsg('告訴我更多關於 ' + cardOf(m).name)"
               >
                 了解更多
@@ -465,7 +468,10 @@ function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
 
   const extra = extraUserContent?.trim();
   const lastMessage = apiMessages.at(-1);
-  if (extra && !(lastMessage?.role === 'user' && lastMessage.content === extra)) {
+  if (
+    extra &&
+    !(lastMessage?.role === 'user' && lastMessage.content === extra)
+  ) {
     apiMessages.push({ role: 'user', content: extra });
   }
 
@@ -1046,7 +1052,7 @@ watch(typing, scrollToBottom);
   font-size: 1.1rem;
   font-weight: 700;
   color: #fff;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06rem;
 }
 
 .voice-wave-lg {
@@ -1291,7 +1297,7 @@ watch(typing, scrollToBottom);
   font-size: 0.72rem;
   font-weight: 700;
   color: #06c755;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -1332,7 +1338,7 @@ watch(typing, scrollToBottom);
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #06c755;
+  background: var(--bg-green);
   flex-shrink: 0;
   box-shadow: 0 2px 12px rgba(6, 199, 85, 0.3);
 }
@@ -1358,7 +1364,6 @@ watch(typing, scrollToBottom);
   font-size: 1rem;
   font-weight: 800;
   color: #fff;
-  letter-spacing: -0.015em;
 }
 
 .line-bot-status {
@@ -1424,7 +1429,7 @@ watch(typing, scrollToBottom);
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -1511,7 +1516,7 @@ watch(typing, scrollToBottom);
   font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
   padding: 4px 0 8px;
 }
 
@@ -1532,7 +1537,7 @@ watch(typing, scrollToBottom);
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #06c755;
+  background: var(--bg-green);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1630,7 +1635,7 @@ watch(typing, scrollToBottom);
   font-size: 0.88rem;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -0.015em;
+  letter-spacing: 0.06rem;
 }
 .route-card-region {
   font-size: 0.65rem;
@@ -1720,7 +1725,7 @@ watch(typing, scrollToBottom);
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   margin-bottom: 10px;
 }
@@ -1752,7 +1757,7 @@ watch(typing, scrollToBottom);
   font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: 2px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06rem;
 }
 
 .weather-warning {

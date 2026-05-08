@@ -1,12 +1,23 @@
 // ─── Premium Design Tokens ────────────────────────────────
 :root {
   // --q-primary: #1a8c55;
-  --q-primary: #2ab552;
+  --q-primary: #036d21;
   --q-secondary: #c8902a;
   --q-negative: #d93025;
   --q-positive: #2ecc71;
   --q-warning: #e67e22;
   --q-info: #2980b9;
+
+  // bg
+  --bg-green: #036d21;
+  --bg-green-light: #06c755;
+  --bg-orange: #d97707;
+
+  // text
+  --text-gray-light: #ffffff57;
+  --text-green: #036d21;
+  --text-green-light: #06c755;
+  --text-orange: #d97707;
 
   // Surface layers
   --surface-deep: #04101c;
@@ -64,11 +75,9 @@
   --bg-base: #f4f6f8;
   --bg-surface: #ffffff;
   --bg-card: #ffffff;
-  --bg-green: #06c755;
   --text-primary: #0d1b2a;
   --text-secondary: #4a5568;
   --text-muted: #9aaabb;
-  --text-green: #06c755;
   --border: rgba(0, 0, 0, 0.08);
   color-scheme: light;
 }
@@ -78,12 +87,10 @@
   --bg-base: oklch(12% 0.02 240);
   --bg-surface: oklch(16% 0.025 240);
   --bg-card: oklch(20% 0.03 240);
-  --bg-green: #06c755;
   --text-primary: #e8f0fe;
   --text-secondary: #94a3b8;
   // --text-muted: #475569;
   --text-muted: #8b9aae;
-  --text-green: #06c755;
   --border: rgba(255, 255, 255, 0.07);
   color-scheme: dark;
 }

@@ -47,7 +47,7 @@
   border-radius: 20px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06rem;
   background: rgba(48, 217, 122, 0.14);
   color: var(--risk-low);
   border: 1px solid rgba(48, 217, 122, 0.25);
@@ -66,10 +66,10 @@
 
 /* ── Section Label ───────────────────────── */
 .section-label {
-  font-size: 1em;
+  font-size: 1rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06rem;
   color: #fff;
   margin-bottom: 8px;
 }

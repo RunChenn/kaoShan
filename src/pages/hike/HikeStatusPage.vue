@@ -310,7 +310,7 @@ startSimulation()
   font-style: italic;
   font-size: 0.85rem;
   line-height: 1.5;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
 }
 
 .family-banner {

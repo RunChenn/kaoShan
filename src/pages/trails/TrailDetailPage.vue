@@ -17,7 +17,7 @@
         </div>
         <div
           class="text-h4 text-white text-weight-bold"
-          style="letter-spacing: -0.04em; line-height: 1.1"
+          style="letter-spacing: 0.06rem; line-height: 1.1"
         >
           {{ trail.name }}
         </div>
@@ -329,7 +329,7 @@ function addToPlan() {
   color: white;
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06rem;
 }
 
 .diff-pill {
@@ -420,7 +420,7 @@ function addToPlan() {
 .qstat-val {
   font-size: 0.82rem;
   font-weight: 800;
-  letter-spacing: -0.025em;
+  letter-spacing: 0.06rem;
   line-height: 1;
 }
 .qstat-lbl {
@@ -461,7 +461,7 @@ function addToPlan() {
 .section-label {
   font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.06rem;
   text-transform: uppercase;
   opacity: 0.38;
 }
@@ -618,7 +618,7 @@ function addToPlan() {
   font-size: 0.85rem;
   font-weight: 700;
   color: #9a6a00;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
 }
 :global(.body--dark) .tips-title {
   color: #e0b050;
@@ -637,6 +637,6 @@ function addToPlan() {
   font-weight: 700 !important;
   height: 54px;
   box-shadow: 0 6px 24px rgba(26, 140, 85, 0.45) !important;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06rem;
 }
 </style>
