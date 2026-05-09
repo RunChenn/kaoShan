@@ -233,6 +233,19 @@ export function useLiff() {
     })
   }
 
+  function loginAsGuest(): void {
+    auth.setLoggedIn(
+      {
+        userId: 'guest',
+        displayName: '訪客',
+        pictureUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Guest&backgroundColor=1a8c55&textColor=ffffff',
+        statusMessage: '訪客模式',
+      },
+      'guest_session',
+      'guest'
+    )
+  }
+
   async function logout(): Promise<void> {
     const liffId = getLiffId()
     if (liffId && liffId !== 'your_liff_id_here') {
@@ -278,5 +291,5 @@ export function useLiff() {
     ])
   }
 
-  return { initLiff, login, loginWithGoogle, logout, shareResult, loading }
+  return { initLiff, login, loginWithGoogle, loginAsGuest, logout, shareResult, loading }
 }

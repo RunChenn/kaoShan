@@ -630,7 +630,7 @@
       </div>
 
       <!-- 天氣 -->
-        <div v-if="planningRevealed" class="card anim-slide-up">
+      <div v-if="planningRevealed" class="card anim-slide-up">
         <div class="section-label weather-section-header">
           <div class="weather-section-title">
             明日天氣
@@ -670,7 +670,11 @@
         <div v-if="routeWeather?.source" class="weather-source">
           來源：{{ routeWeather.source }}
         </div>
-        <div v-if="showWeatherModeToggle" class="weather-ai-status" :class="weatherAiStatusClass">
+        <div
+          v-if="showWeatherModeToggle"
+          class="weather-ai-status"
+          :class="weatherAiStatusClass"
+        >
           {{ weatherAiStatusLabel }}
         </div>
       </div>
@@ -913,8 +917,6 @@ interface RouteWeatherResponse {
   source: string;
   model_used: string;
   fallback?: boolean;
-  fallback_stage?: string | null;
-  fallback_reason?: string | null;
 }
 
 interface GpxMapTrack {
@@ -1527,12 +1529,20 @@ async function replyWithMockAi(msg: string) {
 
   let replyText =
     '我收到你的訊息了。可以再補充這次想走的地區、天數或體力狀況，我會依照你的回答慢慢整理規劃。';
+  let ready = false;
+  let extractedProfile: Record<string, unknown> | null | undefined = null;
   try {
-    const { data } = await api.post<{ reply: string }>('/chat', {
+    const { data } = await api.post<{
+      reply: string;
+      ready: boolean;
+      extracted_profile?: Record<string, unknown> | null;
+    }>('/chat', {
       messages: buildChatRequestMessages(),
       history_context: historyContext.value,
     });
     replyText = data.reply;
+    ready = data.ready;
+    extractedProfile = data.extracted_profile;
   } catch (_) {
     // 後端暫時不可用時保留自然回覆，不再固定要求同一組欄位。
   }
@@ -1545,11 +1555,10 @@ async function replyWithMockAi(msg: string) {
     time: nowTime(),
   });
 
-  const combinedText = `${historyContext.value}\n${msg}`.trim();
-  const recommended = await completeProfileAndRecommend(combinedText);
-  if (!recommended && hasMinimumProfileInfo(combinedText)) {
+  if (ready && extractedProfile) {
+    const combinedText = `${historyContext.value}\n${msg}`.trim();
     await recommendRoutesFromProfile(
-      fallbackProfileFromText(combinedText),
+      normalizeExtractedProfile(extractedProfile, combinedText),
       combinedText,
     );
   }
@@ -2447,27 +2456,80 @@ const weatherAdviceMock = {
   high: '風險偏高，建議延後或縮短行程。若仍要前往，務必保留折返時間並密切注意天候。',
 } as const;
 
-function buildMockRouteWeather(
-  route: RecommendedRoute,
-): RouteWeatherResponse {
-  const riskKey = route.risk === 'low' ? 'low' : route.risk === 'mid' ? 'mid' : 'high';
+function buildMockRouteWeather(route: RecommendedRoute): RouteWeatherResponse {
+  const riskKey =
+    route.risk === 'low' ? 'low' : route.risk === 'mid' ? 'mid' : 'high';
   const periods =
     riskKey === 'high'
       ? [
-          { icon: '⛅', temp: '9°C', label: '早晨', condition: '雲量偏多', rain_probability: '30%' },
-          { icon: '🌧', temp: '12°C', label: '中午', condition: '午後轉雨', rain_probability: '70%' },
-          { icon: '⛈', temp: '8°C', label: '下午', condition: '雷陣雨', rain_probability: '85%' },
+          {
+            icon: '⛅',
+            temp: '9°C',
+            label: '早晨',
+            condition: '雲量偏多',
+            rain_probability: '30%',
+          },
+          {
+            icon: '🌧',
+            temp: '12°C',
+            label: '中午',
+            condition: '午後轉雨',
+            rain_probability: '70%',
+          },
+          {
+            icon: '⛈',
+            temp: '8°C',
+            label: '下午',
+            condition: '雷陣雨',
+            rain_probability: '85%',
+          },
         ]
       : riskKey === 'mid'
         ? [
-            { icon: '⛅', temp: '11°C', label: '早晨', condition: '多雲', rain_probability: '20%' },
-            { icon: '☀', temp: '16°C', label: '中午', condition: '晴時多雲', rain_probability: '35%' },
-            { icon: '🌧', temp: '10°C', label: '下午', condition: '午後陣雨', rain_probability: '65%' },
+            {
+              icon: '⛅',
+              temp: '11°C',
+              label: '早晨',
+              condition: '多雲',
+              rain_probability: '20%',
+            },
+            {
+              icon: '☀',
+              temp: '16°C',
+              label: '中午',
+              condition: '晴時多雲',
+              rain_probability: '35%',
+            },
+            {
+              icon: '🌧',
+              temp: '10°C',
+              label: '下午',
+              condition: '午後陣雨',
+              rain_probability: '65%',
+            },
           ]
         : [
-            { icon: '⛅', temp: '13°C', label: '早晨', condition: '多雲', rain_probability: '15%' },
-            { icon: '☀', temp: '18°C', label: '中午', condition: '晴時多雲', rain_probability: '20%' },
-            { icon: '⛅', temp: '14°C', label: '下午', condition: '局部短暫雨', rain_probability: '40%' },
+            {
+              icon: '⛅',
+              temp: '13°C',
+              label: '早晨',
+              condition: '多雲',
+              rain_probability: '15%',
+            },
+            {
+              icon: '☀',
+              temp: '18°C',
+              label: '中午',
+              condition: '晴時多雲',
+              rain_probability: '20%',
+            },
+            {
+              icon: '⛅',
+              temp: '14°C',
+              label: '下午',
+              condition: '局部短暫雨',
+              rain_probability: '40%',
+            },
           ];
 
   return {
@@ -2501,19 +2563,16 @@ const weatherAiStatusLabel = computed(() => {
   if (weatherMode.value === 'mock') return '本地假資料';
   if (weatherLoading.value) return 'OpenAI 檢查中...';
   if (!routeWeather.value) return 'OpenAI 未回應';
-  if (routeWeather.value.fallback || routeWeather.value.model_used === 'fallback') {
-    const stage = routeWeather.value.fallback_stage;
-    const prefix =
-      stage === 'cwa'
-        ? 'CWA 失敗'
-        : stage === 'openai'
-          ? 'OpenAI 失敗'
-          : '失敗';
-    return routeWeather.value.fallback_reason
-      ? `${prefix}：${routeWeather.value.fallback_reason}`
-      : `${prefix}，已切回假資料`;
+  if (
+    routeWeather.value.fallback ||
+    routeWeather.value.model_used === 'fallback'
+  ) {
+    return 'OpenAI 失敗，已切回假資料';
   }
-  if (routeWeather.value.model_used && routeWeather.value.model_used !== 'mock') {
+  if (
+    routeWeather.value.model_used &&
+    routeWeather.value.model_used !== 'mock'
+  ) {
     return 'OpenAI 成功';
   }
   return 'OpenAI 狀態未確認';

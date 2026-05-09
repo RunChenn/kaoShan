@@ -40,13 +40,13 @@
               AI 即時風險評估 · 緊急求救 · 家人守護
             </div>
 
-            <div class="feature-row q-mb-xl">
+            <div class="feature-row q-mb-md">
               <span v-for="f in features" :key="f" class="feature-chip">{{
                 f
               }}</span>
             </div>
 
-            <q-btn
+            <!-- <q-btn
               unelevated
               size="lg"
               class="full-width line-btn"
@@ -93,6 +93,17 @@
                 />
               </svg>
               使用 Google 登入
+            </q-btn> -->
+
+            <q-btn
+              flat
+              size="lg"
+              class="full-width guest-btn q-mt-sm"
+              :disable="loading || loadingGoogle"
+              @click="handleGuestLogin"
+            >
+              <q-icon name="person_outline" size="20px" class="q-mr-sm" />
+              訪客登入
             </q-btn>
           </div>
         </div>
@@ -175,14 +186,14 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const auth = useAuthStore();
-const { login, loginWithGoogle } = useLiff();
+const { login, loginWithGoogle, loginAsGuest } = useLiff();
 const loading = ref(false);
 const loadingGoogle = ref(false);
 
 const features = ['AI 風險評估', '離線地圖', '緊急求救', '家人守護'];
 
 function goToPrePlan() {
-  if (!auth.isLoggedIn) return;
+  // if (!auth.isLoggedIn) return;
   router.push({ name: 'pre-departure' });
 }
 
@@ -200,7 +211,7 @@ async function handleLogin() {
   loading.value = true;
   try {
     await login();
-    router.push({ name: 'line' });
+    router.push({ name: 'pre-departure' });
   } finally {
     loading.value = false;
   }
@@ -210,10 +221,15 @@ async function handleGoogleLogin() {
   loadingGoogle.value = true;
   try {
     await loginWithGoogle();
-    router.push({ name: 'line' });
+    router.push({ name: 'pre-departure' });
   } finally {
     loadingGoogle.value = false;
   }
+}
+
+function handleGuestLogin() {
+  loginAsGuest();
+  router.push({ name: 'pre-departure' });
 }
 </script>
 
@@ -431,6 +447,21 @@ async function handleGoogleLogin() {
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.25),
     0 1px 4px rgba(0, 0, 0, 0.15) !important;
+
+  &:active {
+    transform: scale(0.97) !important;
+  }
+}
+
+.guest-btn {
+  color: rgba(255, 255, 255, 0.84) !important;
+  border-radius: 18px !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06rem;
+  height: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 
   &:active {
     transform: scale(0.97) !important;
