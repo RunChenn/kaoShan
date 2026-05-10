@@ -30,13 +30,13 @@
 
         <!-- Sending phase -->
         <template v-else>
-          <div class="voice-overlay-title">轉文字中...</div>
+          <div class="voice-overlay-title">整理文字中...</div>
           <div class="voice-wave-lg">
             <div v-for="i in 5" :key="i" class="voice-bar-lg" />
           </div>
           <div class="voice-overlay-live">
             <span class="voice-final-text">{{ overlayFinal }}</span>
-            <span class="voice-placeholder">正在把語音放進輸入框...</span>
+            <span class="voice-placeholder">正在把語音文字放進輸入框...</span>
           </div>
         </template>
       </div>
@@ -394,6 +394,9 @@
       >
         <div class="section-label">需求統整</div>
         <div class="demand-grid">
+          <div class="custom-advice-box weather-advice-box">
+            {{ demandSummary }}
+          </div>
           <div class="demand-item">
             <span>地區</span>
             <strong>{{ demandSummary.goal }}</strong>
@@ -411,7 +414,7 @@
             <strong>{{ demandSummary.risk }}</strong>
           </div>
         </div>
-        <div class="demand-note">{{ demandSummary.note }}</div>
+        <!-- <div class="demand-note">{{ demandSummary.note }}</div> -->
 
         <div class="recommendation-header">
           <div class="section-label recommendation-label">推薦路線</div>
@@ -514,13 +517,21 @@
           </template>
           <div v-if="scanned" class="yolo-scanned-wrap">
             <div class="yolo-scanned-title">
-              辨識完成，已自動加入且勾選 {{ yoloItems.length }} 項
+              Gemini 辨識完成，已自動加入且勾選 {{ detectedVisionCount }} 項
             </div>
-            <div class="yolo-result">
-              <!-- <span v-for="it in yoloItems" :key="it.label" class="yolo-chip">{{ it.label }} {{ it.conf }}</span> -->
-              <span v-for="it in yoloItems" :key="it.label" class="yolo-chip">{{
-                it.label
-              }}</span>
+            <div class="vision-result-list">
+              <div v-for="it in visionItems" :key="it.name" class="vision-item-card">
+                <div class="vision-item-head">
+                  <span class="vision-item-name">{{ it.name }}</span>
+                  <span class="vision-item-conf">{{ Math.round(it.confidence * 100) }}%</span>
+                </div>
+                <div class="vision-item-grid">
+                  <span>品牌</span><strong>{{ it.brand || '未知' }}</strong>
+                  <span>型號</span><strong>{{ it.model || '未知' }}</strong>
+                  <span>用途</span><strong>{{ it.primary_use || '未知' }}</strong>
+                  <span>防水</span><strong>{{ waterproofLabel(it.waterproof) }}</strong>
+                </div>
+              </div>
             </div>
             <button class="yolo-rescan-btn" @click.stop="resetGearScan">
               重新辨識
@@ -664,7 +675,7 @@
             <div class="weather-label">{{ w.label }}</div>
           </div>
         </div>
-        <div class="weather-advice-box">
+        <div class="custom-advice-box weather-advice-box">
           {{ weatherAdvice }}
         </div>
         <div v-if="routeWeather?.source" class="weather-source">
@@ -717,9 +728,9 @@
               <span class="material-icons">route</span>
               <span>GPX 已載入</span>
             </div>
-            <button class="btn btn-primary" @click="router.push('/active')">
+            <!-- <button class="btn btn-primary" @click="router.push('/active')">
               開始登山
-            </button>
+            </button> -->
           </div>
         </div>
         <div v-if="gpxMapTrack" class="gpx-map-status">
@@ -884,6 +895,11 @@ interface GearDetectItem {
   name: string;
   detected: boolean;
   confidence: number;
+  brand?: string | null;
+  model?: string | null;
+  primary_use?: string | null;
+  waterproof?: boolean | null;
+  notes?: string | null;
 }
 
 interface GearDetectResponse {
@@ -891,6 +907,19 @@ interface GearDetectResponse {
   missing_count: number;
   model_used: string;
   fallback?: boolean;
+  shoe?: ShoeRecognition | null;
+}
+
+interface ShoeRecognition {
+  item_type: string;
+  brand: string | null;
+  model: string | null;
+  primary_use: string | null;
+  terrain_suitability: string[];
+  waterproof: boolean | null;
+  ankle_support: string | null;
+  confidence: number;
+  notes: string | null;
 }
 
 interface GearAssessResponse {
@@ -987,6 +1016,7 @@ const lastRecommendationContext = ref<{
   routes: RecommendedRoute[];
   sourceMessage: string;
   profile?: ProfileForm;
+  displayStart: number;
 } | null>(null);
 const demandSummary = ref<DemandSummary>({
   goal: '尚未建立',
@@ -1090,7 +1120,8 @@ function resetChatConversation() {
   gearAssessment.value = null;
   scanned.value = false;
   scanning.value = false;
-  yoloItems.value = [];
+  visionItems.value = [];
+  recognizedShoe.value = null;
   lastDetectedGearIds.value = new Set();
   gearPhotoInput.value && (gearPhotoInput.value.value = '');
   for (const key of Object.keys(gear)) {
@@ -1162,15 +1193,19 @@ function publishRouteRecommendations(
   sourceMessage: string,
   profile?: ProfileForm,
 ) {
+  const normalizedRoutes = getSimilarRouteCandidates(routes, profile);
   lastRecommendationContext.value = {
-    routes,
+    routes: normalizedRoutes,
     sourceMessage,
     profile,
+    displayStart: 0,
   };
   const summary = profile
     ? buildDemandSummaryFromProfile(profile, sourceMessage)
     : buildDemandSummary(sourceMessage);
-  const uniqueRegions = [...new Set(routes.map((route) => route.region))];
+  const uniqueRegions = [
+    ...new Set(normalizedRoutes.map((route) => route.region)),
+  ];
   summary.goal =
     uniqueRegions.length > 0
       ? uniqueRegions.length === 1
@@ -1178,7 +1213,9 @@ function publishRouteRecommendations(
         : uniqueRegions.slice(0, 2).join('、')
       : '待確認地區';
   demandSummary.value = summary;
-  recommendedRouteCards.value = routes.slice(0, 3).map(toRouteCard);
+  recommendedRouteCards.value = getRecommendationBatch(normalizedRoutes, 0).map(
+    toRouteCard,
+  );
   recommendationsVisible.value = true;
   chatCollapsed.value = true;
   messages.value.push({
@@ -1196,11 +1233,26 @@ function rerollRecommendations() {
   if (!context || rerollingRecommendations.value) return;
   rerollingRecommendations.value = true;
   try {
-    publishRouteRecommendations(
+    const nextStart =
+      context.routes.length <= 3
+        ? 0
+        : (context.displayStart + 3) % context.routes.length;
+    context.displayStart = nextStart;
+    recommendedRouteCards.value = getRecommendationBatch(
       context.routes,
-      context.sourceMessage,
-      context.profile,
+      nextStart,
+    ).map(toRouteCard);
+
+    const visibleRouteIds = new Set(
+      recommendedRouteCards.value.flatMap((card) =>
+        card.source?.id ? [card.source.id] : [],
+      ),
     );
+    if (selectedRoute.value && !visibleRouteIds.has(selectedRoute.value.id)) {
+      selectedRoute.value = null;
+      planningRevealed.value = false;
+      routeWeather.value = null;
+    }
   } finally {
     rerollingRecommendations.value = false;
   }
@@ -1344,6 +1396,33 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
       { icon: '⏱', text: `預估 ${route.estimated_hours} 小時` },
     ],
   };
+}
+
+function getSimilarRouteCandidates(
+  routes: RecommendedRoute[],
+  profile?: ProfileForm,
+): RecommendedRoute[] {
+  const candidates = profile
+    ? [...routes, ...getRecommendations(profileToRecommendationInput(profile))]
+    : routes;
+  const seen = new Set<string>();
+  return candidates.filter((route) => {
+    const key = route.id || route.name;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getRecommendationBatch(
+  routes: RecommendedRoute[],
+  startIndex: number,
+): RecommendedRoute[] {
+  if (routes.length <= 3) return routes;
+  return Array.from({ length: 3 }, (_, index) => {
+    const routeIndex = (startIndex + index) % routes.length;
+    return routes[routeIndex]!;
+  });
 }
 
 function getRouteRecommendCacheKey(profile: ProfileForm) {
@@ -1946,6 +2025,7 @@ let mediaRecorder: MediaRecorder | null = null;
 let mediaStream: MediaStream | null = null;
 let mediaChunks: Blob[] = [];
 let speechRecognition: SpeechRecognitionInstance | null = null;
+let speechSocket: WebSocket | null = null;
 
 onMounted(() => {
   voiceSupported.value = isVoiceInputSupported();
@@ -1985,11 +2065,18 @@ function getSupportedAudioMimeType() {
   const types = [
     'audio/webm;codecs=opus',
     'audio/webm',
-    'audio/mp4',
-    'audio/mpeg',
-    'audio/wav',
   ];
   return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
+}
+
+function getSpeechStreamUrl() {
+  const baseUrl =
+    api.defaults.baseURL ??
+    `${window.location.protocol}//${window.location.host}/api/v1`;
+  const url = new URL(baseUrl, window.location.href);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.pathname = `${url.pathname.replace(/\/$/, '')}/chat/speech/stream`;
+  return url.toString();
 }
 
 function openVoiceOverlay() {
@@ -2016,35 +2103,73 @@ function openVoiceOverlay() {
 
 async function startOverlayRecording() {
   if (mediaRecorder?.state === 'recording') return;
-  if (!isMediaRecorderSupported()) {
+  const mimeType = getSupportedAudioMimeType();
+  if (!isMediaRecorderSupported() || !mimeType) {
     startSpeechRecognitionFallback();
     return;
   }
   mediaChunks = [];
-  overlayLive.value = '錄音中，停止後會送至 Whisper 轉文字。';
+  overlayLive.value = '正在連線 Google 語音辨識...';
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mimeType = getSupportedAudioMimeType();
     mediaRecorder = new MediaRecorder(
       mediaStream,
-      mimeType ? { mimeType } : undefined,
+      { mimeType },
     );
+    speechSocket = new WebSocket(getSpeechStreamUrl());
+    speechSocket.binaryType = 'arraybuffer';
+
+    speechSocket.onopen = () => {
+      overlayLive.value = '語音辨識中，文字會即時填入輸入框。';
+      mediaRecorder?.start(250);
+    };
+
+    speechSocket.onmessage = (event) => {
+      const payload = JSON.parse(String(event.data)) as {
+        type: 'transcript' | 'error' | 'done';
+        text?: string;
+        is_final?: boolean;
+        message?: string;
+      };
+      if (payload.type === 'error') {
+        overlayLive.value = '';
+        overlayFinal.value = payload.message || 'Google 語音辨識暫時無法使用。';
+        return;
+      }
+      if (payload.type !== 'transcript' || !payload.text) return;
+
+      if (payload.is_final) {
+        overlayFinal.value = `${overlayFinal.value}${payload.text}`.trim();
+        overlayLive.value = '';
+      } else {
+        overlayLive.value = payload.text;
+      }
+      inputText.value = composeVoiceDraft(
+        `${overlayFinal.value}${overlayLive.value}`,
+      );
+      voiceDraftCommitted.value = Boolean(inputText.value.trim());
+    };
+
+    speechSocket.onerror = () => {
+      overlayLive.value = '';
+      overlayFinal.value = 'Google 語音辨識連線失敗，請稍後再試。';
+      overlayPhase.value = 'sending';
+    };
+
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) mediaChunks.push(event.data);
+      if (event.data.size <= 0) return;
+      mediaChunks.push(event.data);
+      if (speechSocket?.readyState !== WebSocket.OPEN) return;
+      void event.data.arrayBuffer().then((buffer) => {
+        if (speechSocket?.readyState === WebSocket.OPEN) {
+          speechSocket.send(buffer);
+        }
+      });
     };
     mediaRecorder.onstop = () => {
-      recordedVoiceBlob.value = new Blob(mediaChunks, {
-        type: mediaRecorder?.mimeType || 'audio/webm',
-      });
       mediaStream?.getTracks().forEach((track) => track.stop());
       mediaStream = null;
-      overlayLive.value = '';
-      overlayPhase.value = 'sending';
-      if (recordedVoiceBlob.value) {
-        void processVoiceBlob(recordedVoiceBlob.value);
-      }
     };
-    mediaRecorder.start();
   } catch (e) {
     console.warn('MediaRecorder error:', e);
     overlayLive.value = '';
@@ -2105,6 +2230,16 @@ function startSpeechRecognitionFallback() {
 function stopOverlayRecording() {
   if (mediaRecorder?.state === 'recording') {
     mediaRecorder.stop();
+    overlayPhase.value = 'sending';
+    if (speechSocket?.readyState === WebSocket.OPEN) {
+      speechSocket.send(JSON.stringify({ type: 'stop' }));
+    }
+    const transcript = `${overlayFinal.value}${overlayLive.value}`;
+    inputText.value = composeVoiceDraft(transcript);
+    voiceDraftCommitted.value = Boolean(inputText.value.trim());
+    window.setTimeout(() => {
+      closeVoiceOverlay();
+    }, 500);
   } else if (speechRecognition) {
     speechRecognition.stop();
   } else {
@@ -2176,6 +2311,13 @@ function closeVoiceOverlay() {
 function stopVoiceCapture() {
   speechRecognition?.stop();
   speechRecognition = null;
+  if (
+    speechSocket &&
+    [WebSocket.CONNECTING, WebSocket.OPEN].includes(speechSocket.readyState)
+  ) {
+    speechSocket.close();
+  }
+  speechSocket = null;
   if (mediaRecorder?.state === 'recording') {
     mediaRecorder.stop();
   }
@@ -2263,8 +2405,16 @@ async function assessGearList() {
             risk: selectedRoute.value.risk,
             difficulty: routeDifficulty(selectedRoute.value),
             days: selectedRoute.value.minDays,
+            distance_km: parseRouteNumber(selectedRoute.value.distance),
+            estimated_hours: parseRouteNumber(selectedRoute.value.time),
+            elevation_gain: Math.round(parseRouteNumber(selectedRoute.value.elevation)),
+            weather_risk: routeWeatherRisk.value,
           }
         : null,
+      shoe: recognizedShoe.value,
+      user_level: profileForm.value?.level ?? null,
+      fitness: profileForm.value?.fitness ?? null,
+      target_days: profileForm.value?.target_days ?? null,
     });
     gearAssessment.value = {
       score: data.score,
@@ -2316,25 +2466,34 @@ function assessGearListWithFallback() {
       : '清單內裝備皆已勾選確認。',
     selectedRoute.value?.risk === 'high'
       ? '高風險路線請額外確認保暖、雨具、離線地圖與緊急通訊。'
-      : 'OpenAI 暫時不可用，請依路線天數、天氣與個人狀態再次檢查裝備。',
+      : '請依路線天數、天氣與個人狀態再次檢查裝備。',
   ];
 
   gearAssessment.value = {
     score,
     level,
-    summary: `目前 ${checkedItems.length}/${gearItems.value.length} 項已確認。OpenAI 暫時不可用，這是保守 fallback 評估。`,
+    summary: `目前 ${checkedItems.length}/${gearItems.value.length} 項已確認。這是本機保守 fallback 評估。`,
     tips,
   };
 }
 
 const selectedRoute = ref<RecommendedRoute | null>(null);
 
-// ── YOLO scanner ──────────────────────────────────
+function parseRouteNumber(value: string) {
+  const parsed = Number(value.replace(/,/g, '').match(/[\d.]+/)?.[0] ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+// ── Gemini vision scanner ─────────────────────────
 const scanning = ref(false);
 const scanned = ref(false);
-const yoloItems = ref<Array<{ label: string; conf: string }>>([]);
+const visionItems = ref<GearDetectItem[]>([]);
 const gearPhotoInput = ref<HTMLInputElement>();
 const lastDetectedGearIds = ref<Set<string>>(new Set());
+const recognizedShoe = ref<ShoeRecognition | null>(null);
+const detectedVisionCount = computed(
+  () => visionItems.value.filter((item) => item.detected).length,
+);
 
 const GEAR_LABEL_TO_ID: Record<string, string> = {
   登山鞋: 'boots',
@@ -2370,7 +2529,8 @@ function resetGearScan() {
   if (scanning.value) return;
   removeLastDetectedGearItems();
   scanned.value = false;
-  yoloItems.value = [];
+  visionItems.value = [];
+  recognizedShoe.value = null;
   gearPhotoInput.value?.click();
 }
 
@@ -2405,6 +2565,7 @@ async function onGearPhotoSelected(event: Event) {
 
   scanning.value = true;
   scanned.value = false;
+  recognizedShoe.value = null;
   try {
     const form = new FormData();
     form.append('image', file);
@@ -2412,30 +2573,41 @@ async function onGearPhotoSelected(event: Event) {
       timeout: 30000,
     });
 
+    recognizedShoe.value = data.shoe ?? null;
     const detectedItems = data.items.filter((item) => item.detected);
     detectedItems.forEach((item) => {
       addDetectedGearItem(gearItemFromDetectedLabel(item.name));
     });
-    yoloItems.value = detectedItems.map((item) => ({
-      label: item.name,
-      conf: `${Math.round(item.confidence * 100)}%`,
-    }));
-    if (yoloItems.value.length === 0) {
-      yoloItems.value = [{ label: '未偵測到裝備', conf: '' }];
+    visionItems.value = detectedItems;
+    if (visionItems.value.length === 0) {
+      visionItems.value = [
+        { name: '未偵測到裝備', detected: false, confidence: 0 },
+      ];
     }
   } catch (_) {
-    const fallbackLabels = ['登山鞋', '登山杖', '頭燈', '雨衣'];
-    fallbackLabels.forEach((label) => {
-      addDetectedGearItem(gearItemFromDetectedLabel(label));
-    });
-    yoloItems.value = fallbackLabels.map((label, index) => ({
-      label,
-      conf: `${[97, 93, 89, 84][index]}%`,
-    }));
+    visionItems.value = [
+      {
+        name: '辨識失敗',
+        detected: false,
+        confidence: 0,
+        brand: null,
+        model: null,
+        primary_use: '請確認 Gemini API Key、模型名稱或網路連線',
+        waterproof: null,
+        notes: null,
+      },
+    ];
   } finally {
     scanning.value = false;
     scanned.value = true;
+    void assessGearList();
   }
+}
+
+function waterproofLabel(value: boolean | null | undefined) {
+  if (value === true) return '防水';
+  if (value === false) return '未防水';
+  return '未知';
 }
 
 // ── Static data ───────────────────────────────────
@@ -2559,6 +2731,14 @@ const weatherAdvice = computed(
     routeWeather.value?.advice ??
     '建議 13:00 前下山，午後雷陣雨機率偏高。請攜帶雨具與保暖層，若山區雲霧變厚應提前折返。',
 );
+const routeWeatherRisk = computed<'low' | 'medium' | 'high'>(() => {
+  const text = `${routeWeather.value?.advice ?? ''} ${displayedWeather.value
+    .map((period) => `${period.condition} ${period.rain_probability ?? ''}`)
+    .join(' ')}`;
+  if (/雷|豪雨|大雨|高風險|推遲|延後/.test(text)) return 'high';
+  if (/雨|霧|風|40%|50%|60%/.test(text)) return 'medium';
+  return 'low';
+});
 const weatherAiStatusLabel = computed(() => {
   if (weatherMode.value === 'mock') return '本地假資料';
   if (weatherLoading.value) return 'OpenAI 檢查中...';
@@ -3555,7 +3735,7 @@ async function downloadOfflinePackage() {
 .pre-line-panel {
   display: flex;
   flex-direction: column;
-  min-height: clamp(520px, 72vh, 760px);
+  /* min-height: clamp(520px, 72vh, 760px); */
   max-height: 82vh;
   background: var(--bg-base);
   border: 1px solid var(--border);
@@ -3643,7 +3823,7 @@ async function downloadOfflinePackage() {
   border-radius: 16px;
   background: var(--bg-orange);
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 800;
   cursor: pointer;
   font-family: inherit;
@@ -3972,7 +4152,7 @@ async function downloadOfflinePackage() {
 .route-card-full .route-card-meta .route-card-meta-data {
   display: block;
   margin-bottom: 3px;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: var(--text-green-light);
   letter-spacing: 0.06rem;
@@ -3992,8 +4172,9 @@ async function downloadOfflinePackage() {
 }
 
 [data-theme='dark'] .route-card-full .route-card-highlight {
-  background: rgba(255, 255, 255, 0.055);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(6, 199, 85, 0.08);
+  border: 1px solid rgba(6, 199, 85, 0.22);
+  color: var(--text-secondary);
 }
 
 .route-card-full .route-card-actions {
@@ -4098,6 +4279,9 @@ async function downloadOfflinePackage() {
 }
 
 .chat-small-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   height: 30px;
   min-width: 64px;
   border: 1px solid rgba(255, 255, 255, 0.34);
@@ -4367,6 +4551,60 @@ async function downloadOfflinePackage() {
   min-height: auto;
 }
 
+.vision-result-list {
+  display: grid;
+  gap: 10px;
+}
+
+.vision-item-card {
+  padding: 10px;
+  border: 1px solid rgba(6, 199, 85, 0.18);
+  border-radius: 14px;
+  background: rgba(6, 199, 85, 0.06);
+}
+
+.vision-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.vision-item-name {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.vision-item-conf {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #06c755;
+}
+
+.vision-item-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  row-gap: 5px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.vision-item-grid span {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.vision-item-grid strong {
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .msg-sos {
   display: flex;
   align-items: center;
@@ -4456,19 +4694,19 @@ async function downloadOfflinePackage() {
 
 .diff-easy {
   background: rgba(26, 140, 85, 0.18);
-  color: #16a34a;
+  color: var(--risk-low);
   border: 1px solid rgba(26, 140, 85, 0.35);
 }
 
 .diff-medium {
   background: rgba(251, 146, 60, 0.18);
-  color: #d97706;
+  color: var(--risk-mid);
   border: 1px solid rgba(251, 146, 60, 0.35);
 }
 
 .diff-hard {
   background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  color: var(--risk-high);
   border: 1px solid rgba(220, 38, 38, 0.3);
 }
 

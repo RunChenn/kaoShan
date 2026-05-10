@@ -46,7 +46,7 @@
               }}</span>
             </div>
 
-            <!-- <q-btn
+            <q-btn
               unelevated
               size="lg"
               class="full-width line-btn"
@@ -93,7 +93,7 @@
                 />
               </svg>
               使用 Google 登入
-            </q-btn> -->
+            </q-btn>
 
             <q-btn
               flat
@@ -182,9 +182,10 @@
 import { useLiff } from 'src/composables/useLiff';
 import { useAuthStore } from 'src/stores/auth';
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 const { login, loginWithGoogle, loginAsGuest } = useLiff();
 const loading = ref(false);
@@ -207,11 +208,19 @@ function goToReviewPlan() {
   router.push({ name: 'summary' });
 }
 
+function getPostLoginRedirect() {
+  const redirect = route.query.redirect;
+  return typeof redirect === 'string' && redirect.startsWith('/')
+    ? redirect
+    : '/';
+}
+
 async function handleLogin() {
   loading.value = true;
   try {
-    await login();
-    router.push({ name: 'pre-departure' });
+    const redirectPath = getPostLoginRedirect();
+    await login(redirectPath);
+    router.push(redirectPath);
   } finally {
     loading.value = false;
   }
@@ -221,7 +230,7 @@ async function handleGoogleLogin() {
   loadingGoogle.value = true;
   try {
     await loginWithGoogle();
-    router.push({ name: 'pre-departure' });
+    router.push(getPostLoginRedirect());
   } finally {
     loadingGoogle.value = false;
   }
@@ -229,7 +238,7 @@ async function handleGoogleLogin() {
 
 function handleGuestLogin() {
   loginAsGuest();
-  router.push({ name: 'pre-departure' });
+  router.push(getPostLoginRedirect());
 }
 </script>
 

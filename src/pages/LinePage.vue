@@ -1654,17 +1654,17 @@ watch(typing, scrollToBottom);
 
 .diff-easy {
   background: rgba(26, 140, 85, 0.18);
-  color: #16a34a;
+  color: var(--risk-low);
   border: 1px solid rgba(26, 140, 85, 0.35);
 }
 .diff-medium {
   background: rgba(251, 146, 60, 0.18);
-  color: #d97706;
+  color: var(--risk-mid);
   border: 1px solid rgba(251, 146, 60, 0.35);
 }
 .diff-hard {
   background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  color: var(--risk-high);
   border: 1px solid rgba(220, 38, 38, 0.3);
 }
 

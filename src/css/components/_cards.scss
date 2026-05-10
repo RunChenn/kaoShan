@@ -5,7 +5,7 @@
   overflow: hidden;
   transition:
     box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    transform  0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hiking-card-hover:hover {
@@ -19,7 +19,9 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border) !important;
   border-radius: 24px !important;
-  box-shadow: var(--shadow-md), 0 1px 0 rgba(255,255,255,0.08) inset;
+  box-shadow:
+    var(--shadow-md),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
 }
 /* ── Card ────────────────────────────────── */
 .card {
@@ -42,3 +44,14 @@
   padding: 20px;
 }
 
+/* ── advice Card ────────────────────────────────── */
+.custom-advice-box {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(251, 146, 60, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(251, 146, 60, 0.25);
+  font-size: 0.78rem;
+  color: var(--risk-mid);
+  font-weight: 600;
+}

@@ -1,10 +1,11 @@
-import { api } from 'src/boot/axios'
-import { useAuthStore } from 'src/stores/auth'
-import { ref } from 'vue'
+import liff from '@line/liff';
+import { api } from 'src/boot/axios';
+import { useAuthStore } from 'src/stores/auth';
+import { ref } from 'vue';
 
 const liffInitialized = ref(false)
 const POST_LOGIN_REDIRECT_KEY = '__liff_post_login_redirect__'
-const DEFAULT_LIFF_ID = import.meta.env.VITE_LIFF_ID || '2009970633-zYGV9XSy'
+const DEFAULT_LIFF_ID = import.meta.env.VITE_LIFF_ID || ''
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 declare global {
@@ -31,6 +32,11 @@ function getLiffId(): string {
 }
 
 function getLiffRedirectUri(): string {
+  const liffBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return liffBaseUrl || `https://liff.line.me/${getLiffId()}`
+  }
+
   const url = new URL(window.location.href)
   url.search = ''
   url.hash = ''
@@ -67,6 +73,8 @@ export function useLiff() {
   const auth = useAuthStore()
   const loading = ref(false)
 
+  console.log(auth)
+
   async function authenticateWithBackend(idToken: string, accessToken?: string | null): Promise<void> {
     const { data } = await api.post<{
       jwt_token: string
@@ -94,6 +102,8 @@ export function useLiff() {
 
     const liffId = getLiffId()
 
+    console.log(liffId)
+
     if (!liffId || liffId === 'your_liff_id_here') {
       console.warn('[LIFF] VITE_LIFF_ID 未設定，LINE 實際登入不可用')
       liffInitialized.value = true
@@ -102,19 +112,23 @@ export function useLiff() {
     }
 
     try {
-      const liffAPI = await import('@line/liff').then(m => m.default)
-      await liffAPI.init({ liffId })
+      await liff.init({ liffId })
       liffInitialized.value = true
       auth.setLiffReady()
 
-      if (liffAPI.isLoggedIn()) {
-        const idToken = liffAPI.getIDToken()
-        if (!idToken) throw new Error('LIFF id_token 取得失敗')
+      if (liff.isLoggedIn()) {
+        const lineAccessToken = liff.getAccessToken();
+
+        console.log('LIFF access token:', lineAccessToken);
+
+        if (!lineAccessToken) throw new Error('LIFF id_token 取得失敗');
+
         try {
-          await authenticateWithBackend(idToken, liffAPI.getAccessToken())
+          await authenticateWithBackend(lineAccessToken, liff.getAccessToken())
         } catch {
           // 後端不可用時（如 GitHub Pages demo），直接用 LIFF profile 登入
-          const profile = await liffAPI.getProfile()
+          const profile = await liff.getProfile()
+          
           auth.setLoggedIn(
             {
               userId: profile.userId,
@@ -141,18 +155,17 @@ export function useLiff() {
     }
 
     sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirectPath)
-    const liffAPI = await import('@line/liff').then(m => m.default)
-    if (!liffAPI.isLoggedIn()) {
-      liffAPI.login({ redirectUri: getLiffRedirectUri() })
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: getLiffRedirectUri() })
       return
     }
 
-    const idToken = liffAPI.getIDToken()
+    const idToken = liff.getIDToken()
     if (!idToken) throw new Error('LIFF id_token 取得失敗')
     try {
-      await authenticateWithBackend(idToken, liffAPI.getAccessToken())
+      await authenticateWithBackend(idToken, liff.getAccessToken())
     } catch {
-      const profile = await liffAPI.getProfile()
+      const profile = await liff.getProfile()
       auth.setLoggedIn(
         {
           userId: profile.userId,

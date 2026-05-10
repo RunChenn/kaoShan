@@ -357,6 +357,61 @@
       />
 
       <div v-if="gearScanned" class="anim-slide-up">
+        <q-card v-if="recognizedShoe" class="hiking-card q-mb-md shoe-card">
+          <q-card-section class="q-pa-md">
+            <div class="row items-start no-wrap">
+              <div class="shoe-icon-ring q-mr-md">
+                <q-icon name="hiking" color="primary" size="22px" />
+              </div>
+              <div class="col">
+                <div class="section-label q-mb-xs">鞋款辨識</div>
+                <div class="shoe-title">
+                  {{ recognizedShoe.brand || '品牌未知' }}
+                  <span v-if="recognizedShoe.model">
+                    · {{ recognizedShoe.model }}
+                  </span>
+                </div>
+                <div class="shoe-meta">
+                  {{ recognizedShoe.primary_use || '用途待確認' }}
+                  <span v-if="recognizedShoe.waterproof !== null">
+                    · {{ recognizedShoe.waterproof ? '防水' : '非防水/未見防水特徵' }}
+                  </span>
+                </div>
+                <div v-if="recognizedShoe.notes" class="shoe-note">
+                  {{ recognizedShoe.notes }}
+                </div>
+              </div>
+              <q-badge
+                :color="recognizedShoe.confidence >= 0.7 ? 'positive' : 'warning'"
+                :label="`${Math.round(recognizedShoe.confidence * 100)}%`"
+              />
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <q-card v-if="routeSafety" class="hiking-card q-mb-md route-safety-card">
+          <q-card-section class="q-pa-md">
+            <div class="row items-center no-wrap q-gutter-md">
+              <RiskRing :score="routeSafety.score" />
+              <div class="col">
+                <div class="section-label q-mb-xs">所選路線安全評估</div>
+                <div class="safety-level">{{ routeSafety.level }}</div>
+                <div class="safety-summary">{{ routeSafety.summary }}</div>
+              </div>
+            </div>
+            <div class="safety-tips q-mt-md">
+              <div
+                v-for="tip in routeSafety.tips"
+                :key="tip"
+                class="safety-tip"
+              >
+                <q-icon name="task_alt" color="primary" size="15px" />
+                <span>{{ tip }}</span>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
         <div class="section-label q-mb-sm">辨識結果</div>
         <div class="gear-chips q-mb-md">
           <div
@@ -465,6 +520,7 @@
 <script setup lang="ts">
 import { api } from 'src/boot/axios';
 import RiskGauge from 'src/components/RiskGauge.vue';
+import RiskRing from 'src/components/RiskRing.vue';
 import type { GearItem } from 'src/mocks/gear';
 import { mockGearResults } from 'src/mocks/gear';
 import { mockRoutes } from 'src/mocks/routes';
@@ -486,14 +542,43 @@ const scanning = ref(false);
 const gearScanned = ref(false);
 const gearResults = ref(mockGearResults);
 const gearPhotoInput = ref<HTMLInputElement>();
+const recognizedShoe = ref<ShoeRecognition | null>(null);
+const routeSafety = ref<GearAssessResponse | null>(null);
 
 interface GearDetectResponse {
   items: Array<{
     name: string;
     detected: boolean;
     confidence: number;
+    brand?: string | null;
+    model?: string | null;
+    primary_use?: string | null;
+    waterproof?: boolean | null;
+    notes?: string | null;
   }>;
   missing_count: number;
+  model_used: string;
+  fallback?: boolean;
+  shoe?: ShoeRecognition | null;
+}
+
+interface ShoeRecognition {
+  item_type: string;
+  brand: string | null;
+  model: string | null;
+  primary_use: string | null;
+  terrain_suitability: string[];
+  waterproof: boolean | null;
+  ankle_support: string | null;
+  confidence: number;
+  notes: string | null;
+}
+
+interface GearAssessResponse {
+  score: number;
+  level: string;
+  summary: string;
+  tips: string[];
   model_used: string;
   fallback?: boolean;
 }
@@ -593,6 +678,8 @@ function scanGear() {
 function resetGearScan() {
   if (scanning.value) return;
   gearScanned.value = false;
+  recognizedShoe.value = null;
+  routeSafety.value = null;
   gearPhotoInput.value?.click();
 }
 
@@ -604,20 +691,86 @@ async function onGearPhotoSelected(event: Event) {
 
   scanning.value = true;
   gearScanned.value = false;
+  routeSafety.value = null;
   try {
     const form = new FormData();
     form.append('image', file);
     const { data } = await api.post<GearDetectResponse>('/gear/detect', form, {
       timeout: 30000,
     });
+    recognizedShoe.value = data.shoe ?? null;
     gearResults.value = mergeGearDetectionWithRouteChecklist(data.items);
   } catch (_) {
+    recognizedShoe.value = null;
     gearResults.value = mockGearResults;
   } finally {
     scanning.value = false;
     gearScanned.value = true;
     plan.setGearResults(gearResults.value);
+    await assessSelectedRouteSafety();
   }
+}
+
+async function assessSelectedRouteSafety() {
+  if (!route.value) return;
+  try {
+    const { data } = await api.post<GearAssessResponse>('/gear/assess', {
+      items: gearResults.value.map((item) => ({
+        id: normalizeGearLabel(item.name),
+        label: item.name,
+        checked: item.detected,
+      })),
+      route: {
+        name: route.value.name,
+        risk: routeWeather.value?.riskLevel ?? route.value.difficulty,
+        difficulty: route.value.difficulty,
+        days: route.value.days,
+        distance_km: route.value.distanceKm,
+        estimated_hours: route.value.estimatedHours,
+        elevation_gain: route.value.elevationGain,
+        weather_risk: routeWeather.value?.riskLevel ?? null,
+      },
+      shoe: recognizedShoe.value,
+      user_level: plan.profileForm.level,
+      fitness: plan.profileForm.fitness,
+      target_days: plan.profileForm.targetDays,
+    });
+    routeSafety.value = data;
+  } catch (_) {
+    routeSafety.value = buildLocalSafetyFallback();
+  }
+}
+
+function buildLocalSafetyFallback(): GearAssessResponse | null {
+  if (!route.value) return null;
+  const checked = gearResults.value.filter((item) => item.detected).length;
+  const total = gearResults.value.length || 1;
+  const difficultyPenalty = {
+    easy: 4,
+    medium: 12,
+    hard: 24,
+    expert: 32,
+  }[route.value.difficulty];
+  const weatherPenalty = {
+    low: 0,
+    medium: 10,
+    high: 18,
+  }[routeWeather.value?.riskLevel ?? 'low'];
+  const missingPenalty = Math.round(((total - checked) / total) * 30);
+  const score = Math.max(
+    0,
+    Math.min(100, 100 - difficultyPenalty - weatherPenalty - missingPenalty),
+  );
+  return {
+    score,
+    level: score >= 80 ? '準備充足' : score >= 60 ? '基本可出發' : score >= 40 ? '需要補強' : '不建議出發',
+    summary: `目前 ${checked}/${total} 項裝備已確認，這是前端保守估算。`,
+    tips: missingItems.value.length
+      ? [`尚未確認：${missingItems.value.slice(0, 4).map((item) => item.name).join('、')}。`]
+      : ['清單內裝備皆已確認，仍請出發前確認天氣與步道公告。'],
+    model_used: 'local-route-safety',
+    fallback: true,
+  };
 }
 
 function mergeGearDetectionWithRouteChecklist(
@@ -1018,6 +1171,68 @@ function normalizeGearLabel(label: string) {
     transform: scale(1.06);
     opacity: 1;
   }
+}
+
+.shoe-card,
+.route-safety-card {
+  border: 1px solid rgba(26, 140, 85, 0.16) !important;
+}
+
+.shoe-icon-ring {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(26, 140, 85, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shoe-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.shoe-meta {
+  margin-top: 3px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.shoe-note,
+.safety-summary {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.safety-level {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #1a8c55;
+  line-height: 1.4;
+}
+
+.safety-tips {
+  display: grid;
+  gap: 8px;
+}
+
+.safety-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(26, 140, 85, 0.07);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  line-height: 1.65;
 }
 
 .gear-chips {
