@@ -394,9 +394,9 @@
       >
         <div class="section-label">需求統整</div>
         <div class="demand-grid">
-          <div class="custom-advice-box weather-advice-box">
+          <!-- <div class="custom-advice-box weather-advice-box">
             {{ demandSummary }}
-          </div>
+          </div> -->
           <div class="demand-item">
             <span>地區</span>
             <strong>{{ demandSummary.goal }}</strong>
@@ -520,16 +520,24 @@
               Gemini 辨識完成，已自動加入且勾選 {{ detectedVisionCount }} 項
             </div>
             <div class="vision-result-list">
-              <div v-for="it in visionItems" :key="it.name" class="vision-item-card">
+              <div
+                v-for="it in visionItems"
+                :key="it.name"
+                class="vision-item-card"
+              >
                 <div class="vision-item-head">
                   <span class="vision-item-name">{{ it.name }}</span>
-                  <span class="vision-item-conf">{{ Math.round(it.confidence * 100) }}%</span>
+                  <span class="vision-item-conf"
+                    >{{ Math.round(it.confidence * 100) }}%</span
+                  >
                 </div>
                 <div class="vision-item-grid">
                   <span>品牌</span><strong>{{ it.brand || '未知' }}</strong>
                   <span>型號</span><strong>{{ it.model || '未知' }}</strong>
-                  <span>用途</span><strong>{{ it.primary_use || '未知' }}</strong>
-                  <span>防水</span><strong>{{ waterproofLabel(it.waterproof) }}</strong>
+                  <span>用途</span
+                  ><strong>{{ it.primary_use || '未知' }}</strong>
+                  <span>防水</span
+                  ><strong>{{ waterproofLabel(it.waterproof) }}</strong>
                 </div>
               </div>
             </div>
@@ -2062,10 +2070,7 @@ function isVoiceInputSupported() {
 }
 
 function getSupportedAudioMimeType() {
-  const types = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-  ];
+  const types = ['audio/webm;codecs=opus', 'audio/webm'];
   return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
 }
 
@@ -2112,10 +2117,7 @@ async function startOverlayRecording() {
   overlayLive.value = '正在連線 Google 語音辨識...';
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(
-      mediaStream,
-      { mimeType },
-    );
+    mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
     speechSocket = new WebSocket(getSpeechStreamUrl());
     speechSocket.binaryType = 'arraybuffer';
 
@@ -2407,7 +2409,9 @@ async function assessGearList() {
             days: selectedRoute.value.minDays,
             distance_km: parseRouteNumber(selectedRoute.value.distance),
             estimated_hours: parseRouteNumber(selectedRoute.value.time),
-            elevation_gain: Math.round(parseRouteNumber(selectedRoute.value.elevation)),
+            elevation_gain: Math.round(
+              parseRouteNumber(selectedRoute.value.elevation),
+            ),
             weather_risk: routeWeatherRisk.value,
           }
         : null,
