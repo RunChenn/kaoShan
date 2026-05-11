@@ -1,24 +1,9 @@
 <template>
   <div id="app" :data-theme="appStore.config.theme">
     <!-- Top Nav -->
-    <nav class="top-nav glass" v-if="route.path !== '/'">
+    <nav class="top-nav glass" v-if="route.path !== '/login'">
       <div class="nav-logo">
-        <svg width="24" height="22" viewBox="0 0 24 22" fill="none">
-          <path
-            d="M12 2L2 20h20L12 2z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M7 20L12 11l5 9"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.2"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <img :src="logoUrl" alt="KaoShan logo" class="nav-logo-image" />
         <span>KaoShan</span>
       </div>
 
@@ -77,6 +62,7 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/img/logo.png';
 import { useAppStore } from 'src/stores/app';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -98,15 +84,4 @@ function toggleTheme() {
 }
 </script>
 
-<style scoped>
-#app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-base);
-  color: var(--text-primary);
-  transition:
-    background 0.3s ease,
-    color 0.3s ease;
-}
-</style>
+<style></style>

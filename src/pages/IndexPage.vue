@@ -11,7 +11,7 @@
     <!-- ── Hero ── -->
     <div class="hero-section column items-center">
       <div class="logo-box anim-float">
-        <q-icon name="landscape" size="48px" color="white" />
+        <img :src="logoUrl" alt="靠山 logo" class="hero-logo-image" />
       </div>
       <div class="app-name anim-slide-up" style="animation-delay: 0.05s">
         靠山
@@ -179,6 +179,7 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/img/logo.png';
 import { useLiff } from 'src/composables/useLiff';
 import { useAuthStore } from 'src/stores/auth';
 import { ref } from 'vue';
@@ -327,6 +328,13 @@ function handleGuestLogin() {
     0 2px 10px rgba(0, 0, 0, 0.35),
     0 1px 0 rgba(255, 255, 255, 0.1) inset;
   backdrop-filter: blur(12px);
+}
+
+.hero-logo-image {
+  width: 62px;
+  height: 62px;
+  display: block;
+  object-fit: contain;
 }
 
 .app-name {

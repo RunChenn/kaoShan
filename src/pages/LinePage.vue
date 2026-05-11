@@ -74,7 +74,9 @@
     <!-- Header -->
     <div class="line-header">
       <div class="line-header-bot">
-        <div class="line-bot-avatar">⛰</div>
+        <div class="line-bot-avatar">
+          <img :src="logoUrl" alt="KaoShan logo" class="line-bot-avatar-image" />
+        </div>
         <div>
           <div class="line-bot-name">KaoShan</div>
           <div class="line-bot-status"><span class="line-dot" />線上服務中</div>
@@ -134,7 +136,9 @@
 
         <!-- Route Card -->
         <div v-else-if="m.type === 'route-card'" class="msg-row bot">
-          <div class="msg-bot-icon">⛰</div>
+          <div class="msg-bot-icon">
+            <img :src="logoUrl" alt="KaoShan logo" class="msg-bot-icon-image" />
+          </div>
           <div class="route-card">
             <div class="route-card-top">
               <span class="route-emoji">{{ cardOf(m).emoji }}</span>
@@ -177,7 +181,9 @@
 
         <!-- Weather Card -->
         <div v-else-if="m.type === 'weather-card'" class="msg-row bot">
-          <div class="msg-bot-icon">⛰</div>
+          <div class="msg-bot-icon">
+            <img :src="logoUrl" alt="KaoShan logo" class="msg-bot-icon-image" />
+          </div>
           <div class="weather-card">
             <div class="weather-card-title">明日山區天氣預報</div>
             <div class="weather-cols">
@@ -195,7 +201,9 @@
 
         <!-- History Card -->
         <div v-else-if="m.type === 'history-card'" class="msg-row bot">
-          <div class="msg-bot-icon">⛰</div>
+          <div class="msg-bot-icon">
+            <img :src="logoUrl" alt="KaoShan logo" class="msg-bot-icon-image" />
+          </div>
           <div class="chat-history-card">
             <div class="chat-history-card-title">
               {{ (m.cardData as ParsedHistory).name }}
@@ -218,7 +226,9 @@
 
         <!-- Analysis Progress -->
         <div v-else-if="m.type === 'analysis-progress'" class="msg-row bot">
-          <div class="msg-bot-icon">⛰</div>
+          <div class="msg-bot-icon">
+            <img :src="logoUrl" alt="KaoShan logo" class="msg-bot-icon-image" />
+          </div>
           <div class="chat-progress-card">
             <div class="chat-progress-label">
               AI 分析「{{ (m.cardData as ProgressData).name }}」中...
@@ -237,7 +247,9 @@
 
         <!-- Analysis Card -->
         <div v-else-if="m.type === 'analysis-card'" class="msg-row bot">
-          <div class="msg-bot-icon">⛰</div>
+          <div class="msg-bot-icon">
+            <img :src="logoUrl" alt="KaoShan logo" class="msg-bot-icon-image" />
+          </div>
           <div class="chat-analysis-card">
             <div class="chat-analysis-title">AI 體能分析</div>
             <div class="chat-analysis-row">
@@ -264,7 +276,9 @@
 
         <!-- Normal Text Message -->
         <div v-else class="msg-row" :class="m.role">
-          <div v-if="m.role === 'bot'" class="msg-bot-icon">⛰</div>
+          <div v-if="m.role === 'bot'" class="msg-bot-icon">
+            <img :src="logoUrl" alt="KaoShan logo" class="msg-bot-icon-image" />
+          </div>
           <div>
             <div :class="['msg-bubble', `msg-${m.role}`]">{{ m.text }}</div>
             <div
@@ -279,7 +293,9 @@
 
       <!-- Typing Indicator -->
       <div v-if="typing" class="msg-row bot">
-        <div class="msg-bot-icon">⛰</div>
+        <div class="msg-bot-icon">
+          <img :src="logoUrl" alt="KaoShan logo" class="msg-bot-icon-image" />
+        </div>
         <div class="typing-bubble">
           <div class="typing-dot" />
           <div class="typing-dot" />
@@ -341,11 +357,12 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/img/logo.png';
 import { api } from 'src/boot/axios';
 import { getRecommendations, type UserProfile } from 'src/data/hikingRoutes';
 import { useAppStore } from 'src/stores/app';
 import { useAuthStore } from 'src/stores/auth';
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -858,20 +875,40 @@ const voiceOverlay = ref(false);
 const overlayPhase = ref<'recording' | 'confirming' | 'sending'>('recording');
 const overlayLive = ref('');
 const overlayFinal = ref('');
-let overlayRecognition: SpeechRecognition | null = null;
+let mediaRecorder: MediaRecorder | null = null;
+let mediaStream: MediaStream | null = null;
+let speechSocket: WebSocket | null = null;
 
 onMounted(() => {
-  const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
-      .SpeechRecognition ||
-    (
-      window as typeof window & {
-        webkitSpeechRecognition?: typeof SpeechRecognition;
-      }
-    ).webkitSpeechRecognition;
-  if (SR) voiceSupported.value = true;
+  voiceSupported.value = isMediaRecorderSupported();
   scrollToBottom();
 });
+
+onBeforeUnmount(() => {
+  stopVoiceCapture();
+});
+
+function isMediaRecorderSupported() {
+  return Boolean(
+    navigator.mediaDevices?.getUserMedia &&
+    typeof window.MediaRecorder !== 'undefined',
+  );
+}
+
+function getSupportedAudioMimeType() {
+  const types = ['audio/webm;codecs=opus', 'audio/webm'];
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
+}
+
+function getSpeechStreamUrl() {
+  const baseUrl =
+    api.defaults.baseURL ??
+    `${window.location.protocol}//${window.location.host}/api/v1`;
+  const url = new URL(baseUrl, window.location.href);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.pathname = `${url.pathname.replace(/\/$/, '')}/chat/speech/stream`;
+  return url.toString();
+}
 
 function openVoiceOverlay() {
   if (!voiceSupported.value) return;
@@ -879,89 +916,123 @@ function openVoiceOverlay() {
   overlayLive.value = '';
   overlayPhase.value = 'recording';
   voiceOverlay.value = true;
-  startOverlayRecognition();
+  void startOverlayRecognition();
 }
 
-function startOverlayRecognition() {
-  const SR =
-    (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition })
-      .SpeechRecognition ||
-    (
-      window as typeof window & {
-        webkitSpeechRecognition?: typeof SpeechRecognition;
-      }
-    ).webkitSpeechRecognition;
-  if (!SR) return;
+async function startOverlayRecognition() {
+  stopVoiceCapture();
 
-  if (overlayRecognition) {
-    try {
-      overlayRecognition.abort();
-    } catch (_) {
-      /* ignore */
-    }
+  const mimeType = getSupportedAudioMimeType();
+  if (!mimeType) {
+    overlayLive.value = '';
+    overlayFinal.value = '目前瀏覽器不支援即時語音輸入，請改用文字輸入。';
+    overlayPhase.value = 'confirming';
+    return;
   }
 
-  const r = new SR();
-  r.lang = 'zh-TW';
-  r.interimResults = true;
-  r.continuous = true;
-  r.maxAlternatives = 1;
+  overlayLive.value = '正在連線 Google 語音辨識...';
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+    speechSocket = new WebSocket(getSpeechStreamUrl());
+    speechSocket.binaryType = 'arraybuffer';
 
-  r.onresult = (e: SpeechRecognitionEvent) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const result = e.results[i];
-      if (!result) continue;
-      if (result.isFinal) {
-        overlayFinal.value += result[0]?.transcript ?? '';
+    speechSocket.onopen = () => {
+      overlayLive.value = '語音辨識中，文字會即時填入輸入框。';
+      mediaRecorder?.start(250);
+    };
+
+    speechSocket.onmessage = (event) => {
+      const payload = JSON.parse(String(event.data)) as {
+        type: 'transcript' | 'error' | 'done';
+        text?: string;
+        is_final?: boolean;
+        message?: string;
+      };
+      if (payload.type === 'error') {
+        overlayLive.value = '';
+        overlayFinal.value = payload.message || 'Google 語音辨識暫時無法使用。';
+        overlayPhase.value = 'confirming';
+        return;
+      }
+      if (payload.type !== 'transcript' || !payload.text) return;
+
+      if (payload.is_final) {
+        overlayFinal.value = `${overlayFinal.value}${payload.text}`.trim();
         overlayLive.value = '';
       } else {
-        interim += result[0]?.transcript ?? '';
+        overlayLive.value = payload.text;
       }
-    }
-    overlayLive.value = interim;
-  };
+      inputText.value = `${overlayFinal.value}${overlayLive.value}`.trim();
+    };
 
-  r.onend = () => {
-    if (overlayPhase.value === 'recording') {
+    speechSocket.onerror = () => {
       overlayLive.value = '';
+      overlayFinal.value = 'Google 語音辨識連線失敗，請稍後再試。';
       overlayPhase.value = 'confirming';
-    }
-  };
+    };
 
-  r.onerror = (e: SpeechRecognitionErrorEvent) => {
-    if (e.error !== 'no-speech') console.warn('Voice error:', e.error);
-    if (overlayPhase.value === 'recording') {
-      overlayLive.value = '';
-      overlayPhase.value = 'confirming';
-    }
-  };
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size <= 0) return;
+      if (speechSocket?.readyState !== WebSocket.OPEN) return;
+      void event.data.arrayBuffer().then((buffer) => {
+        if (speechSocket?.readyState === WebSocket.OPEN) {
+          speechSocket.send(buffer);
+        }
+      });
+    };
 
-  overlayRecognition = r;
-  try {
-    r.start();
-  } catch (_) {
-    /* ignore */
+    mediaRecorder.onstop = () => {
+      mediaStream?.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+    };
+  } catch (e) {
+    console.warn('MediaRecorder error:', e);
+    overlayLive.value = '';
+    overlayFinal.value = '無法啟用麥克風，請確認瀏覽器權限。';
+    overlayPhase.value = 'confirming';
   }
+}
+
+function stopVoiceCapture() {
+  if (
+    speechSocket &&
+    [WebSocket.CONNECTING, WebSocket.OPEN].includes(speechSocket.readyState)
+  ) {
+    speechSocket.close();
+  }
+  speechSocket = null;
+  if (mediaRecorder?.state === 'recording') {
+    mediaRecorder.stop();
+  }
+  mediaRecorder = null;
+  mediaStream?.getTracks().forEach((track) => track.stop());
+  mediaStream = null;
 }
 
 function stopOverlayRecording() {
+  if (mediaRecorder?.state === 'recording') {
+    mediaRecorder.stop();
+    if (speechSocket?.readyState === WebSocket.OPEN) {
+      speechSocket.send(JSON.stringify({ type: 'stop' }));
+    }
+    inputText.value = `${overlayFinal.value}${overlayLive.value}`.trim();
+    window.setTimeout(() => {
+      overlayLive.value = '';
+      overlayPhase.value = 'confirming';
+    }, 500);
+    return;
+  }
   overlayPhase.value = 'confirming';
   overlayLive.value = '';
-  if (overlayRecognition) {
-    try {
-      overlayRecognition.stop();
-    } catch (_) {
-      /* ignore */
-    }
-  }
 }
 
 function retryOverlayRecording() {
   overlayFinal.value = '';
   overlayLive.value = '';
+  inputText.value = '';
   overlayPhase.value = 'recording';
-  startOverlayRecognition();
+  void startOverlayRecognition();
 }
 
 function confirmOverlaySend() {
@@ -973,13 +1044,7 @@ function confirmOverlaySend() {
 }
 
 function closeVoiceOverlay() {
-  if (overlayRecognition) {
-    try {
-      overlayRecognition.abort();
-    } catch (_) {
-      /* ignore */
-    }
-  }
+  stopVoiceCapture();
   voiceOverlay.value = false;
 }
 
@@ -1357,7 +1422,15 @@ watch(typing, scrollToBottom);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.line-bot-avatar-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .line-bot-name {
@@ -1537,13 +1610,20 @@ watch(typing, scrollToBottom);
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--bg-green);
+  background: rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  overflow: hidden;
   flex-shrink: 0;
   align-self: flex-end;
+}
+
+.msg-bot-icon-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .msg-bubble {
@@ -1754,7 +1834,7 @@ watch(typing, scrollToBottom);
   color: var(--text-primary);
 }
 .weather-label {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
   margin-top: 2px;
   letter-spacing: 0.06rem;

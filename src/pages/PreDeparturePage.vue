@@ -54,7 +54,13 @@
       >
         <div class="line-header">
           <div class="line-header-bot">
-            <div class="line-bot-avatar">⛰</div>
+            <div class="line-bot-avatar">
+              <img
+                :src="logoUrl"
+                alt="KaoShan logo"
+                class="line-bot-avatar-image"
+              />
+            </div>
             <div>
               <div class="line-bot-name">KaoShan</div>
               <div class="line-bot-status">
@@ -154,7 +160,13 @@
             </div>
 
             <div v-else-if="m.type === 'route-card'" class="msg-row bot">
-              <div class="msg-bot-icon">⛰</div>
+              <div class="msg-bot-icon">
+                <img
+                  :src="logoUrl"
+                  alt="KaoShan logo"
+                  class="msg-bot-icon-image"
+                />
+              </div>
               <div
                 class="route-card"
                 :class="{
@@ -211,7 +223,13 @@
             </div>
 
             <div v-else-if="m.type === 'weather-card'" class="msg-row bot">
-              <div class="msg-bot-icon">⛰</div>
+              <div class="msg-bot-icon">
+                <img
+                  :src="logoUrl"
+                  alt="KaoShan logo"
+                  class="msg-bot-icon-image"
+                />
+              </div>
               <div class="weather-card">
                 <div class="weather-card-title">明日山區天氣預報</div>
                 <div class="weather-cols">
@@ -232,7 +250,13 @@
             </div>
 
             <div v-else-if="m.type === 'history-card'" class="msg-row bot">
-              <div class="msg-bot-icon">⛰</div>
+              <div class="msg-bot-icon">
+                <img
+                  :src="logoUrl"
+                  alt="KaoShan logo"
+                  class="msg-bot-icon-image"
+                />
+              </div>
               <div class="chat-history-card">
                 <div class="chat-history-card-title">
                   {{ (m.cardData as ParsedHistory).name }}
@@ -260,7 +284,13 @@
             </div>
 
             <div v-else-if="m.type === 'analysis-progress'" class="msg-row bot">
-              <div class="msg-bot-icon">⛰</div>
+              <div class="msg-bot-icon">
+                <img
+                  :src="logoUrl"
+                  alt="KaoShan logo"
+                  class="msg-bot-icon-image"
+                />
+              </div>
               <div class="chat-progress-card">
                 <div class="chat-progress-label">
                   AI 分析「{{ (m.cardData as ProgressData).name }}」中...
@@ -280,7 +310,13 @@
             </div>
 
             <div v-else-if="m.type === 'analysis-card'" class="msg-row bot">
-              <div class="msg-bot-icon">⛰</div>
+              <div class="msg-bot-icon">
+                <img
+                  :src="logoUrl"
+                  alt="KaoShan logo"
+                  class="msg-bot-icon-image"
+                />
+              </div>
               <div class="chat-analysis-card">
                 <div class="chat-analysis-title">AI 體能分析</div>
                 <div class="chat-analysis-row">
@@ -306,7 +342,13 @@
             </div>
 
             <div v-else class="msg-row" :class="m.role">
-              <div v-if="m.role === 'bot'" class="msg-bot-icon">⛰</div>
+              <div v-if="m.role === 'bot'" class="msg-bot-icon">
+                <img
+                  :src="logoUrl"
+                  alt="KaoShan logo"
+                  class="msg-bot-icon-image"
+                />
+              </div>
               <div>
                 <div :class="['msg-bubble', `msg-${m.role}`]">{{ m.text }}</div>
                 <div
@@ -323,7 +365,13 @@
           </template>
 
           <div v-if="typing" class="msg-row bot">
-            <div class="msg-bot-icon">⛰</div>
+            <div class="msg-bot-icon">
+              <img
+                :src="logoUrl"
+                alt="KaoShan logo"
+                class="msg-bot-icon-image"
+              />
+            </div>
             <div class="typing-bubble">
               <div class="typing-dot" />
               <div class="typing-dot" />
@@ -334,7 +382,8 @@
           <div ref="msgEndEl" />
         </div>
 
-        <div
+        <!-- 快速按鈕 -->
+        <!-- <div
           v-if="!chatCollapsed && quickReplies.length"
           class="quick-reply-bar"
         >
@@ -348,7 +397,7 @@
               {{ q.label }}
             </button>
           </div>
-        </div>
+        </div> -->
 
         <div v-if="!chatCollapsed" class="line-input-bar">
           <label class="input-icon-btn" title="上傳 GPX / JSON 紀錄">
@@ -494,7 +543,17 @@
 
       <!-- AI 裝備辨識 -->
       <div v-if="planningRevealed" class="card anim-slide-up">
-        <div class="section-label">AI 裝備辨識</div>
+        <div class="vision-header-row">
+          <div class="section-label section-label-compact">AI 裝備辨識</div>
+          <button
+            v-if="showVisionMockToggle"
+            class="vision-mock-toggle"
+            :class="{ 'vision-mock-toggle-on': visionMockMode }"
+            @click.stop="toggleVisionMockMode"
+          >
+            {{ visionMockMode ? '假資料' : 'Gemini' }}
+          </button>
+        </div>
         <input
           ref="gearPhotoInput"
           type="file"
@@ -517,39 +576,94 @@
           </template>
           <div v-if="scanned" class="yolo-scanned-wrap">
             <div class="yolo-scanned-title">
-              Gemini 辨識完成，已自動加入且勾選 {{ detectedVisionCount }} 項
+              辨識完成
+              <!-- Gemini 辨識完成，已自動加入且勾選 {{ detectedVisionCount }} 項 -->
             </div>
-            <div class="vision-result-list">
+            <div
+              v-if="visionRawText"
+              class="vision-raw-text"
+              v-html="renderVisionRawText(visionRawText)"
+            />
+            <!-- <button
+              class="gear-assess-btn"
+              :disabled="!canAssessGear || gearAssessing"
+              @click.stop="assessGearList"
+            >
+              {{ gearAssessing ? 'AI 評估中...' : 'AI 評估清單' }}
+            </button> -->
+
+            <!-- AI 評估內容 -->
+            <div class="section-label section-label-compact q-mt-md">
+              AI 評估清單
+            </div>
+            <div v-if="gearAssessment" class="gear-assessment-card">
               <div
-                v-for="it in visionItems"
-                :key="it.name"
-                class="vision-item-card"
+                class="gear-score-ring"
+                :style="{ '--gear-score-color': gearScoreColor }"
               >
-                <div class="vision-item-head">
-                  <span class="vision-item-name">{{ it.name }}</span>
-                  <span class="vision-item-conf"
-                    >{{ Math.round(it.confidence * 100) }}%</span
-                  >
+                <svg viewBox="0 0 96 96" aria-hidden="true">
+                  <circle class="gear-score-track" cx="48" cy="48" r="40" />
+                  <circle
+                    class="gear-score-bar"
+                    cx="48"
+                    cy="48"
+                    r="40"
+                    :stroke-dashoffset="gearScoreDashOffset"
+                    :stroke-dasharray="gearScoreCircumference"
+                  />
+                </svg>
+                <div class="gear-score-label">
+                  <strong>{{ gearAssessment.score }}</strong>
+                  <span>分</span>
                 </div>
-                <div class="vision-item-grid">
-                  <span>品牌</span><strong>{{ it.brand || '未知' }}</strong>
-                  <span>型號</span><strong>{{ it.model || '未知' }}</strong>
-                  <span>用途</span
-                  ><strong>{{ it.primary_use || '未知' }}</strong>
-                  <span>防水</span
-                  ><strong>{{ waterproofLabel(it.waterproof) }}</strong>
+              </div>
+              <div class="gear-assessment-copy">
+                <div class="gear-assessment-title-row">
+                  <div class="gear-assessment-title">
+                    {{ gearAssessment.level }}
+                  </div>
+                  <span class="gear-assessment-model">
+                    {{ gearAssessment.model_used }}
+                  </span>
+                </div>
+                <div class="gear-assessment-text">
+                  {{ gearAssessment.summary }}
+                </div>
+                <ul class="gear-assessment-list">
+                  <li v-for="tip in gearAssessment.tips" :key="tip">
+                    {{ tip }}
+                  </li>
+                </ul>
+                <div
+                  v-if="gearAssessment.suggested_items.length"
+                  class="gear-suggested-box"
+                >
+                  <div class="gear-suggested-title">建議補充裝備</div>
+                  <div class="gear-suggested-list">
+                    <span
+                      v-for="item in gearAssessment.suggested_items"
+                      :key="item"
+                      class="gear-suggested-chip"
+                    >
+                      {{ item }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
+
             <button class="yolo-rescan-btn" @click.stop="resetGearScan">
-              重新辨識
+              重新辨識清單
             </button>
           </div>
         </div>
       </div>
 
       <!-- 裝備清單 -->
-      <div v-if="planningRevealed" class="card anim-slide-up">
+      <div
+        v-if="planningRevealed && showGearTodoList"
+        class="card anim-slide-up"
+      >
         <div class="gear-header-row">
           <div class="section-label section-label-compact">裝備清單</div>
           <span
@@ -610,40 +724,6 @@
             >
               <span class="material-icons">delete</span>
             </button>
-          </div>
-        </div>
-        <button
-          class="gear-assess-btn"
-          :disabled="gearItems.length === 0 || gearAssessing"
-          @click="assessGearList"
-        >
-          {{ gearAssessing ? 'AI 評估中...' : 'AI 評估清單' }}
-        </button>
-        <!-- AI 評估內容 -->
-        <div v-if="gearAssessment" class="gear-assessment-card">
-          <div class="gear-score-ring">
-            <svg viewBox="0 0 96 96" aria-hidden="true">
-              <circle class="gear-score-track" cx="48" cy="48" r="40" />
-              <circle
-                class="gear-score-bar"
-                cx="48"
-                cy="48"
-                r="40"
-                :stroke-dashoffset="gearScoreDashOffset"
-                :stroke-dasharray="gearScoreCircumference"
-              />
-            </svg>
-            <div class="gear-score-label">
-              <strong>{{ gearAssessment.score }}</strong>
-              <span>分</span>
-            </div>
-          </div>
-          <div class="gear-assessment-copy">
-            <div class="gear-assessment-title">{{ gearAssessment.level }}</div>
-            <div class="gear-assessment-text">{{ gearAssessment.summary }}</div>
-            <ul class="gear-assessment-list">
-              <li v-for="tip in gearAssessment.tips" :key="tip">{{ tip }}</li>
-            </ul>
           </div>
         </div>
       </div>
@@ -759,6 +839,7 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/img/logo.png';
 import { api } from 'src/boot/axios';
 import MapPhase1 from 'src/components/MapPhase1.vue';
 import { useAiRouter } from 'src/composables/useAiRouter';
@@ -897,6 +978,9 @@ interface GearAssessment {
   level: string;
   summary: string;
   tips: string[];
+  suggested_items: string[];
+  model_used: string;
+  fallback?: boolean;
 }
 
 interface GearDetectItem {
@@ -916,6 +1000,7 @@ interface GearDetectResponse {
   model_used: string;
   fallback?: boolean;
   shoe?: ShoeRecognition | null;
+  raw_text?: string | null;
 }
 
 interface ShoeRecognition {
@@ -935,6 +1020,7 @@ interface GearAssessResponse {
   level: string;
   summary: string;
   tips: string[];
+  suggested_items?: string[];
   model_used: string;
   fallback?: boolean;
 }
@@ -2357,8 +2443,20 @@ const gearScoreDashOffset = computed(() =>
     ? gearScoreCircumference * (1 - gearAssessment.value.score / 100)
     : gearScoreCircumference,
 );
+const gearScoreColor = computed(() => {
+  const score = gearAssessment.value?.score ?? 0;
+  if (score >= 80) return '#16a34a';
+  if (score >= 60) return '#f59e0b';
+  return '#ef4444';
+});
 const gearCount = computed(
   () => gearItems.value.filter((item) => gear[item.id]).length,
+);
+const canAssessGear = computed(
+  () =>
+    gearItems.value.length > 0 ||
+    Boolean(visionRawText.value.trim()) ||
+    Boolean(recognizedShoe.value),
 );
 
 function normalizeGearId(label: string) {
@@ -2392,7 +2490,11 @@ function removeGear(id: string) {
 }
 
 async function assessGearList() {
-  if (gearAssessing.value || gearItems.value.length === 0) return;
+  if (gearAssessing.value || !canAssessGear.value) return;
+  if (visionMockMode.value) {
+    applyMockGearAssessment();
+    return;
+  }
   gearAssessing.value = true;
   try {
     const { data } = await api.post<GearAssessResponse>('/gear/assess', {
@@ -2416,6 +2518,7 @@ async function assessGearList() {
           }
         : null,
       shoe: recognizedShoe.value,
+      vision_raw_text: visionRawText.value || null,
       user_level: profileForm.value?.level ?? null,
       fitness: profileForm.value?.fitness ?? null,
       target_days: profileForm.value?.target_days ?? null,
@@ -2425,12 +2528,38 @@ async function assessGearList() {
       level: data.level,
       summary: data.summary,
       tips: data.tips,
+      suggested_items: data.suggested_items ?? [],
+      model_used: data.model_used,
+      fallback: data.fallback,
     };
   } catch (_) {
     assessGearListWithFallback();
   } finally {
     gearAssessing.value = false;
   }
+}
+
+function applyMockGearAssessment() {
+  gearAssessment.value = {
+    score: 65,
+    level: '需要補強',
+    summary:
+      '裝備品質極佳且專業，但針對合歡東峰單日行程，攜帶過多露營裝備會增加不必要的負重與體能消耗，且缺乏關鍵的個人安全防護資訊。',
+    tips: [
+      '合歡東峰為單日往返行程，無需攜帶帳篷、睡袋、睡墊等過夜裝備，建議精簡背包以提升機動性與安全性。',
+      '目前輸入資料中缺乏鞋款資訊，合歡東峰步道多為階梯與碎石，請務必確認穿著具備良好抓地力與支撐性的登山鞋或越野跑鞋。',
+      '未見急救包(First Aid Kit)與離線地圖，即便路線熱門，仍需準備個人藥品、簡易包紮用品及下載離線地圖以防迷途。',
+      '糧食攜帶量為2日份，對於單日行程而言過多，建議調整為高熱量行動糧即可。',
+    ],
+    suggested_items: [
+      '個人急救包 (含個人藥品、OK繃、彈性繃帶)',
+      '離線地圖 (如 Hikingbook 或 Gaia GPS)',
+      '登山杖 (保護膝蓋，特別是下坡路段)',
+      '身分證件與健保卡',
+    ],
+    model_used: 'gemini-3.1-flash-lite',
+    fallback: true,
+  };
 }
 
 function assessGearListWithFallback() {
@@ -2478,6 +2607,9 @@ function assessGearListWithFallback() {
     level,
     summary: `目前 ${checkedItems.length}/${gearItems.value.length} 項已確認。這是本機保守 fallback 評估。`,
     tips,
+    suggested_items: uncheckedItems.slice(0, 5).map((item) => item.label),
+    model_used: 'local-fallback',
+    fallback: true,
   };
 }
 
@@ -2492,12 +2624,250 @@ function parseRouteNumber(value: string) {
 const scanning = ref(false);
 const scanned = ref(false);
 const visionItems = ref<GearDetectItem[]>([]);
+const visionRawText = ref('');
+const showVisionMockToggle = import.meta.env.DEV;
+const visionMockMode = ref(showVisionMockToggle);
+const showGearTodoList = false;
 const gearPhotoInput = ref<HTMLInputElement>();
 const lastDetectedGearIds = ref<Set<string>>(new Set());
 const recognizedShoe = ref<ShoeRecognition | null>(null);
 const detectedVisionCount = computed(
   () => visionItems.value.filter((item) => item.detected).length,
 );
+
+const MOCK_VISION_RAW_TEXT = `這是一張非常典型的長程徒步或登山裝備清單（Flat Lay），涵蓋了睡眠、衣物、烹飪與補給。以下為您辨識出的物品：
+
+### 1. 睡眠與遮蔽系統
+*   **睡袋 (右上角紅色/黑色)：** 壓縮袋裝的羽絨或化纖睡袋，品牌不明，用途為保暖睡眠。
+*   **睡墊 (右下角黃色長條)：** **Big Agnes** 品牌，應為充氣式睡墊，適合高山露營。
+*   **睡墊 (右下角銀色長條)：** **NEMO Switchback** 或類似的蛋巢式泡棉睡墊，提供基礎隔絕與緩衝。
+*   **帳篷 (右下角黃色袋)：** **Big Agnes** 品牌，應為輕量化帳篷的外帳或營柱袋。
+
+### 2. 衣物與配件
+*   **帽子 (左上角)：** 深灰色棒球帽，品牌標誌疑似 **YAMA** (日本輕量化品牌)。
+*   **雨衣/風衣 (右側橘黃色)：** **Arc'teryx (始祖鳥)** 的硬殼外套，具備極佳防水透氣性，適合惡劣氣候。
+*   **毛帽 (右側橘紅色)：** **Fjällräven (小狐狸)** 針織帽，適合寒冷環境。
+*   **底層衣物 (右側黑色)：** **Icebreaker** 美麗諾羊毛底層衣，具備控溫與抗臭功能。
+*   **褲子 (右側黑色)：** **Montbell** 軟殼褲或登山褲，以及一件標示為 **Outdoor Rain Pants** 的防水雨褲。
+*   **襪子 (中間)：** 兩雙羊毛登山襪，適合長途行走。
+*   **手套 (右上)：** 黑色戶外手套，適合保暖或攀爬。
+
+### 3. 烹飪與飲水
+*   **爐具 (中間)：** **SOTO** 風魔爐或類似的瓦斯爐頭，搭配黑色鍋具。
+*   **杯子 (中間下方)：** **Snow Peak** 鈦金屬杯。
+*   **濾水器 (右下)：** **Sawyer Squeeze** 濾水器，用於過濾野外水源。
+*   **水袋 (右下)：** **Platypus** 或類似品牌的軟式水袋。
+*   **水瓶 (右側)：** 透明塑膠水瓶。
+
+### 4. 雜項與電子設備
+*   **頭燈 (左下)：** 黑色頭燈，品牌不明。
+*   **行動電源/充電線 (左下)：** 黑色長方形行動電源與線材。
+*   **雨傘 (中間)：** 黑色折疊傘，常見於輕量化徒步（如 Six Moon Designs 或 Montbell）。
+*   **收納袋 (下方)：** 數個黑色網狀收納袋，用於分類裝備。
+*   **毛巾 (中間)：** **Sea to Summit** Airlite 毛巾。
+*   **頭巾 (中間)：** **Buff** 魔術頭巾。
+
+### 5. 食物與補給
+*   **乾燥食品 (左側)：** 包含多包乾燥飯、能量棒（Snickers）、Kid-O 餅乾、肉乾與麵條。這些是高熱量、輕量化的徒步補給。
+*   **濕紙巾 (左側)：** 標示為「水潤」的濕紙巾。
+
+---
+
+### 不確定項目說明：
+1.  **左上角藍色物體：** 摺疊得很整齊，可能是雨罩 (Rain Cover) 或輕便的風衣，因無明顯標誌無法確認。
+2.  **中間的小公仔：** 是一個小型的金屬或塑膠擺飾，用途不明，可能是個人紀念品。
+3.  **左側白色長條物：** 疑似是某種乾燥食品包裝或醫療包，因文字模糊無法確認內容物。
+
+**總結：** 這是一套非常專業的「輕量化登山裝備」，適合多日高山縱走。裝備選擇多為戶外知名品牌（如 Arc'teryx, Big Agnes, Snow Peak, Icebreaker），具備良好的防水與保暖性能，適合台灣高山或國外長程步道（如 PCT, GR 系列）的環境。`;
+
+const MOCK_VISION_ITEMS: GearDetectItem[] = [
+  {
+    name: '睡袋',
+    detected: true,
+    confidence: 0.92,
+    brand: null,
+    model: null,
+    primary_use: '保暖睡眠',
+    waterproof: null,
+  },
+  {
+    name: '睡墊',
+    detected: true,
+    confidence: 0.9,
+    brand: 'Big Agnes',
+    model: null,
+    primary_use: '高山露營睡眠隔絕',
+    waterproof: null,
+  },
+  {
+    name: '帳篷',
+    detected: true,
+    confidence: 0.86,
+    brand: 'Big Agnes',
+    model: null,
+    primary_use: '遮蔽系統',
+    waterproof: true,
+  },
+  {
+    name: '雨衣',
+    detected: true,
+    confidence: 0.94,
+    brand: "Arc'teryx",
+    model: null,
+    primary_use: '惡劣氣候防水防風',
+    waterproof: true,
+  },
+  {
+    name: '頭燈',
+    detected: true,
+    confidence: 0.84,
+    brand: null,
+    model: null,
+    primary_use: '夜間照明',
+    waterproof: null,
+  },
+  {
+    name: '行動電源',
+    detected: true,
+    confidence: 0.82,
+    brand: null,
+    model: null,
+    primary_use: '電子設備補電',
+    waterproof: null,
+  },
+  {
+    name: '濾水器',
+    detected: true,
+    confidence: 0.9,
+    brand: 'Sawyer',
+    model: 'Squeeze',
+    primary_use: '野外水源過濾',
+    waterproof: true,
+  },
+  {
+    name: '水袋',
+    detected: true,
+    confidence: 0.88,
+    brand: 'Platypus',
+    model: null,
+    primary_use: '補水',
+    waterproof: true,
+  },
+  {
+    name: '行動糧',
+    detected: true,
+    confidence: 0.9,
+    brand: null,
+    model: null,
+    primary_use: '高熱量補給',
+    waterproof: null,
+  },
+  {
+    name: '手套',
+    detected: true,
+    confidence: 0.78,
+    brand: null,
+    model: null,
+    primary_use: '保暖或攀爬',
+    waterproof: null,
+  },
+];
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderInlineMarkdown(value: string) {
+  return escapeHtml(value)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+}
+
+function renderVisionRawText(value: string) {
+  const text = value.trim();
+  if (!text) return '';
+  if (/^[{[]/.test(text)) {
+    return `<pre><code>${escapeHtml(text)}</code></pre>`;
+  }
+
+  const lines = text.split(/\r?\n/);
+  const html: string[] = [];
+  let listOpen = false;
+  let codeOpen = false;
+  const paragraph: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) return;
+    html.push(`<p>${paragraph.map(renderInlineMarkdown).join('<br>')}</p>`);
+    paragraph.length = 0;
+  };
+  const closeList = () => {
+    if (!listOpen) return;
+    html.push('</ul>');
+    listOpen = false;
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('```')) {
+      flushParagraph();
+      closeList();
+      html.push(codeOpen ? '</code></pre>' : '<pre><code>');
+      codeOpen = !codeOpen;
+      continue;
+    }
+    if (codeOpen) {
+      html.push(`${escapeHtml(line)}\n`);
+      continue;
+    }
+    if (!trimmed) {
+      flushParagraph();
+      closeList();
+      continue;
+    }
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      closeList();
+      const level = heading[1]!.length + 2;
+      html.push(`<h${level}>${renderInlineMarkdown(heading[2]!)}</h${level}>`);
+      continue;
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      flushParagraph();
+      if (!listOpen) {
+        html.push('<ul>');
+        listOpen = true;
+      }
+      html.push(`<li>${renderInlineMarkdown(bullet[1]!)}</li>`);
+      continue;
+    }
+    const ordered = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (ordered) {
+      flushParagraph();
+      if (!listOpen) {
+        html.push('<ul>');
+        listOpen = true;
+      }
+      html.push(`<li>${renderInlineMarkdown(ordered[1]!)}</li>`);
+      continue;
+    }
+    closeList();
+    paragraph.push(line);
+  }
+
+  flushParagraph();
+  closeList();
+  if (codeOpen) html.push('</code></pre>');
+  return html.join('');
+}
 
 const GEAR_LABEL_TO_ID: Record<string, string> = {
   登山鞋: 'boots',
@@ -2526,7 +2896,33 @@ function gearItemFromDetectedLabel(label: string): GearItem {
 
 function doScan() {
   if (scanning.value) return;
+  if (visionMockMode.value) {
+    applyMockVisionResult();
+    return;
+  }
   gearPhotoInput.value?.click();
+}
+
+function toggleVisionMockMode() {
+  visionMockMode.value = !visionMockMode.value;
+  if (visionMockMode.value) {
+    applyMockVisionResult();
+  }
+}
+
+function applyMockVisionResult() {
+  if (scanning.value) return;
+  removeLastDetectedGearItems();
+  scanned.value = true;
+  visionRawText.value = MOCK_VISION_RAW_TEXT;
+  visionItems.value = MOCK_VISION_ITEMS.map((item) => ({ ...item }));
+  recognizedShoe.value = null;
+  visionItems.value
+    .filter((item) => item.detected)
+    .forEach((item) =>
+      addDetectedGearItem(gearItemFromDetectedLabel(item.name)),
+    );
+  void assessGearList();
 }
 
 function resetGearScan() {
@@ -2534,7 +2930,12 @@ function resetGearScan() {
   removeLastDetectedGearItems();
   scanned.value = false;
   visionItems.value = [];
+  visionRawText.value = '';
   recognizedShoe.value = null;
+  if (visionMockMode.value) {
+    applyMockVisionResult();
+    return;
+  }
   gearPhotoInput.value?.click();
 }
 
@@ -2569,6 +2970,7 @@ async function onGearPhotoSelected(event: Event) {
 
   scanning.value = true;
   scanned.value = false;
+  visionRawText.value = '';
   recognizedShoe.value = null;
   try {
     const form = new FormData();
@@ -2578,17 +2980,19 @@ async function onGearPhotoSelected(event: Event) {
     });
 
     recognizedShoe.value = data.shoe ?? null;
+    visionRawText.value = data.raw_text?.trim() ?? '';
     const detectedItems = data.items.filter((item) => item.detected);
     detectedItems.forEach((item) => {
       addDetectedGearItem(gearItemFromDetectedLabel(item.name));
     });
     visionItems.value = detectedItems;
-    if (visionItems.value.length === 0) {
+    if (visionItems.value.length === 0 && !visionRawText.value) {
       visionItems.value = [
         { name: '未偵測到裝備', detected: false, confidence: 0 },
       ];
     }
   } catch (_) {
+    visionRawText.value = '';
     visionItems.value = [
       {
         name: '辨識失敗',
@@ -3893,6 +4297,158 @@ async function downloadOfflinePackage() {
   letter-spacing: 0.06rem;
 }
 
+.gear-assessment-card {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(6, 199, 85, 0.2);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(6, 199, 85, 0.1), rgba(14, 165, 233, 0.08)),
+    var(--bg-card);
+}
+
+.gear-score-ring {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  color: var(--gear-score-color, var(--summit-accent));
+}
+
+.gear-score-ring svg {
+  width: 96px;
+  height: 96px;
+  transform: rotate(-90deg);
+}
+
+.gear-score-track,
+.gear-score-bar {
+  fill: none;
+  stroke-width: 9;
+}
+
+.gear-score-track {
+  stroke: rgba(148, 163, 184, 0.24);
+}
+
+.gear-score-bar {
+  stroke: currentColor;
+  stroke-linecap: round;
+  transition:
+    stroke-dashoffset 0.45s ease,
+    stroke 0.2s ease;
+}
+
+.gear-score-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.gear-score-label strong {
+  font-size: 1.5rem;
+  font-weight: 950;
+}
+
+.gear-score-label span {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.gear-assessment-copy {
+  min-width: 0;
+}
+
+.gear-assessment-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.gear-assessment-title {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.gear-assessment-model {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(6, 199, 85, 0.12);
+  color: var(--summit-accent);
+  font-size: 0.66rem;
+  font-weight: 850;
+}
+
+.gear-assessment-text {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.gear-assessment-list {
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.gear-assessment-list li {
+  margin-bottom: 4px;
+}
+
+.gear-suggested-box {
+  margin-top: 12px;
+}
+
+.gear-suggested-title {
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.gear-suggested-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 8px;
+}
+
+.gear-suggested-chip {
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgba(251, 146, 60, 0.12);
+  color: var(--risk-mid);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+@media (max-width: 420px) {
+  .gear-assessment-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .gear-assessment-copy {
+    width: 100%;
+  }
+}
+
 .weather-section-header {
   display: flex;
   align-items: center;
@@ -3918,18 +4474,18 @@ async function downloadOfflinePackage() {
 }
 
 .weather-advice-box {
-  margin-top: 10px;
+  margin-top: 12px;
   padding: 8px 10px;
   background: rgba(251, 146, 60, 0.1);
   border-radius: 10px;
   border: 1px solid rgba(251, 146, 60, 0.25);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   color: var(--risk-mid);
   font-weight: 600;
 }
 
 .weather-source {
-  margin-top: 6px;
+  margin-top: 10px;
   font-size: 0.66rem;
   color: var(--text-muted);
 }
@@ -4239,7 +4795,16 @@ async function downloadOfflinePackage() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.line-bot-avatar-image {
+  width: 100%;
+  height: 95%;
+  display: block;
+  object-fit: cover;
+  margin-top: 3px;
 }
 
 .line-bot-name {
@@ -4470,13 +5035,21 @@ async function downloadOfflinePackage() {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--bg-green);
+  background: rgb(84 146 92);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  overflow: hidden;
   flex-shrink: 0;
   align-self: flex-end;
+}
+
+.msg-bot-icon-image {
+  width: 100%;
+  height: 88%;
+  display: block;
+  object-fit: cover;
+  margin-top: 4px;
 }
 
 .msg-bubble {
@@ -4501,6 +5074,41 @@ async function downloadOfflinePackage() {
   border-bottom-right-radius: 4px;
 }
 
+.vision-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.vision-mock-toggle {
+  height: 30px;
+  min-width: 72px;
+  border: 1px solid rgba(6, 199, 85, 0.24);
+  background: rgba(6, 199, 85, 0.08);
+  color: var(--summit-accent);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 850;
+  padding: 0 10px;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.vision-mock-toggle:hover {
+  background: rgba(6, 199, 85, 0.14);
+}
+
+.vision-mock-toggle-on {
+  background: #06c755;
+  border-color: #06c755;
+  color: #fff;
+}
+
 .msg-time {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -4519,6 +5127,10 @@ async function downloadOfflinePackage() {
   text-align: center;
   padding: 16px 0;
   pointer-events: none;
+  background: #0a1a0e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 12px;
+  width: 100%;
 }
 
 .yolo-empty-icon {
@@ -4539,16 +5151,11 @@ async function downloadOfflinePackage() {
   z-index: 1;
 }
 
-.yolo-scanned-wrap {
-  padding: 10px;
-  width: 100%;
-}
-
 .yolo-scanned-title {
   font-size: 0.8rem;
   color: var(--summit-accent);
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 
 .yolo-area-scanned {
@@ -4560,11 +5167,77 @@ async function downloadOfflinePackage() {
   gap: 10px;
 }
 
+@media (min-width: 768px) {
+  .vision-result-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .vision-item-card {
   padding: 10px;
   border: 1px solid rgba(6, 199, 85, 0.18);
   border-radius: 14px;
   background: rgba(6, 199, 85, 0.06);
+}
+
+.vision-raw-text {
+  padding: 12px;
+  border: 1px solid rgba(6, 199, 85, 0.18);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(6, 199, 85, 0.1), rgba(14, 165, 233, 0.08)),
+    var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.vision-raw-text :deep(p) {
+  margin: 0 0 8px;
+}
+
+.vision-raw-text :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.vision-raw-text :deep(h3),
+.vision-raw-text :deep(h4),
+.vision-raw-text :deep(h5) {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 0.94rem;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.vision-raw-text :deep(ul) {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.vision-raw-text :deep(li) {
+  margin-bottom: 4px;
+}
+
+.vision-raw-text :deep(strong) {
+  font-weight: 900;
+}
+
+.vision-raw-text :deep(code) {
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: rgba(15, 23, 42, 0.08);
+  font-size: 0.78rem;
+}
+
+.vision-raw-text :deep(pre) {
+  margin: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow-x: auto;
+  white-space: pre-wrap;
 }
 
 .vision-item-head {
@@ -4795,7 +5468,7 @@ async function downloadOfflinePackage() {
 }
 
 .offline-download-title {
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: 0.06rem;
@@ -4803,7 +5476,7 @@ async function downloadOfflinePackage() {
 }
 
 .offline-download-desc {
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   line-height: 1.55;
   color: var(--text-muted);
   margin-bottom: 12px;

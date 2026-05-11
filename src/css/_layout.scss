@@ -5,7 +5,11 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  letter-spacing: 0.06rem;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
 }
 
 /* ── Top Nav ── */
@@ -38,8 +42,16 @@
   font-size: 1rem;
   font-weight: 800;
 }
-.nav-logo svg {
+.nav-logo svg,
+.nav-logo-image {
   flex-shrink: 0;
+}
+
+.nav-logo-image {
+  width: 28px;
+  height: 28px;
+  display: block;
+  object-fit: contain;
 }
 
 .nav-tabs {
@@ -185,7 +197,8 @@
     display: none;
   }
   .mobile-nav {
-    display: flex;
+    display: none;
+    // display: flex;
     flex-direction: column;
   }
 }

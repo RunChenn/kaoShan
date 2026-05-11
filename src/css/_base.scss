@@ -1,3 +1,8 @@
+/* ── Reset ───────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
 // ─── Base Typography ──────────────────────────────────────
 body {
   font-family:
@@ -12,7 +17,15 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: 0.06rem;
+  letter-spacing: 0.1rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 .text-h3,
@@ -25,28 +38,4 @@ body {
 .text-subtitle1,
 .text-subtitle2 {
   letter-spacing: 0.06rem;
-}
-/* ── Reset ───────────────────────────────── */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: 'Noto Sans TC', sans-serif;
-  background: var(--bg-base);
-  color: var(--text-primary);
-  min-height: 100vh;
-  transition:
-    background 0.3s ease,
-    color 0.3s ease;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
 }
