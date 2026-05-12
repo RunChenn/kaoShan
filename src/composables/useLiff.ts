@@ -73,8 +73,6 @@ export function useLiff() {
   const auth = useAuthStore()
   const loading = ref(false)
 
-  console.log(auth)
-
   async function authenticateWithBackend(idToken: string, accessToken?: string | null): Promise<void> {
     const { data } = await api.post<{
       jwt_token: string
@@ -102,10 +100,7 @@ export function useLiff() {
 
     const liffId = getLiffId()
 
-    console.log(liffId)
-
     if (!liffId || liffId === 'your_liff_id_here') {
-      console.warn('[LIFF] VITE_LIFF_ID 未設定，LINE 實際登入不可用')
       liffInitialized.value = true
       auth.setLiffReady()
       return

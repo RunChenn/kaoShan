@@ -1,4 +1,26 @@
 <template>
+  <!-- 照片 Lightbox -->
+  <Teleport to="body">
+    <div
+      v-if="gearPhotoLightbox && gearPhotoUrl"
+      class="gear-photo-lightbox"
+      @click="gearPhotoLightbox = false"
+    >
+      <img
+        :src="gearPhotoUrl"
+        class="gear-photo-lightbox-img"
+        alt="裝備照片"
+        @click.stop
+      />
+      <button
+        class="gear-photo-lightbox-close"
+        @click="gearPhotoLightbox = false"
+      >
+        ✕
+      </button>
+    </div>
+  </Teleport>
+
   <!-- Voice Overlay -->
   <Teleport to="body">
     <div
@@ -83,11 +105,11 @@
             <button
               v-if="recommendationsVisible && !chatCollapsed"
               class="chat-small-btn chat-collapse-btn"
-              title="收合對話"
+              title="收合"
               @click="toggleChatCollapsed"
             >
               <span class="material-icons">unfold_less</span>
-              <span>收合對話</span>
+              <span>收合</span>
             </button>
             <button
               v-if="recommendationsVisible"
@@ -180,6 +202,16 @@
                     <div class="route-card-name">{{ cardOf(m).name }}</div>
                     <div class="route-card-region">{{ cardOf(m).region }}</div>
                   </div>
+                  <span
+                    :class="[
+                      'route-source-badge',
+                      cardOf(m).routeKind === 'peak'
+                        ? 'source-peak'
+                        : 'source-trail',
+                    ]"
+                  >
+                    {{ cardOf(m).routeKind === 'peak' ? '百岳' : '步道' }}
+                  </span>
                   <span
                     :class="[
                       'route-diff-badge',
@@ -492,6 +524,14 @@
                 <div class="route-card-name">{{ card.name }}</div>
                 <div class="route-card-region">{{ card.region }}</div>
               </div>
+              <span
+                :class="[
+                  'route-source-badge',
+                  card.routeKind === 'peak' ? 'source-peak' : 'source-trail',
+                ]"
+              >
+                {{ card.routeKind === 'peak' ? '百岳' : '步道' }}
+              </span>
               <span :class="['route-diff-badge', `diff-${card.difficulty}`]">
                 {{
                   { easy: '入門', medium: '中級', hard: '進階' }[
@@ -575,10 +615,18 @@
             <div class="yolo-scanning-text">裝備辨識中...</div>
           </template>
           <div v-if="scanned" class="yolo-scanned-wrap">
+            <!-- 照片縮圖（點擊放大）-->
             <div class="yolo-scanned-title">
               辨識完成
               <!-- Gemini 辨識完成，已自動加入且勾選 {{ detectedVisionCount }} 項 -->
             </div>
+            <img
+              v-if="gearPhotoUrl"
+              :src="gearPhotoUrl"
+              class="gear-photo-thumb"
+              alt="裝備照片"
+              @click.stop="gearPhotoLightbox = true"
+            />
             <div
               v-if="visionRawText"
               class="vision-raw-text"
@@ -799,6 +847,13 @@
     <!-- Map area — only shown after route is selected -->
     <Transition name="p1-map">
       <div v-if="selectedRoute" class="p1-map-area">
+        <input
+          ref="mapGpxInput"
+          type="file"
+          accept=".gpx"
+          hidden
+          @change="onFileUpload"
+        />
         <div class="p1-map-toolbar">
           <div class="route-label-pill">
             <span>{{ selectedRoute.emoji }}</span>
@@ -812,25 +867,132 @@
             >
           </div>
           <div class="p1-map-actions">
-            <div class="map-gpx-badge" title="已自動載入推薦路線 GPX">
-              <span class="material-icons">route</span>
-              <span>GPX 已載入</span>
+            <div
+              v-if="routeGpxTracks.length && !uploadedGpxTrack"
+              class="gpx-source-switcher"
+            >
+              <div class="gpx-source-tabs">
+                <button
+                  class="gpx-source-tab"
+                  :class="{ active: gpxScopeFilter === 'all' }"
+                  @click="gpxScopeFilter = 'all'"
+                >
+                  全部
+                </button>
+                <button
+                  class="gpx-source-tab"
+                  :class="{ active: gpxScopeFilter === 'trail' }"
+                  @click="gpxScopeFilter = 'trail'"
+                >
+                  步道
+                </button>
+                <button
+                  class="gpx-source-tab"
+                  :class="{ active: gpxScopeFilter === 'peak' }"
+                  @click="gpxScopeFilter = 'peak'"
+                >
+                  百岳
+                </button>
+              </div>
+              <select
+                v-model.number="selectedDbGpxTrackId"
+                class="gpx-source-select"
+              >
+                <option
+                  v-for="track in visibleRouteGpxTracks"
+                  :key="track.gpx_track_id"
+                  :value="track.gpx_track_id"
+                >
+                  {{ track.match_scope === 'trail' ? '步道' : '百岳' }} ·
+                  {{ track.label }}
+                  <template v-if="track.match_score != null">
+                    · {{ Math.round(track.match_score) }} 分
+                  </template>
+                </option>
+              </select>
             </div>
-            <!-- <button class="btn btn-primary" @click="router.push('/active')">
-              開始登山
-            </button> -->
+            <div
+              class="map-gpx-badge"
+              :class="{ 'map-gpx-badge-off': !showGpxOverlay }"
+              :title="
+                showGpxOverlay ? '目前顯示 GPX 疊圖' : '目前已關閉 GPX 疊圖'
+              "
+            >
+              <span class="material-icons">{{
+                showGpxOverlay ? 'route' : 'hide_source'
+              }}</span>
+              <span>{{ showGpxOverlay ? 'GPX 已顯示' : 'GPX 已關閉' }}</span>
+            </div>
+            <button class="custom-btn gpx-map-btn" @click="openMapGpxImport">
+              匯入 GPX
+            </button>
+            <button class="custom-btn gpx-map-btn" @click="toggleGpxOverlay">
+              {{ showGpxOverlay ? '關閉 GPX 疊圖' : '顯示 GPX 疊圖' }}
+            </button>
           </div>
         </div>
-        <div v-if="gpxMapTrack" class="gpx-map-status">
-          <span class="material-icons">timeline</span>
-          <strong>{{ gpxMapTrack.name }}</strong>
-          <span>{{ gpxMapTrack.distanceKm.toFixed(1) }} km</span>
-          <span>爬升 {{ Math.round(gpxMapTrack.elevationGain) }} m</span>
+        <div v-if="gpxMapTrack" class="row gpx-map-status">
+          <strong>
+            <span class="material-icons">timeline</span>
+            {{ gpxMapTrack.name }}
+          </strong>
+          <div class="row justify-between gpx-map-meta">
+            <div class="col-auto gpx-map-meta-label">距離</div>
+            <div class="col gpx-map-meta-value">
+              {{ gpxMapTrack.distanceKm.toFixed(1) }} km
+            </div>
+          </div>
+          <div class="row justify-between gpx-map-meta">
+            <div class="col-auto gpx-map-meta-label">爬升</div>
+            <div class="col gpx-map-meta-value">
+              {{ Math.round(gpxMapTrack.elevationGain) }} m
+            </div>
+          </div>
+          <div class="row justify-between gpx-map-meta">
+            <div class="col-auto gpx-map-meta-label">下降</div>
+            <div class="col gpx-map-meta-value">
+              {{
+                Math.round(
+                  gpxMapTrack.elevationLoss ? gpxMapTrack.elevationLoss : 0,
+                )
+              }}
+              m
+            </div>
+          </div>
+          <div class="row justify-between gpx-map-meta">
+            <div class="col-auto gpx-map-meta-label">坡度</div>
+            <div class="col gpx-map-meta-value">
+              {{
+                gpxMapTrack.averageGradePct != null
+                  ? `${gpxMapTrack.averageGradePct > 0 ? '+' : ''}${gpxMapTrack.averageGradePct}%`
+                  : 'N/A'
+              }}
+            </div>
+          </div>
+          <div class="row justify-between gpx-map-meta">
+            <div class="col-auto gpx-map-meta-label">時間</div>
+            <div class="col gpx-map-meta-value">
+              {{ formatNullableDuration(gpxMapTrack.durationMin) }}
+            </div>
+          </div>
+          <div
+            v-if="gpxMapTrack.source === 'uploaded-gpx'"
+            class="row justify-between gpx-map-meta"
+          >
+            <div class="col-auto gpx-map-meta-label">來源</div>
+            <div class="col gpx-map-meta-value">已上傳 GPX</div>
+          </div>
+          <div v-else class="row justify-between gpx-map-meta">
+            <div class="col-auto gpx-map-meta-label">來源</div>
+            <div class="col gpx-map-meta-value">
+              {{ gpxMapTrack.matchScope === 'peak' ? '百岳 GPX' : '步道 GPX' }}
+            </div>
+          </div>
         </div>
         <MapPhase1
-          :selected-route="selectedRoute"
           :theme="appStore.config.theme"
           :gpx-track="gpxMapTrack"
+          :show-gpx-overlay="showGpxOverlay"
           class="p1-map-layer"
         />
       </div>
@@ -929,6 +1091,7 @@ interface RouteCard {
   emoji: string;
   name: string;
   region: string;
+  routeKind: 'trail' | 'peak';
   difficulty: 'easy' | 'medium' | 'hard';
   distance: string;
   elevation: string;
@@ -1045,8 +1208,45 @@ interface RouteWeatherResponse {
 interface GpxMapTrack {
   name: string;
   points: [number, number][];
+  segments?: [number, number][][];
+  trackId?: number;
+  matchScope?: 'trail' | 'peak';
   distanceKm: number;
   elevationGain: number;
+  elevationLoss: number | null;
+  durationMin: number | null;
+  averageGradePct: number | null;
+  source: 'uploaded-gpx' | 'database-gpx' | 'route-polyline';
+  hintSegments: Array<{
+    label: string;
+    midpoint: [number, number];
+    distanceKm: number;
+    elevationDeltaM: number;
+    gradePct: number | null;
+  }>;
+}
+
+interface RouteGpxTrackOption {
+  gpx_track_id: number;
+  label: string;
+  match_scope: 'trail' | 'peak';
+  route_kind: 'trail' | 'peak';
+  cluster_id: number | null;
+  canonical: boolean;
+  match_score: number | null;
+  decision: 'auto_approved' | 'review' | 'rejected' | null;
+  points: [number, number][];
+  segments: [number, number][][];
+  length_km: number | null;
+  elevation_gain_m: number | null;
+  quality_score: number | null;
+}
+
+interface RouteGpxResponse {
+  route_id: string;
+  route_kind: 'trail' | 'peak';
+  route_name: string;
+  tracks: RouteGpxTrackOption[];
 }
 
 interface OfflinePackageMeta {
@@ -1073,6 +1273,7 @@ interface RouteApiResponse {
   id: string;
   name: string;
   location: string;
+  route_kind?: 'trail' | 'peak';
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   days: number;
   distance_km: number;
@@ -1300,6 +1501,7 @@ function publishRouteRecommendations(
   const uniqueRegions = [
     ...new Set(normalizedRoutes.map((route) => route.region)),
   ];
+
   summary.goal =
     uniqueRegions.length > 0
       ? uniqueRegions.length === 1
@@ -1452,6 +1654,7 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
         route.name.includes(r.name) ||
         r.name.includes(route.name),
     );
+  const baseRoute = local ?? buildRouteSkeleton(route);
   const risk =
     route.difficulty === 'easy'
       ? 'low'
@@ -1459,7 +1662,7 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
         ? 'mid'
         : 'high';
   return {
-    ...(local ?? ROUTES[0]!),
+    ...baseRoute,
     id: route.id,
     name: route.name,
     region: route.location,
@@ -1489,6 +1692,67 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
       { icon: '⬆', text: `累積爬升 ${route.elevation_gain}m` },
       { icon: '⏱', text: `預估 ${route.estimated_hours} 小時` },
     ],
+  };
+}
+
+function buildRouteSkeleton(route: RouteApiResponse): HikingRoute {
+  const seed = Array.from(route.id || route.name).reduce(
+    (acc, char) => (acc * 33 + char.charCodeAt(0)) % 10_000,
+    7,
+  );
+  const difficulty = route.difficulty;
+  const emojiByDifficulty: Record<RouteApiResponse['difficulty'], string> = {
+    easy: '🌿',
+    medium: '⛰',
+    hard: '🏔',
+    expert: '❄',
+  };
+  const minFitness =
+    difficulty === 'easy'
+      ? 1
+      : difficulty === 'medium'
+        ? 3
+        : difficulty === 'hard'
+          ? 4
+          : 5;
+  const minSlope =
+    difficulty === 'easy'
+      ? 1
+      : difficulty === 'medium'
+        ? 2
+        : difficulty === 'hard'
+          ? 3
+          : 4;
+  const baseLat = 22.8 + (seed % 1200) / 1000;
+  const baseLng = 120.6 + ((seed >> 2) % 1000) / 1000;
+  const trailDelta =
+    difficulty === 'easy' ? 0.01 : difficulty === 'medium' ? 0.015 : 0.02;
+  const polyline: [number, number][] = [
+    [baseLat - trailDelta, baseLng - trailDelta],
+    [baseLat - trailDelta / 3, baseLng - trailDelta / 6],
+    [baseLat + trailDelta / 3, baseLng + trailDelta / 6],
+    [baseLat + trailDelta, baseLng + trailDelta],
+  ];
+
+  return {
+    id: route.id,
+    emoji: emojiByDifficulty[difficulty],
+    name: route.name,
+    distance: `${route.distance_km}km`,
+    elevation: `${route.elevation_gain}m`,
+    time: `${route.estimated_hours}h`,
+    risk:
+      difficulty === 'easy' ? 'low' : difficulty === 'medium' ? 'mid' : 'high',
+    region: route.location,
+    minFitness,
+    minExp: difficulty === 'easy' ? 'beginner' : 'experienced',
+    minSlope,
+    minDays: route.days,
+    highlight: `推薦路線：${route.location}｜滑倒 ${route.risks.slip}、迷路 ${route.risks.lost}、偏離 ${route.risks.deviation}`,
+    center: [baseLat, baseLng],
+    polyline,
+    start: polyline[0]!,
+    end: polyline[polyline.length - 1]!,
   };
 }
 
@@ -1821,6 +2085,7 @@ function toRouteCard(route: RecommendedRoute): RouteCard {
     emoji: route.emoji,
     name: route.name,
     region: route.region,
+    routeKind: route.source?.route_kind ?? 'trail',
     difficulty: routeDifficulty(route),
     distance: route.distance,
     elevation: route.elevation,
@@ -1894,67 +2159,161 @@ function haversine(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function parseGpx(text: string): ParsedHistory {
+interface GpxTrackPoint {
+  lat: number;
+  lon: number;
+  ele: number | null;
+  time: number | null;
+}
+
+function buildTrackHintSegments(
+  points: GpxTrackPoint[],
+): GpxMapTrack['hintSegments'] {
+  if (points.length < 2) return [];
+
+  const segmentCount = Math.min(8, Math.max(1, points.length - 1));
+  const segmentSize = Math.max(
+    1,
+    Math.ceil((points.length - 1) / segmentCount),
+  );
+  const segments: GpxMapTrack['hintSegments'] = [];
+
+  for (let start = 0; start < points.length - 1; start += segmentSize) {
+    const end = Math.min(points.length - 1, start + segmentSize);
+    let segmentDistanceKm = 0;
+    let segmentGainM = 0;
+    let segmentLossM = 0;
+
+    for (let i = start + 1; i <= end; i++) {
+      const prev = points[i - 1]!;
+      const curr = points[i]!;
+      segmentDistanceKm += haversine(prev.lat, prev.lon, curr.lat, curr.lon);
+      if (prev.ele != null && curr.ele != null) {
+        const delta = curr.ele - prev.ele;
+        if (delta > 0) segmentGainM += delta;
+        else segmentLossM += Math.abs(delta);
+      }
+    }
+
+    const midpoint = points[Math.floor((start + end) / 2)] ?? points[start]!;
+    const elevationDeltaM = Math.round(segmentGainM - segmentLossM);
+    const gradePct =
+      segmentDistanceKm > 0 && elevationDeltaM !== 0
+        ? Math.round(
+            (elevationDeltaM / (segmentDistanceKm * 1000)) * 100 * 10,
+          ) / 10
+        : null;
+
+    segments.push({
+      label: `段落 ${segments.length + 1}`,
+      midpoint: [midpoint.lat, midpoint.lon],
+      distanceKm: Math.round(segmentDistanceKm * 10) / 10,
+      elevationDeltaM,
+      gradePct,
+    });
+  }
+
+  return segments;
+}
+
+function buildGpxTrackFromPoints(
+  name: string,
+  points: GpxTrackPoint[],
+  source: GpxMapTrack['source'],
+): GpxMapTrack {
+  let distanceKm = 0;
+  let elevationGain = 0;
+  let elevationLoss = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1]!;
+    const curr = points[i]!;
+    distanceKm += haversine(prev.lat, prev.lon, curr.lat, curr.lon);
+
+    if (prev.ele != null && curr.ele != null) {
+      const delta = curr.ele - prev.ele;
+      if (delta > 0) elevationGain += delta;
+      else elevationLoss += Math.abs(delta);
+    }
+  }
+
+  const timeValues = points
+    .map((point) => point.time)
+    .filter(
+      (time): time is number => typeof time === 'number' && !Number.isNaN(time),
+    );
+
+  const durationMin =
+    timeValues.length >= 2
+      ? Math.max(
+          1,
+          Math.round(
+            (timeValues[timeValues.length - 1]! - timeValues[0]!) / 60000,
+          ),
+        )
+      : Math.max(1, Math.round(distanceKm * 30));
+
+  const hasElevation = points.some((point) => point.ele != null);
+  const averageGradePct =
+    hasElevation && distanceKm > 0
+      ? Math.round(
+          ((elevationGain - elevationLoss) / (distanceKm * 1000)) * 100 * 10,
+        ) / 10
+      : null;
+
+  return {
+    name,
+    points: points.map((point) => [point.lat, point.lon]),
+    distanceKm: Math.round(distanceKm * 10) / 10,
+    elevationGain: Math.round(elevationGain),
+    elevationLoss: Math.round(elevationLoss),
+    durationMin,
+    averageGradePct,
+    source,
+    hintSegments: buildTrackHintSegments(points),
+  };
+}
+
+function parseGpxTrack(text: string): {
+  history: ParsedHistory;
+  track: GpxMapTrack;
+} {
   const doc = new DOMParser().parseFromString(text, 'text/xml');
   const trkpts = [...doc.querySelectorAll('trkpt')];
   const name = doc.querySelector('name')?.textContent ?? 'GPX 路線';
 
-  let distanceKm = 0;
-  let elevationGain = 0;
+  const points: GpxTrackPoint[] = trkpts.map((trkpt) => {
+    const eleText = trkpt.querySelector('ele')?.textContent;
+    const timeText = trkpt.querySelector('time')?.textContent;
+    return {
+      lat: Number.parseFloat(trkpt.getAttribute('lat') ?? '0'),
+      lon: Number.parseFloat(trkpt.getAttribute('lon') ?? '0'),
+      ele: eleText == null ? null : Number.parseFloat(eleText),
+      time: timeText ? new Date(timeText).getTime() : null,
+    };
+  });
 
-  for (let i = 1; i < trkpts.length; i++) {
-    const prev = trkpts[i - 1]!;
-    const curr = trkpts[i]!;
-    const lat1 = parseFloat(prev.getAttribute('lat') ?? '0');
-    const lon1 = parseFloat(prev.getAttribute('lon') ?? '0');
-    const lat2 = parseFloat(curr.getAttribute('lat') ?? '0');
-    const lon2 = parseFloat(curr.getAttribute('lon') ?? '0');
-    distanceKm += haversine(lat1, lon1, lat2, lon2);
-
-    const ele1 = parseFloat(prev.querySelector('ele')?.textContent ?? '0');
-    const ele2 = parseFloat(curr.querySelector('ele')?.textContent ?? '0');
-    if (ele2 > ele1) elevationGain += ele2 - ele1;
+  if (!points.length) {
+    throw new Error('GPX contains no valid track points');
   }
-
-  const times = [...doc.querySelectorAll('trkpt time')]
-    .map((t) => new Date(t.textContent ?? '').getTime())
-    .filter((t) => !isNaN(t));
-
-  const durationMin =
-    times.length >= 2
-      ? Math.round((times[times.length - 1]! - times[0]!) / 60000)
-      : Math.round(distanceKm * 30);
 
   const rawDate =
     doc.querySelector('metadata time')?.textContent?.split('T')[0] ??
     new Date().toISOString().split('T')[0]!;
 
+  const track = buildGpxTrackFromPoints(name, points, 'uploaded-gpx');
+
   return {
-    name,
-    distanceKm: Math.round(distanceKm * 10) / 10,
-    elevationGain: Math.round(elevationGain),
-    durationMin,
-    date: rawDate ?? '',
+    history: {
+      name,
+      distanceKm: track.distanceKm,
+      elevationGain: track.elevationGain,
+      durationMin: track.durationMin,
+      date: rawDate ?? '',
+    },
+    track,
   };
 }
-
-const gpxMapTrack = computed<GpxMapTrack | null>(() => {
-  if (!selectedRoute.value?.polyline.length) return null;
-  const points = selectedRoute.value.polyline;
-  let distanceKm = 0;
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1]!;
-    const curr = points[i]!;
-    distanceKm += haversine(prev[0], prev[1], curr[0], curr[1]);
-  }
-
-  return {
-    name: `${selectedRoute.value.name} GPX`,
-    points,
-    distanceKm: Number.parseFloat(selectedRoute.value.distance) || distanceKm,
-    elevationGain: Number.parseFloat(selectedRoute.value.elevation),
-  };
-});
 
 function analyzeHistory(record: ParsedHistory): AnalysisResult {
   const speedKmh =
@@ -1997,7 +2356,10 @@ async function onFileUpload(e: Event) {
   try {
     const text = await file.text();
     if (file.name.endsWith('.gpx')) {
-      record = parseGpx(text);
+      const parsed = parseGpxTrack(text);
+      record = parsed.history;
+      uploadedGpxTrack.value = parsed.track;
+      showGpxOverlay.value = true;
     } else if (file.name.endsWith('.json')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = JSON.parse(text) as any;
@@ -2401,7 +2763,8 @@ function stopVoiceCapture() {
   speechRecognition = null;
   if (
     speechSocket &&
-    [WebSocket.CONNECTING, WebSocket.OPEN].includes(speechSocket.readyState)
+    (speechSocket.readyState === WebSocket.CONNECTING ||
+      speechSocket.readyState === WebSocket.OPEN)
   ) {
     speechSocket.close();
   }
@@ -2614,6 +2977,185 @@ function assessGearListWithFallback() {
 }
 
 const selectedRoute = ref<RecommendedRoute | null>(null);
+const showGpxOverlay = ref(true);
+const uploadedGpxTrack = ref<GpxMapTrack | null>(null);
+const routeGpxTracks = ref<RouteGpxTrackOption[]>([]);
+const routeGpxLoading = ref(false);
+const selectedDbGpxTrackId = ref<number | null>(null);
+const gpxScopeFilter = ref<'all' | 'trail' | 'peak'>('all');
+const mapGpxInput = ref<HTMLInputElement | null>(null);
+
+function toggleGpxOverlay() {
+  showGpxOverlay.value = !showGpxOverlay.value;
+}
+
+function openMapGpxImport() {
+  mapGpxInput.value?.click();
+}
+
+function formatDuration(totalMinutes: number) {
+  const safeMinutes = Math.max(0, Math.round(totalMinutes));
+  const days = Math.floor(safeMinutes / (60 * 24));
+  const hours = Math.floor((safeMinutes % (60 * 24)) / 60);
+  const minutes = safeMinutes % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days} 天`);
+  if (hours > 0 || days > 0) parts.push(`${hours} 小時`);
+  parts.push(`${minutes} 分`);
+
+  return parts.join(' ');
+}
+
+function formatNullableDuration(totalMinutes: number | null) {
+  return totalMinutes == null ? 'N/A' : formatDuration(totalMinutes);
+}
+
+const visibleRouteGpxTracks = computed(() =>
+  routeGpxTracks.value.filter((track) => {
+    if (gpxScopeFilter.value === 'all') return true;
+    return track.match_scope === gpxScopeFilter.value;
+  }),
+);
+
+function buildDatabaseTrack(track: RouteGpxTrackOption): GpxMapTrack {
+  const routeDistanceKm =
+    track.length_km ??
+    track.points.reduce((sum, point, index) => {
+      if (index === 0) return sum;
+      const prev = track.points[index - 1]!;
+      return sum + haversine(prev[0], prev[1], point[0], point[1]);
+    }, 0);
+  const elevationGain = track.elevation_gain_m ?? 0;
+  let cumulativeDistance = 0;
+  const syntheticPoints = track.points.map((point, index) => {
+    if (index === 0) {
+      return { lat: point[0], lon: point[1], ele: 0, time: null };
+    }
+    const prev = track.points[index - 1]!;
+    cumulativeDistance += haversine(prev[0], prev[1], point[0], point[1]);
+    return {
+      lat: point[0],
+      lon: point[1],
+      ele:
+        routeDistanceKm > 0
+          ? (elevationGain * cumulativeDistance) / routeDistanceKm
+          : null,
+      time: null,
+    };
+  });
+
+  const hintSegments = buildTrackHintSegments(syntheticPoints);
+  return {
+    name: track.label,
+    trackId: track.gpx_track_id,
+    matchScope: track.match_scope,
+    points: track.points,
+    segments: track.segments.length ? track.segments : [track.points],
+    distanceKm: Math.round(routeDistanceKm * 10) / 10,
+    elevationGain: Math.round(elevationGain),
+    elevationLoss: null,
+    durationMin: null,
+    averageGradePct:
+      routeDistanceKm > 0 && elevationGain
+        ? Math.round((elevationGain / (routeDistanceKm * 1000)) * 100 * 10) / 10
+        : null,
+    source: 'database-gpx',
+    hintSegments,
+  };
+}
+
+const selectedDbGpxTrack = computed(() => {
+  if (!visibleRouteGpxTracks.value.length) return null;
+  const chosen =
+    visibleRouteGpxTracks.value.find(
+      (track) => track.gpx_track_id === selectedDbGpxTrackId.value,
+    ) ?? visibleRouteGpxTracks.value[0];
+  return chosen ?? null;
+});
+
+function buildPolylineFallbackTrack(route: RecommendedRoute): GpxMapTrack {
+  const points = route.polyline as [number, number][];
+  const distanceKm = parseFloat(route.distance) || 0;
+  const elevationGain = parseInt(route.elevation) || 0;
+  const durationMin = parseFloat(route.time) * 60 || null;
+  return {
+    name: route.name,
+    points,
+    segments: [points],
+    matchScope: undefined,
+    distanceKm,
+    elevationGain,
+    elevationLoss: null,
+    durationMin,
+    averageGradePct:
+      distanceKm > 0 && elevationGain
+        ? Math.round((elevationGain / (distanceKm * 1000)) * 100 * 10) / 10
+        : null,
+    source: 'route-polyline',
+    hintSegments: [],
+  };
+}
+
+const gpxMapTrack = computed<GpxMapTrack | null>(() => {
+  if (uploadedGpxTrack.value) return uploadedGpxTrack.value;
+  if (selectedDbGpxTrack.value)
+    return buildDatabaseTrack(selectedDbGpxTrack.value);
+  if (selectedRoute.value?.polyline?.length)
+    return buildPolylineFallbackTrack(selectedRoute.value);
+  return null;
+});
+
+async function loadRouteGpxTracks(route: RecommendedRoute | null) {
+  routeGpxLoading.value = true;
+  routeGpxTracks.value = [];
+  selectedDbGpxTrackId.value = null;
+  gpxScopeFilter.value = 'all';
+
+  if (!route) {
+    routeGpxLoading.value = false;
+    return;
+  }
+
+  try {
+    const { data } = await api.get<RouteGpxResponse>(`/routes/${route.id}/gpx`);
+    routeGpxTracks.value = data.tracks;
+    selectedDbGpxTrackId.value = data.tracks[0]?.gpx_track_id ?? null;
+    if (
+      !data.tracks.some((track) => track.match_scope === gpxScopeFilter.value)
+    ) {
+      gpxScopeFilter.value = 'all';
+    }
+  } catch (_) {
+    routeGpxTracks.value = [];
+  } finally {
+    routeGpxLoading.value = false;
+  }
+}
+
+watch(
+  selectedRoute,
+  (route) => {
+    void loadRouteGpxTracks(route);
+  },
+  { immediate: true },
+);
+
+watch(
+  visibleRouteGpxTracks,
+  (tracks) => {
+    if (!tracks.length) {
+      selectedDbGpxTrackId.value = null;
+      return;
+    }
+    if (
+      !tracks.some((track) => track.gpx_track_id === selectedDbGpxTrackId.value)
+    ) {
+      selectedDbGpxTrackId.value = tracks[0]!.gpx_track_id;
+    }
+  },
+  { immediate: true },
+);
 
 function parseRouteNumber(value: string) {
   const parsed = Number(value.replace(/,/g, '').match(/[\d.]+/)?.[0] ?? 0);
@@ -2629,6 +3171,8 @@ const showVisionMockToggle = import.meta.env.DEV;
 const visionMockMode = ref(showVisionMockToggle);
 const showGearTodoList = false;
 const gearPhotoInput = ref<HTMLInputElement>();
+const gearPhotoUrl = ref('');
+const gearPhotoLightbox = ref(false);
 const lastDetectedGearIds = ref<Set<string>>(new Set());
 const recognizedShoe = ref<ShoeRecognition | null>(null);
 const detectedVisionCount = computed(
@@ -2910,6 +3454,8 @@ function toggleVisionMockMode() {
   }
 }
 
+const MOCK_GEAR_PHOTO_URL = '/src/assets/img/gear.png';
+
 function applyMockVisionResult() {
   if (scanning.value) return;
   removeLastDetectedGearItems();
@@ -2917,6 +3463,7 @@ function applyMockVisionResult() {
   visionRawText.value = MOCK_VISION_RAW_TEXT;
   visionItems.value = MOCK_VISION_ITEMS.map((item) => ({ ...item }));
   recognizedShoe.value = null;
+  gearPhotoUrl.value = MOCK_GEAR_PHOTO_URL;
   visionItems.value
     .filter((item) => item.detected)
     .forEach((item) =>
@@ -2932,6 +3479,10 @@ function resetGearScan() {
   visionItems.value = [];
   visionRawText.value = '';
   recognizedShoe.value = null;
+  if (gearPhotoUrl.value.startsWith('blob:'))
+    URL.revokeObjectURL(gearPhotoUrl.value);
+  gearPhotoUrl.value = '';
+  gearPhotoLightbox.value = false;
   if (visionMockMode.value) {
     applyMockVisionResult();
     return;
@@ -2965,8 +3516,15 @@ function addDetectedGearItem(item: GearItem) {
 async function onGearPhotoSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
+  if (!file || scanning.value) {
+    input.value = '';
+    return;
+  }
+
+  // 儲存照片預覽（釋放舊的）
+  if (gearPhotoUrl.value) URL.revokeObjectURL(gearPhotoUrl.value);
+  gearPhotoUrl.value = URL.createObjectURL(file);
   input.value = '';
-  if (!file || scanning.value) return;
 
   scanning.value = true;
   scanned.value = false;
@@ -5158,6 +5716,66 @@ async function downloadOfflinePackage() {
   margin-bottom: 12px;
 }
 
+.gear-photo-thumb {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  cursor: zoom-in;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  transition: opacity 0.15s;
+  padding: 10px 0;
+}
+
+.gear-photo-thumb:hover {
+  opacity: 0.88;
+}
+
+.gear-photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+.gear-photo-lightbox-img {
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: 12px;
+  object-fit: contain;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  cursor: default;
+}
+
+.gear-photo-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  font-size: 1.2rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.gear-photo-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .yolo-area-scanned {
   min-height: auto;
 }
@@ -5369,6 +5987,27 @@ async function downloadOfflinePackage() {
   flex-shrink: 0;
 }
 
+.route-source-badge {
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02rem;
+  flex-shrink: 0;
+}
+
+.source-trail {
+  background: rgba(26, 140, 85, 0.12);
+  color: var(--summit-accent);
+  border: 1px solid rgba(26, 140, 85, 0.22);
+}
+
+.source-peak {
+  background: rgba(91, 76, 245, 0.12);
+  color: var(--risk-mid);
+  border: 1px solid rgba(91, 76, 245, 0.22);
+}
+
 .diff-easy {
   background: rgba(26, 140, 85, 0.18);
   color: var(--risk-low);
@@ -5411,6 +6050,7 @@ async function downloadOfflinePackage() {
 
 .route-action-btn {
   flex: 1;
+  font-size: 0.9rem;
 }
 
 .route-action-btn:hover {
