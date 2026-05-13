@@ -64,7 +64,7 @@
     </q-footer>
 
     <!-- Premium profile dialog -->
-    <q-dialog
+  <q-dialog
       v-model="showProfile"
       transition-show="jump-up"
       transition-hide="jump-down"
@@ -105,11 +105,67 @@
       </q-card>
     </q-dialog>
 
+    <Teleport to="body">
+      <transition name="install-fade">
+        <div
+          v-if="showInstallBanner"
+          class="install-banner-wrap"
+          :class="{ 'install-banner-ios': isIosInstallHint }"
+        >
+          <q-card class="install-banner">
+            <q-card-section class="row no-wrap items-start q-gutter-sm">
+              <div class="install-banner-icon">
+                <q-icon
+                  :name="isIosInstallHint ? 'ios_share' : 'download_for_offline'"
+                  size="22px"
+                  color="primary"
+                />
+              </div>
+              <div class="col">
+                <div class="install-banner-title">
+                  {{ installBannerTitle }}
+                </div>
+                <div class="install-banner-text">
+                  {{ installBannerText }}
+                </div>
+              </div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="close"
+                class="install-banner-close"
+                @click="dismissInstallPrompt"
+              />
+            </q-card-section>
+            <q-card-actions align="right" class="q-pt-none q-px-md q-pb-md">
+              <q-btn
+                v-if="canInstallPwa"
+                unelevated
+                color="primary"
+                class="install-banner-action"
+                label="安裝 App"
+                @click="promptInstall"
+              />
+              <q-btn
+                v-else
+                flat
+                color="primary"
+                class="install-banner-action"
+                label="知道了"
+                @click="dismissInstallPrompt"
+              />
+            </q-card-actions>
+          </q-card>
+        </div>
+      </transition>
+    </Teleport>
+
   </q-layout>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useThemeStore } from 'src/stores/theme'
@@ -121,6 +177,16 @@ const auth   = useAuthStore()
 const theme  = useThemeStore()
 const { logout } = useLiff()
 const showProfile = ref(false)
+const installPromptEvent = ref<BeforeInstallPromptEvent | null>(null)
+const installPromptVisible = ref(false)
+const installPromptDismissed = ref(
+  sessionStorage.getItem('kaoshan_install_prompt_dismissed') === '1',
+)
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 const tabs = [
   { name: 'plan',   path: '/plan',      icon: 'hiking',     label: '規劃' },
@@ -162,11 +228,85 @@ const canGoBack = computed(() =>
   route.path !== '/plan' && route.path !== '/trails' && route.path !== '/after'
 )
 
+const isStandalone = computed(
+  () =>
+    window.matchMedia('(display-mode: standalone)').matches ||
+    // iOS Safari standalone
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true,
+)
+const isIosInstallHint = computed(() => {
+  const ua = navigator.userAgent.toLowerCase()
+  return /iphone|ipad|ipod/.test(ua) && !isStandalone.value
+})
+const canInstallPwa = computed(
+  () => !!installPromptEvent.value && !isStandalone.value,
+)
+const showInstallBanner = computed(
+  () =>
+    !isStandalone.value &&
+    !installPromptDismissed.value &&
+    (installPromptVisible.value || isIosInstallHint.value),
+)
+const installBannerTitle = computed(() =>
+  isIosInstallHint.value ? '加入主畫面' : '安裝登山助理',
+)
+const installBannerText = computed(() =>
+  isIosInstallHint.value
+    ? '在 Safari 點分享，再選「加入主畫面」，即可像 App 一樣開啟。'
+    : '安裝到主畫面後，可更快開啟並離線使用部分內容。',
+)
+
+async function promptInstall() {
+  if (!installPromptEvent.value) return
+  await installPromptEvent.value.prompt()
+  await installPromptEvent.value.userChoice
+  installPromptEvent.value = null
+  installPromptVisible.value = false
+  dismissInstallPrompt()
+}
+
+function dismissInstallPrompt() {
+  installPromptVisible.value = false
+  installPromptDismissed.value = true
+  sessionStorage.setItem('kaoshan_install_prompt_dismissed', '1')
+}
+
+function handleBeforeInstallPrompt(event: Event) {
+  const promptEvent = event as BeforeInstallPromptEvent
+  event.preventDefault()
+  installPromptEvent.value = promptEvent
+  if (!installPromptDismissed.value) {
+    installPromptVisible.value = true
+  }
+}
+
+function handleAppInstalled() {
+  installPromptEvent.value = null
+  installPromptVisible.value = false
+  installPromptDismissed.value = true
+  sessionStorage.setItem('kaoshan_install_prompt_dismissed', '1')
+}
+
 async function handleLogout() {
   await logout()
   showProfile.value = false
   await router.push('/')
 }
+
+onMounted(() => {
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+  window.addEventListener('appinstalled', handleAppInstalled)
+  if (isIosInstallHint.value && !installPromptDismissed.value) {
+    window.setTimeout(() => {
+      installPromptVisible.value = true
+    }, 1800)
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+  window.removeEventListener('appinstalled', handleAppInstalled)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -355,5 +495,88 @@ async function handleLogout() {
   border-radius: 14px !important;
   height: 44px;
   font-weight: 600;
+}
+
+// ── PWA install banner ───────────────────────────────────
+.install-banner-wrap {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  z-index: 1300;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.install-banner {
+  width: min(100%, 420px);
+  border-radius: 20px !important;
+  backdrop-filter: blur(22px) saturate(160%);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  pointer-events: auto;
+}
+
+:global(.body--dark) .install-banner {
+  background: rgba(12, 22, 40, 0.95);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.install-banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 140, 85, 0.12);
+  flex-shrink: 0;
+}
+
+.install-banner-title {
+  font-weight: 800;
+  font-size: 0.92rem;
+  letter-spacing: 0.04rem;
+}
+
+.install-banner-text {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-muted, #6a7280);
+}
+
+.install-banner-close {
+  margin-top: -4px;
+}
+
+.install-banner-action {
+  min-width: 110px;
+}
+
+.install-fade-enter-active,
+.install-fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.install-fade-enter-from,
+.install-fade-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@media (max-width: 600px) {
+  .install-banner-wrap {
+    bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+
+  .install-banner {
+    width: 100%;
+  }
 }
 </style>

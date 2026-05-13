@@ -62,11 +62,23 @@ export default configure(function (/* ctx */) {
     animations: [],
 
     pwa: {
-      workboxMode: 'generateSW',
+      workboxMode: 'GenerateSW',
       injectPwaMetaTags: true,
       swFilename: 'sw.js',
       manifestFilename: 'manifest.json',
       useCredentialsForManifestTag: false,
+
+      extendManifestJson(json) {
+        json.id = '/'
+        json.name = '登山助理'
+        json.short_name = '靠山'
+        json.description = '智慧登山輔助系統'
+        json.display = 'standalone'
+        json.start_url = '/'
+        json.orientation = 'portrait'
+        json.background_color = '#ffffff'
+        json.theme_color = '#2E7D32'
+      },
 
       workboxOptions: {
         skipWaiting: true,

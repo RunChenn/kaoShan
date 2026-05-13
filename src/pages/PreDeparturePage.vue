@@ -135,11 +135,11 @@
 
         <div v-if="chatCollapsed" class="chat-collapsed-strip">
           <div>
-            <div class="chat-collapsed-title">AI 已完成需求統整</div>
-            <div class="chat-collapsed-sub">
+            <div class="chat-collapsed-title">KaoShan 已完成需求統整</div>
+            <!-- <div class="chat-collapsed-sub">
               {{ demandSummary.goal }} · {{ demandSummary.days }} ·
-              {{ demandSummary.fitness }}
-            </div>
+              {{ demandSummary.fitness }} · {{ demandSummary.risk }}
+            </div> -->
           </div>
           <button class="chat-expand-btn" @click="toggleChatCollapsed">
             查看對話
@@ -246,7 +246,7 @@
                   </button>
                   <button
                     class="custom-btn route-action-ghost route-action-btn"
-                    @click="sendUserMsg('告訴我更多關於 ' + cardOf(m).name)"
+                    @click="askMoreAboutRoute(cardOf(m))"
                   >
                     了解更多
                   </button>
@@ -522,7 +522,10 @@
               <!-- <span class="route-emoji">{{ card.emoji }}</span> -->
               <div>
                 <div class="route-card-name">{{ card.name }}</div>
-                <div class="route-card-region">{{ card.region }}</div>
+                <div class="route-card-region">
+                  <span class="material-icons region-icon">location_on</span>
+                  {{ card.region }}
+                </div>
               </div>
               <span
                 :class="[
@@ -670,9 +673,9 @@
                   <div class="gear-assessment-title">
                     {{ gearAssessment.level }}
                   </div>
-                  <span class="gear-assessment-model">
+                  <!-- <span class="gear-assessment-model">
                     {{ gearAssessment.model_used }}
-                  </span>
+                  </span> -->
                 </div>
                 <div class="gear-assessment-text">
                   {{ gearAssessment.summary }}
@@ -814,6 +817,9 @@
         <div class="custom-advice-box weather-advice-box">
           {{ weatherAdvice }}
         </div>
+        <div v-if="weatherFallbackReasonText" class="weather-fallback-note">
+          {{ weatherFallbackReasonText }}
+        </div>
         <div v-if="routeWeather?.source" class="weather-source">
           來源：{{ routeWeather.source }}
         </div>
@@ -856,7 +862,7 @@
         />
         <div class="p1-map-toolbar">
           <div class="route-label-pill">
-            <span>{{ selectedRoute.emoji }}</span>
+            <!-- <span>{{ selectedRoute.emoji }}</span> -->
             <span>{{ selectedRoute.name }}</span>
             <span
               :class="[
@@ -911,7 +917,7 @@
                 </option>
               </select>
             </div>
-            <div
+            <!-- <div
               class="map-gpx-badge"
               :class="{ 'map-gpx-badge-off': !showGpxOverlay }"
               :title="
@@ -922,7 +928,7 @@
                 showGpxOverlay ? 'route' : 'hide_source'
               }}</span>
               <span>{{ showGpxOverlay ? 'GPX 已顯示' : 'GPX 已關閉' }}</span>
-            </div>
+            </div> -->
             <button class="custom-btn gpx-map-btn" @click="openMapGpxImport">
               匯入 GPX
             </button>
@@ -988,6 +994,18 @@
               {{ gpxMapTrack.matchScope === 'peak' ? '百岳 GPX' : '步道 GPX' }}
             </div>
           </div>
+          <!-- <div
+            class="map-gpx-badge"
+            :class="{ 'map-gpx-badge-off': !showGpxOverlay }"
+            :title="
+              showGpxOverlay ? '目前顯示 GPX 疊圖' : '目前已關閉 GPX 疊圖'
+            "
+          >
+            <span class="material-icons">{{
+              showGpxOverlay ? 'route' : 'hide_source'
+            }}</span>
+            <span>{{ showGpxOverlay ? 'GPX 已顯示' : 'GPX 已關閉' }}</span>
+          </div> -->
         </div>
         <MapPhase1
           :theme="appStore.config.theme"
@@ -998,12 +1016,21 @@
       </div>
     </Transition>
   </div>
+
+  <!-- 路線詳情 Dialog -->
+  <PreRouteDetailDialog
+    v-if="dialogRouteCard"
+    v-model="showRouteDialog"
+    :route="dialogRouteCard"
+    @select="onDialogSelectRoute"
+  />
 </template>
 
 <script setup lang="ts">
 import logoUrl from 'src/assets/img/logo.png';
 import { api } from 'src/boot/axios';
 import MapPhase1 from 'src/components/MapPhase1.vue';
+import PreRouteDetailDialog from 'src/components/PreRouteDetailDialog.vue';
 import { useAiRouter } from 'src/composables/useAiRouter';
 import {
   FITNESS_LABELS,
@@ -1043,30 +1070,6 @@ const weatherMode = ref<'mock' | 'openai'>(
 const shouldUseOpenAiWeather = computed(
   () => !showWeatherModeToggle || weatherMode.value === 'openai',
 );
-
-// ── Types ───────────────────────────────────────
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
-
-interface SpeechRecognitionEventResult {
-  isFinal: boolean;
-  0: { transcript: string };
-}
-
-interface SpeechRecognitionEventLike {
-  resultIndex: number;
-  results: SpeechRecognitionEventResult[];
-}
-
-interface SpeechRecognitionInstance {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
 
 interface ParsedHistory {
   name: string;
@@ -1203,6 +1206,8 @@ interface RouteWeatherResponse {
   source: string;
   model_used: string;
   fallback?: boolean;
+  fallback_stage?: string | null;
+  fallback_reason?: string | null;
 }
 
 interface GpxMapTrack {
@@ -2123,22 +2128,19 @@ function selectRecommendedRoute(card: RouteCard) {
   });
 }
 
+const showRouteDialog = ref(false);
+const dialogRouteCard = ref<RouteCard | null>(null);
+
 function askMoreAboutRoute(card: RouteCard) {
-  chatCollapsed.value = false;
-  messages.value.push({
-    id: Date.now(),
-    role: 'user',
-    type: 'text',
-    text: `告訴我更多關於 ${card.name}`,
-    time: nowTime(),
-  });
-  messages.value.push({
-    id: Date.now() + 1,
-    role: 'bot',
-    type: 'text',
-    text: `${card.name} 的重點是 ${card.highlight}。距離 ${card.distance}、爬升 ${card.elevation}，建議先確認天氣與裝備，再決定是否開始登山。`,
-    time: nowTime(),
-  });
+  dialogRouteCard.value = card;
+  showRouteDialog.value = true;
+}
+
+function onDialogSelectRoute() {
+  if (dialogRouteCard.value) {
+    showRouteDialog.value = false;
+    selectRecommendedRoute(dialogRouteCard.value);
+  }
 }
 
 // ── GPX / JSON Upload ────────────────────────────
@@ -2480,7 +2482,6 @@ const voiceDraftCommitted = ref(false);
 let mediaRecorder: MediaRecorder | null = null;
 let mediaStream: MediaStream | null = null;
 let mediaChunks: Blob[] = [];
-let speechRecognition: SpeechRecognitionInstance | null = null;
 let speechSocket: WebSocket | null = null;
 
 onMounted(() => {
@@ -2492,18 +2493,6 @@ onBeforeUnmount(() => {
   stopVoiceCapture();
 });
 
-function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
-  const speechWindow = window as Window & {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  };
-  return (
-    speechWindow.SpeechRecognition ??
-    speechWindow.webkitSpeechRecognition ??
-    null
-  );
-}
-
 function isMediaRecorderSupported() {
   return Boolean(
     navigator.mediaDevices?.getUserMedia &&
@@ -2512,9 +2501,7 @@ function isMediaRecorderSupported() {
 }
 
 function isVoiceInputSupported() {
-  return (
-    isMediaRecorderSupported() || Boolean(getSpeechRecognitionConstructor())
-  );
+  return isMediaRecorderSupported();
 }
 
 function getSupportedAudioMimeType() {
@@ -2558,7 +2545,9 @@ async function startOverlayRecording() {
   if (mediaRecorder?.state === 'recording') return;
   const mimeType = getSupportedAudioMimeType();
   if (!isMediaRecorderSupported() || !mimeType) {
-    startSpeechRecognitionFallback();
+    overlayLive.value = '';
+    overlayFinal.value = '目前瀏覽器不支援即時語音輸入，請改用文字輸入。';
+    overlayPhase.value = 'confirming';
     return;
   }
   mediaChunks = [];
@@ -2628,55 +2617,6 @@ async function startOverlayRecording() {
   }
 }
 
-function startSpeechRecognitionFallback() {
-  const SpeechRecognition = getSpeechRecognitionConstructor();
-  if (!SpeechRecognition) {
-    overlayLive.value = '';
-    overlayFinal.value = '目前瀏覽器不支援語音輸入，請改用文字輸入。';
-    overlayPhase.value = 'sending';
-    return;
-  }
-
-  speechRecognition = new SpeechRecognition();
-  speechRecognition.lang = 'zh-TW';
-  speechRecognition.continuous = true;
-  speechRecognition.interimResults = true;
-  overlayLive.value = '語音辨識中，文字會直接填入輸入框。';
-  speechRecognition.onresult = (event) => {
-    let finalText = '';
-    let interimText = '';
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      const transcript = event.results[i]?.[0]?.transcript ?? '';
-      if (event.results[i]?.isFinal) finalText += transcript;
-      else interimText += transcript;
-    }
-    if (finalText) overlayFinal.value += finalText;
-    overlayLive.value = interimText;
-    inputText.value = composeVoiceDraft(
-      `${overlayFinal.value}${overlayLive.value}`,
-    );
-    voiceDraftCommitted.value = true;
-  };
-  speechRecognition.onerror = () => {
-    overlayLive.value = '';
-    if (!overlayFinal.value.trim()) {
-      overlayFinal.value = '無法啟用語音辨識，請確認瀏覽器權限。';
-    }
-    overlayPhase.value = 'sending';
-  };
-  speechRecognition.onend = () => {
-    overlayLive.value = '';
-    overlayPhase.value = 'sending';
-  };
-  try {
-    speechRecognition.start();
-  } catch (_) {
-    overlayLive.value = '';
-    overlayFinal.value = '無法啟用語音辨識，請確認瀏覽器權限。';
-    overlayPhase.value = 'sending';
-  }
-}
-
 function stopOverlayRecording() {
   if (mediaRecorder?.state === 'recording') {
     mediaRecorder.stop();
@@ -2690,8 +2630,6 @@ function stopOverlayRecording() {
     window.setTimeout(() => {
       closeVoiceOverlay();
     }, 500);
-  } else if (speechRecognition) {
-    speechRecognition.stop();
   } else {
     overlayPhase.value = 'sending';
   }
@@ -2759,8 +2697,6 @@ function closeVoiceOverlay() {
 }
 
 function stopVoiceCapture() {
-  speechRecognition?.stop();
-  speechRecognition = null;
   if (
     speechSocket &&
     (speechSocket.readyState === WebSocket.CONNECTING ||
@@ -3677,6 +3613,7 @@ function buildMockRouteWeather(route: RecommendedRoute): RouteWeatherResponse {
     source: '本地假資料',
     model_used: 'mock',
     fallback: true,
+    fallback_reason: '已切回本地假資料，未呼叫 OpenAI / CWA。',
   };
 }
 
@@ -3688,6 +3625,7 @@ const weather = [
 
 const routeWeather = ref<RouteWeatherResponse | null>(null);
 const weatherLoading = ref(false);
+const weatherFallbackReason = ref<string | null>(null);
 const offlinePackageDownloading = ref(false);
 const displayedWeather = computed<WeatherPeriod[]>(() =>
   routeWeather.value?.periods?.length ? routeWeather.value.periods : weather,
@@ -3723,6 +3661,11 @@ const weatherAiStatusLabel = computed(() => {
   }
   return 'OpenAI 狀態未確認';
 });
+const weatherFallbackReasonText = computed(() =>
+  weatherMode.value === 'openai'
+    ? (routeWeather.value?.fallback_reason ?? weatherFallbackReason.value)
+    : null,
+);
 const weatherAiStatusClass = computed(() => ({
   success:
     weatherMode.value === 'openai' &&
@@ -3742,6 +3685,7 @@ const weatherAiStatusClass = computed(() => ({
 async function loadRouteWeather(route: RecommendedRoute) {
   weatherLoading.value = true;
   routeWeather.value = null;
+  weatherFallbackReason.value = null;
   try {
     if (!shouldUseOpenAiWeather.value) {
       routeWeather.value = buildMockRouteWeather(route);
@@ -3755,8 +3699,10 @@ async function loadRouteWeather(route: RecommendedRoute) {
       days: route.minDays,
     });
     routeWeather.value = data;
+    weatherFallbackReason.value = data.fallback_reason ?? null;
   } catch (_) {
     routeWeather.value = buildMockRouteWeather(route);
+    weatherFallbackReason.value = 'OpenAI / CWA 請求失敗，已改用本地假資料。';
   } finally {
     weatherLoading.value = false;
   }
@@ -4703,9 +4649,10 @@ async function downloadOfflinePackage() {
   flex-direction: column;
   /* min-height: clamp(520px, 72vh, 760px); */
   max-height: 82vh;
-  background: var(--bg-base);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
 }
 
 .line-panel-collapsed {
@@ -4721,6 +4668,7 @@ async function downloadOfflinePackage() {
   padding: 12px 14px;
   background: var(--bg-surface);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 16px 16px;
 }
 
 .chat-collapsed-title {
@@ -4744,7 +4692,7 @@ async function downloadOfflinePackage() {
   border-radius: 16px;
   background: transparent;
   color: #06c755;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 800;
   cursor: pointer;
   font-family: inherit;
@@ -5040,6 +4988,17 @@ async function downloadOfflinePackage() {
   font-size: 0.9rem;
   color: var(--risk-mid);
   font-weight: 600;
+}
+
+.weather-fallback-note {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.18);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text-muted);
 }
 
 .weather-source {
@@ -6044,7 +6003,6 @@ async function downloadOfflinePackage() {
 
 .route-card-actions {
   display: flex;
-  flex-direction: column;
   gap: 6px;
 }
 
@@ -6059,7 +6017,7 @@ async function downloadOfflinePackage() {
 
 .route-action-ghost {
   background: transparent !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid rgb(12 48 42) !important;
   color: var(--text-secondary) !important;
 }
 

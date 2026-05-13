@@ -531,7 +531,8 @@ import {
   mockRouteWeather,
 } from 'src/mocks/weather';
 import { usePlanStore } from 'src/stores/plan';
-import { computed, ref } from 'vue';
+import type { ShoeRecognition, GearAssessResponse } from 'src/stores/plan';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const vRoute = useRoute();
@@ -562,31 +563,20 @@ interface GearDetectResponse {
   shoe?: ShoeRecognition | null;
 }
 
-interface ShoeRecognition {
-  item_type: string;
-  brand: string | null;
-  model: string | null;
-  primary_use: string | null;
-  terrain_suitability: string[];
-  waterproof: boolean | null;
-  ankle_support: string | null;
-  confidence: number;
-  notes: string | null;
-}
-
-interface GearAssessResponse {
-  score: number;
-  level: string;
-  summary: string;
-  tips: string[];
-  model_used: string;
-  fallback?: boolean;
-}
-
 const route = computed(() => mockRoutes.find((r) => r.id === vRoute.params.id));
 const routeWeather = computed(
   () => mockRouteWeather[vRoute.params.id as string] ?? null,
 );
+
+// 切換到天氣 tab 時，將資料儲存到 store 供離線包使用
+watch(tab, (newTab) => {
+  if (newTab === 'weather' && routeWeather.value && !plan.weatherData) {
+    plan.setWeatherData({
+      ...routeWeather.value,
+      source: 'mock',
+    })
+  }
+})
 const missingItems = computed(() =>
   gearResults.value.filter((g) => !g.detected),
 );
@@ -689,6 +679,14 @@ async function onGearPhotoSelected(event: Event) {
   input.value = '';
   if (!file || scanning.value) return;
 
+  // 讀取 base64 供離線包使用
+  const base64 = await new Promise<string | null>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+
   scanning.value = true;
   gearScanned.value = false;
   routeSafety.value = null;
@@ -707,6 +705,8 @@ async function onGearPhotoSelected(event: Event) {
     scanning.value = false;
     gearScanned.value = true;
     plan.setGearResults(gearResults.value);
+    plan.setGearPhoto(base64);
+    plan.setGearShoe(recognizedShoe.value);
     await assessSelectedRouteSafety();
   }
 }
@@ -736,8 +736,11 @@ async function assessSelectedRouteSafety() {
       target_days: plan.profileForm.targetDays,
     });
     routeSafety.value = data;
+    plan.setRouteSafety(data);
   } catch (_) {
-    routeSafety.value = buildLocalSafetyFallback();
+    const fallback = buildLocalSafetyFallback();
+    routeSafety.value = fallback;
+    plan.setRouteSafety(fallback);
   }
 }
 

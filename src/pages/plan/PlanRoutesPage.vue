@@ -84,7 +84,12 @@ const router = useRouter()
 const plan   = usePlanStore()
 
 const selectedDifficulty = ref<string | null>(null)
-const selectedDays       = ref<number | null>(null)
+
+// 從 store 帶入 targetDays（AI 聊天萃取或使用者手動設定）
+const initialDays = plan.profileForm.targetDays
+const selectedDays = ref<number | null>(
+  initialDays >= 3 ? 3 : initialDays > 0 ? initialDays : null
+)
 
 const difficulties = [
   { label: '容易', value: 'easy'   },

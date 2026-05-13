@@ -15,6 +15,8 @@ export interface HikingRoute {
   minSlope: number
   minDays: number
   highlight: string
+  requiresPermit: boolean
+  permitNote?: string
   center: [number, number]
   polyline: [number, number][]
   start: [number, number]
@@ -46,6 +48,7 @@ export const ROUTES: HikingRoute[] = [
     distance: '5.5km', elevation: '280m', time: '3h', risk: 'low', region: '北部',
     minFitness: 1, minExp: 'beginner', minSlope: 1, minDays: 1,
     highlight: '北台灣最高峰，天氣好可遠眺台北盆地',
+    requiresPermit: false,
     center: [25.1660, 121.5398],
     polyline: [
       [25.1540,121.5280],[25.1545,121.5292],[25.1553,121.5301],[25.1558,121.5312],
@@ -61,6 +64,8 @@ export const ROUTES: HikingRoute[] = [
     distance: '4.4km', elevation: '120m', time: '2h', risk: 'low', region: '東部',
     minFitness: 1, minExp: 'beginner', minSlope: 1, minDays: 1,
     highlight: '太魯閣峽谷美景，穿越隧道見水濂洞',
+    requiresPermit: true,
+    permitNote: '需申請太魯閣國家公園入園許可，可至官網線上申請',
     center: [24.1523, 121.4890],
     polyline: [
       [24.1490,121.4830],[24.1492,121.4840],[24.1495,121.4848],[24.1497,121.4855],
@@ -75,6 +80,7 @@ export const ROUTES: HikingRoute[] = [
     distance: '4.2km', elevation: '325m', time: '2.5h', risk: 'low', region: '中部',
     minFitness: 1, minExp: 'beginner', minSlope: 2, minDays: 1,
     highlight: '全台最易抵達的三千公尺高峰，雲海壯觀',
+    requiresPermit: false,
     center: [24.1460, 121.2793],
     polyline: [
       [24.1420,121.2720],[24.1424,121.2728],[24.1429,121.2735],[24.1432,121.2743],
@@ -89,6 +95,7 @@ export const ROUTES: HikingRoute[] = [
     distance: '6.2km', elevation: '580m', time: '4h', risk: 'mid', region: '中部',
     minFitness: 2, minExp: 'beginner', minSlope: 2, minDays: 1,
     highlight: '寬闊稜線視野，可見南湖大山群峰',
+    requiresPermit: false,
     center: [24.1500, 121.3100],
     polyline: [
       [24.1440,121.2900],[24.1444,121.2913],[24.1450,121.2924],[24.1455,121.2937],
@@ -104,6 +111,8 @@ export const ROUTES: HikingRoute[] = [
     distance: '8.5km', elevation: '1130m', time: '6h', risk: 'mid', region: '南部',
     minFitness: 3, minExp: 'experienced', minSlope: 3, minDays: 2,
     highlight: '台灣最高峰 3,952m，東北亞第一高峰',
+    requiresPermit: true,
+    permitNote: '需申請入園許可（玉山國家公園）及排雲山莊山屋，建議提前 3 個月預約',
     center: [23.4698, 120.9575],
     polyline: [
       [23.4550,120.9280],[23.4556,120.9295],[23.4562,120.9312],[23.4568,120.9328],
@@ -120,6 +129,8 @@ export const ROUTES: HikingRoute[] = [
     distance: '10.9km', elevation: '1340m', time: '8h', risk: 'high', region: '北部',
     minFitness: 4, minExp: 'experienced', minSlope: 4, minDays: 2,
     highlight: '台灣第二高峰，雪季積雪如夢似幻',
+    requiresPermit: true,
+    permitNote: '需申請入山許可（雪霸國家公園），七卡山莊山屋須提前預訂',
     center: [24.3865, 121.2762],
     polyline: [
       [24.3720,121.2600],[24.3728,121.2612],[24.3736,121.2622],[24.3743,121.2632],
@@ -135,6 +146,8 @@ export const ROUTES: HikingRoute[] = [
     distance: '12km', elevation: '1500m', time: '10h', risk: 'high', region: '南部',
     minFitness: 4, minExp: 'experienced', minSlope: 4, minDays: 2,
     highlight: '南台灣最高峰，原住民聖山，林相豐富',
+    requiresPermit: true,
+    permitNote: '需申請入山許可（林務局），並尊重原住民聖山文化',
     center: [22.5118, 120.7048],
     polyline: [
       [22.5000,120.6900],[22.5008,120.6914],[22.5016,120.6926],[22.5024,120.6938],
@@ -149,6 +162,8 @@ export const ROUTES: HikingRoute[] = [
     distance: '15km', elevation: '1600m', time: '12h', risk: 'high', region: '東部',
     minFitness: 5, minExp: 'advanced', minSlope: 4, minDays: 3,
     highlight: '天使的眼淚，最美高山湖泊，需入山申請',
+    requiresPermit: true,
+    permitNote: '需申請入山許可（林務局）及嘉明湖山屋，競爭激烈，建議提早 6 個月預約',
     center: [23.1300, 121.0000],
     polyline: [
       [23.1100,120.9750],[23.1108,120.9764],[23.1116,120.9778],[23.1124,120.9792],

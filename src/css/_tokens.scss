@@ -11,6 +11,7 @@
   // bg
   --bg-green: #036d21;
   --bg-green-light: #06c755;
+  --bg-green-01: #1a8c55;
   --bg-orange: #d97707;
 
   // text
@@ -73,7 +74,7 @@
 /* ── Light Theme ─────────────────────────── */
 [data-theme='light'] {
   --bg-base: #f4f6f8;
-  --bg-surface: #f1f1f1;
+  --bg-surface: #fff;
   --bg-card: #ffffff;
   --text-primary: #0d1b2a;
   --text-secondary: #4a5568;

@@ -13,6 +13,46 @@ export interface ProfileForm {
   slopeCoefficient: number  // 坡度係數 1-5（個人能承受的坡度能力）
 }
 
+export interface ShoeRecognition {
+  item_type: string
+  brand: string | null
+  model: string | null
+  primary_use: string | null
+  terrain_suitability: string[]
+  waterproof: boolean | null
+  ankle_support: string | null
+  confidence: number
+  notes: string | null
+}
+
+export interface GearAssessResponse {
+  score: number
+  level: string
+  summary: string
+  tips: string[]
+  model_used: string
+  fallback?: boolean
+}
+
+export interface WeatherForecastData {
+  temp: number
+  condition: string
+  windSpeed: number
+  humidity: number
+  riskLevel: 'low' | 'medium' | 'high'
+  forecast: Array<{
+    time: string
+    temp: number
+    condition: string
+    windSpeed: number
+    humidity: number
+    alert: string
+  }>
+  departureSuggestion: string
+  accidents: Array<{ year: number; type: string; desc: string }>
+  source: 'api' | 'mock'
+}
+
 export const usePlanStore = defineStore('plan', () => {
   const currentStep = ref(0)
 
@@ -29,6 +69,12 @@ export const usePlanStore = defineStore('plan', () => {
   const routes = ref<HikingRoute[]>([])
   const selectedRouteId = ref<string | null>(null)
   const gearResults = ref<GearItem[]>([])
+  const gearPhoto = ref<string | null>(null)
+  const gearShoe = ref<ShoeRecognition | null>(null)
+  const routeSafety = ref<GearAssessResponse | null>(null)
+  const weatherData = ref<WeatherForecastData | null>(null)
+
+  // 保留但標記廢棄，PlanOfflinePage 已不再呼叫
   const offlineProgress = ref(0)
   const offlineStatus = ref<'idle' | 'downloading' | 'done'>('idle')
 
@@ -74,6 +120,23 @@ export const usePlanStore = defineStore('plan', () => {
     gearResults.value = items
   }
 
+  function setGearPhoto(base64: string | null) {
+    gearPhoto.value = base64
+  }
+
+  function setGearShoe(shoe: ShoeRecognition | null) {
+    gearShoe.value = shoe
+  }
+
+  function setRouteSafety(data: GearAssessResponse | null) {
+    routeSafety.value = data
+  }
+
+  function setWeatherData(data: WeatherForecastData | null) {
+    weatherData.value = data
+  }
+
+  /** @deprecated PlanOfflinePage 改用 useOfflinePackage.buildAndSave() */
   function startOfflineDownload() {
     offlineStatus.value = 'downloading'
     offlineProgress.value = 0
@@ -93,12 +156,20 @@ export const usePlanStore = defineStore('plan', () => {
     routes,
     selectedRouteId,
     gearResults,
+    gearPhoto,
+    gearShoe,
+    routeSafety,
+    weatherData,
     offlineProgress,
     offlineStatus,
     safetyScore,
     safetyLevel,
     selectRoute,
     setGearResults,
+    setGearPhoto,
+    setGearShoe,
+    setRouteSafety,
+    setWeatherData,
     startOfflineDownload,
   }
 })

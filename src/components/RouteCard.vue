@@ -19,27 +19,57 @@
           {{ route.location }}
         </div>
 
-        <div class="metrics-grid">
+        <div class="metrics-grid q-mb-sm">
           <div class="metric" v-for="m in metrics" :key="m.label">
             <q-icon :name="m.icon" size="14px" :color="m.color" />
             <span class="metric-val">{{ m.val }}</span>
             <span class="metric-lbl">{{ m.label }}</span>
           </div>
         </div>
+
+        <!-- 了解更多 -->
+        <q-btn
+          flat dense
+          label="了解更多"
+          icon="info_outline"
+          size="sm"
+          class="more-btn"
+          @click.stop="showDialog = true"
+        />
       </q-card-section>
 
       <!-- Chevron -->
       <q-icon name="chevron_right" size="18px" class="card-chevron" />
     </q-card>
   </div>
+
+  <!-- Detail dialog -->
+  <RouteDetailDialog
+    v-model="showDialog"
+    :route="route"
+    @select="onSelect"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { usePlanStore } from 'src/stores/plan'
 import type { HikingRoute } from 'src/mocks/routes'
+import RouteDetailDialog from 'src/components/RouteDetailDialog.vue'
 
 const props = defineProps<{ route: HikingRoute }>()
 defineEmits<{ (e: 'click'): void }>()
+
+const showDialog = ref(false)
+const router = useRouter()
+const plan = usePlanStore()
+
+function onSelect() {
+  showDialog.value = false
+  plan.selectRoute(props.route.id)
+  router.push(`/plan/route/${props.route.id}`)
+}
 
 const difficultyMap = {
   easy:   { label: '容易', color: 'positive' },
@@ -157,6 +187,19 @@ const metrics = computed(() => [
     opacity: 0.45;
     line-height: 1;
   }
+}
+
+// ── More button ───────────────────────────────────────────
+.more-btn {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05rem;
+  opacity: 0.55;
+  padding: 2px 8px;
+  border-radius: 8px;
+  transition: opacity 0.2s ease;
+
+  &:hover { opacity: 0.85; }
 }
 
 // ── Chevron ───────────────────────────────────────────────

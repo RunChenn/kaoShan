@@ -24,12 +24,15 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  item: { name: string; size: string; threshold: number; detail?: string }
+  item: { name: string; size: string; threshold: number; doneThreshold?: number; detail?: string }
   progress: number
 }>()
 
 const started = computed(() => props.progress >= props.item.threshold)
-const done    = computed(() => props.progress >= props.item.threshold + 12 || props.progress >= 100)
+const done    = computed(() =>
+  props.progress >= (props.item.doneThreshold ?? props.item.threshold + 12) ||
+  props.progress >= 100,
+)
 </script>
 
 <style scoped>

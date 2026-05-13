@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import { trackGeoJSON, heatmapGeoJSON, deviationCircle, mockCurrentPosition } from 'src/mocks/mapData'
 import type { Map as MapLibreMap } from 'maplibre-gl'
+import { registerCachedTileProtocol } from 'src/composables/useMapTileCache'
 
 export function useMap() {
   const map = ref<MapLibreMap | null>(null)
@@ -10,6 +11,9 @@ export function useMap() {
     const ml = await import('maplibre-gl')
     const { Map, Marker } = ml
 
+    // 註冊自訂圖磚協定：優先讀 IndexedDB，無快取才 fallback 到 OSM
+    registerCachedTileProtocol(ml)
+
     const instance = new Map({
       container,
       style: {
@@ -17,7 +21,7 @@ export function useMap() {
         sources: {
           osm: {
             type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tiles: ['cachedosm://{z}/{x}/{y}'],
             tileSize: 256,
             attribution: '© OpenStreetMap contributors',
           },
