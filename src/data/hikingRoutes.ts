@@ -7,9 +7,12 @@ export interface HikingRoute {
   name: string
   distance: string
   elevation: string
+  maxElevation?: string
   time: string
   risk: RiskLevel
   region: string
+  category?: 'trail' | 'small_peak' | 'peak'
+  trailShape: string
   minFitness: number
   minExp: ExperienceLevel
   minSlope: number
@@ -46,6 +49,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'qixing', emoji: '🌋', name: '七星山主峰',
     distance: '5.5km', elevation: '280m', time: '3h', risk: 'low', region: '北部',
+    trailShape: '環狀',
     minFitness: 1, minExp: 'beginner', minSlope: 1, minDays: 1,
     highlight: '北台灣最高峰，天氣好可遠眺台北盆地',
     requiresPermit: false,
@@ -62,6 +66,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'baiyang', emoji: '💧', name: '白楊步道',
     distance: '4.4km', elevation: '120m', time: '2h', risk: 'low', region: '東部',
+    trailShape: '折返',
     minFitness: 1, minExp: 'beginner', minSlope: 1, minDays: 1,
     highlight: '太魯閣峽谷美景，穿越隧道見水濂洞',
     requiresPermit: true,
@@ -78,6 +83,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'hehuan', emoji: '🌲', name: '合歡山主峰',
     distance: '4.2km', elevation: '325m', time: '2.5h', risk: 'low', region: '中部',
+    trailShape: '折返',
     minFitness: 1, minExp: 'beginner', minSlope: 2, minDays: 1,
     highlight: '全台最易抵達的三千公尺高峰，雲海壯觀',
     requiresPermit: false,
@@ -93,6 +99,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'hehuane', emoji: '⛅', name: '合歡東峰',
     distance: '6.2km', elevation: '580m', time: '4h', risk: 'mid', region: '中部',
+    trailShape: '折返',
     minFitness: 2, minExp: 'beginner', minSlope: 2, minDays: 1,
     highlight: '寬闊稜線視野，可見南湖大山群峰',
     requiresPermit: false,
@@ -109,6 +116,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'yushan', emoji: '🏔', name: '玉山主峰',
     distance: '8.5km', elevation: '1130m', time: '6h', risk: 'mid', region: '南部',
+    trailShape: '折返',
     minFitness: 3, minExp: 'experienced', minSlope: 3, minDays: 2,
     highlight: '台灣最高峰 3,952m，東北亞第一高峰',
     requiresPermit: true,
@@ -127,6 +135,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'xueshan', emoji: '❄', name: '雪山主峰',
     distance: '10.9km', elevation: '1340m', time: '8h', risk: 'high', region: '北部',
+    trailShape: '折返',
     minFitness: 4, minExp: 'experienced', minSlope: 4, minDays: 2,
     highlight: '台灣第二高峰，雪季積雪如夢似幻',
     requiresPermit: true,
@@ -144,6 +153,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'dawu', emoji: '🦅', name: '北大武山',
     distance: '12km', elevation: '1500m', time: '10h', risk: 'high', region: '南部',
+    trailShape: '折返',
     minFitness: 4, minExp: 'experienced', minSlope: 4, minDays: 2,
     highlight: '南台灣最高峰，原住民聖山，林相豐富',
     requiresPermit: true,
@@ -160,6 +170,7 @@ export const ROUTES: HikingRoute[] = [
   {
     id: 'jiaming', emoji: '💎', name: '嘉明湖',
     distance: '15km', elevation: '1600m', time: '12h', risk: 'high', region: '東部',
+    trailShape: '折返',
     minFitness: 5, minExp: 'advanced', minSlope: 4, minDays: 3,
     highlight: '天使的眼淚，最美高山湖泊，需入山申請',
     requiresPermit: true,
@@ -242,6 +253,8 @@ export interface UserProfile {
 }
 
 export interface RecommendedRoute extends HikingRoute {
+  elevation_gain?: number
+  maxElevation?: string
   matchScore: number
   matchLabel: string
   matchBg: string

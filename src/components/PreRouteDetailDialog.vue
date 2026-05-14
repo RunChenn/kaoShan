@@ -43,47 +43,37 @@
               <span class="material-icons region-icon">location_on</span>
               {{ route.region }}
             </div>
+            <div class="tag-row q-mt-sm">
+              <span v-for="tag in route.tags" :key="tag" class="tag-chip">
+                {{ tag }}
+              </span>
+            </div>
           </div>
           <!-- Match score badge -->
-          <div
+          <!-- <div
             v-if="source"
             class="match-badge"
             :style="{ background: source.matchBg, color: source.matchColor }"
           >
             <div class="match-score">{{ source.matchScore }}</div>
             <div class="match-label">{{ source.matchLabel }}</div>
-          </div>
+          </div> -->
         </div>
 
-        <!-- Key metrics -->
-        <div class="metrics-grid">
-          <div class="metric-tile">
-            <!-- <span class="material-icons metric-icon" style="color: #4a90d9"
-              >straighten</span
-            > -->
-            <span class="metric-lbl">距離</span>
-            <span class="metric-val">{{ route.distance }}</span>
-          </div>
-          <div class="metric-tile">
-            <!-- <span class="material-icons metric-icon" style="color: #e67e22"
-              >terrain</span
-            > -->
-            <span class="metric-lbl">爬升</span>
-            <span class="metric-val">{{ route.elevation }}</span>
-          </div>
-          <div class="metric-tile">
-            <!-- <span class="material-icons metric-icon" style="color: #4a90d9"
-              >schedule</span
-            > -->
-            <span class="metric-lbl">預計時間</span>
-            <span class="metric-val">{{ route.time }}</span>
-          </div>
-          <div class="metric-tile">
-            <!-- <span class="material-icons metric-icon" style="color: #8b5cf6"
-              >calendar_today</span
-            > -->
-            <span class="metric-lbl">行程天數</span>
-            <span class="metric-val">{{ route.days }}</span>
+        <!-- Basic info -->
+        <div class="section">
+          <div class="section-label">基本資料</div>
+          <div class="basic-info-table">
+            <div
+              v-for="row in basicInfoRows"
+              :key="row[0].label"
+              class="basic-info-row"
+            >
+              <div class="basic-info-label">{{ row[0].label }}</div>
+              <div class="basic-info-value">{{ row[0].value }}</div>
+              <div class="basic-info-label">{{ row[1].label }}</div>
+              <div class="basic-info-value">{{ row[1].value }}</div>
+            </div>
           </div>
         </div>
 
@@ -133,7 +123,8 @@
           <div class="section-label">配對分析</div>
           <div class="reasons-list">
             <div v-for="r in source.reasons" :key="r.text" class="reason-item">
-              <span class="reason-icon">{{ r.icon }}</span>
+              <!-- <span class="reason-icon">{{ r.icon }}</span> -->
+              <span class="reason-icon">●</span>
               <span class="reason-text">{{ r.text }}</span>
             </div>
           </div>
@@ -197,7 +188,12 @@ interface RouteCard {
   difficulty: 'easy' | 'medium' | 'hard';
   distance: string;
   elevation: string;
+  maxElevation: string;
   time: string;
+  trailShape: string;
+  surface: string;
+  bestSeason: string;
+  tags: string[];
   days: string;
   highlight: string;
   source?: RecommendedRoute;
@@ -215,6 +211,13 @@ const emit = defineEmits<{
 
 const appStore = useAppStore();
 const source = computed(() => props.route.source);
+const routeKindLabel = computed(() =>
+  props.route.routeKind === 'peak' ? '百岳' : '步道',
+);
+const permitLabel = computed(() =>
+  source.value ? (source.value.requiresPermit ? '需要申請' : '免申請') : '—',
+);
+const maxElevationLabel = computed(() => props.route.maxElevation || '—');
 
 const SLOPE_LABELS = ['', '緩坡', '中緩坡', '中坡', '陡坡', '急陡坡'];
 const EXP_LABELS: Record<string, string> = {
@@ -232,6 +235,30 @@ const expLabel = computed(() =>
 const slopeLabel = computed(() =>
   source.value ? (SLOPE_LABELS[source.value.minSlope] ?? '—') : '—',
 );
+const basicInfoRows = computed<
+  Array<[{ label: string; value: string }, { label: string; value: string }]>
+>(() => [
+  [
+    { label: '所在區域', value: props.route.region },
+    { label: '路線類型', value: routeKindLabel.value },
+  ],
+  [
+    { label: '距離', value: props.route.distance },
+    { label: '爬升', value: props.route.elevation },
+  ],
+  [
+    { label: '海拔高度', value: maxElevationLabel.value },
+    { label: '預計時間', value: props.route.time },
+  ],
+  [
+    { label: '最適季節', value: props.route.bestSeason },
+    { label: '申請入山', value: permitLabel.value },
+  ],
+  [
+    { label: '步道型態', value: props.route.trailShape },
+    { label: '路面狀況', value: props.route.surface },
+  ],
+]);
 </script>
 
 <style scoped>
@@ -252,7 +279,7 @@ const slopeLabel = computed(() =>
 
 @media (max-width: 600px) {
   .dialog-root {
-    width: 95%;
+    width: 97%;
   }
 }
 
@@ -365,7 +392,7 @@ const slopeLabel = computed(() =>
 .route-region {
   display: flex;
   align-items: center;
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   opacity: 0.5;
   margin-top: 3px;
 }
@@ -397,39 +424,68 @@ const slopeLabel = computed(() =>
   opacity: 0.8;
 }
 
-/* ── Metrics ────────────────────────────── */
-.metrics-grid {
+/* ── Section ────────────────────────────── */
+
+.basic-info-table {
+  border: 1px solid var(--dialog-border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--dialog-panel-bg);
+}
+
+.basic-info-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns:
+    minmax(88px, 0.9fr) minmax(0, 1.3fr) minmax(88px, 0.9fr)
+    minmax(0, 1.3fr);
+}
+
+.basic-info-row + .basic-info-row {
+  border-top: 1px solid var(--dialog-border);
+}
+
+.basic-info-label {
+  padding: 10px 12px;
+  background: var(--dialog-ghost-bg);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--dialog-text);
+  opacity: 0.58;
+}
+
+.basic-info-value {
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.45;
+  word-break: break-word;
+  color: var(--dialog-text);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.metric-tile {
-  display: flex;
-  flex-direction: column;
+.tag-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 12px 4px;
-  border-radius: 14px;
-  background: var(--dialog-panel-bg);
-}
-.metric-icon {
-  font-size: 20px;
-}
-.metric-val {
-  font-size: 1.2rem;
-  font-weight: 800;
-  line-height: 1.1;
-  text-align: center;
-  color: #da8000;
-}
-.metric-lbl {
-  font-size: 0.9rem;
-  opacity: 0.42;
-  text-align: center;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(82, 163, 74, 0.12);
+  border: 1px solid rgba(82, 163, 74, 0.18);
+  color: #4d8b36;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03rem;
 }
 
-/* ── Section ────────────────────────────── */
+@media (max-width: 600px) {
+  .basic-info-row {
+    grid-template-columns: minmax(76px, 0.9fr) minmax(0, 1.2fr);
+  }
+}
 
 .highlight-text {
   font-size: 0.9rem;

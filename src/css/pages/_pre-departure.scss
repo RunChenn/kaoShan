@@ -110,6 +110,13 @@
   max-width: 150px;
 }
 
+.route-label-pill-title {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .p1-map-actions {
   display: flex;
   align-items: center;
@@ -177,6 +184,15 @@
   z-index: 1000;
 }
 
+.gpx-map-status .gpx-map-status-title {
+  display: flex;
+  gap: 6px;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .gpx-map-status .gpx-map-meta {
   gap: 0 6px;
 }
@@ -193,11 +209,12 @@
   white-space: nowrap;
 }
 
-.gpx-map-meta-label {
+.gpx-map-status .gpx-map-meta-label {
   text-align: left;
+  width: 60px;
 }
 
-.gpx-map-meta-value {
+.gpx-map-status .gpx-map-meta-value {
   text-align: right;
 }
 

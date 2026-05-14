@@ -723,7 +723,7 @@
 
             <!-- AI 評估內容 -->
             <div class="section-label section-label-compact q-mt-md">
-              AI 評估清單
+              評估清單
             </div>
             <div v-if="gearAssessment" class="gear-assessment-card">
               <div
@@ -860,7 +860,7 @@
       <div v-if="selectedRoute" class="offline-download-card">
         <div class="offline-download-title">離線下載包</div>
         <div class="offline-download-desc">
-          會打包路線資料、路線 GPX 軌跡、裝備清單、AI 風險評估與緊急求救資料。
+          會打包路線資料、正式 GPX、裝備清單、AI 風險評估與緊急求救資料，並先快取地圖圖磚。
         </div>
         <button
           class="offline-download-btn"
@@ -888,7 +888,7 @@
         <div class="p1-map-toolbar">
           <div class="route-label-pill">
             <!-- <span>{{ selectedRoute.emoji }}</span> -->
-            <span>{{ selectedRoute.name }}</span>
+            <span class="route-label-pill-title">{{ selectedRoute.name }}</span>
             <span
               :class="[
                 'route-diff-badge',
@@ -898,7 +898,7 @@
             >
           </div>
           <div class="p1-map-actions">
-            <div
+            <!-- <div
               v-if="routeGpxTracks.length && !uploadedGpxTrack"
               class="gpx-source-switcher"
             >
@@ -941,7 +941,7 @@
                   </template>
                 </option>
               </select>
-            </div>
+            </div> -->
             <!-- <div
               class="map-gpx-badge"
               :class="{ 'map-gpx-badge-off': !showGpxOverlay }"
@@ -957,66 +957,45 @@
             <button class="custom-btn gpx-map-btn" @click="openMapGpxImport">
               匯入 GPX
             </button>
+            <button
+              class="custom-btn gpx-map-btn"
+              :disabled="!gpxMapTrack"
+              @click="downloadCurrentGpx"
+            >
+              下載 GPX
+            </button>
             <button class="custom-btn gpx-map-btn" @click="toggleGpxOverlay">
               {{ showGpxOverlay ? '關閉 GPX 疊圖' : '顯示 GPX 疊圖' }}
             </button>
           </div>
         </div>
-        <div v-if="gpxMapTrack" class="row gpx-map-status">
-          <strong>
-            <span class="material-icons">timeline</span>
-            {{ gpxMapTrack.name }}
+        <div v-if="selectedRoute" class="row gpx-map-status">
+          <strong class="gpx-map-status-title">
+            <span class="material-icons">route</span>
+            {{ selectedRoute.name }}
           </strong>
+          <div class="row justify-between gpx-map-meta">
+            <div class="col-auto gpx-map-meta-label">海拔高度</div>
+            <div class="col gpx-map-meta-value">
+              {{ selectedRoute.maxElevation || '—' }}
+            </div>
+          </div>
           <div class="row justify-between gpx-map-meta">
             <div class="col-auto gpx-map-meta-label">距離</div>
             <div class="col gpx-map-meta-value">
-              {{ gpxMapTrack.distanceKm.toFixed(1) }} km
+              {{ selectedRoute.distance }}
             </div>
           </div>
           <div class="row justify-between gpx-map-meta">
             <div class="col-auto gpx-map-meta-label">爬升</div>
             <div class="col gpx-map-meta-value">
-              {{ Math.round(gpxMapTrack.elevationGain) }} m
+              {{ selectedRoute.elevation }}
             </div>
           </div>
           <div class="row justify-between gpx-map-meta">
-            <div class="col-auto gpx-map-meta-label">下降</div>
+            <div class="col-auto gpx-map-meta-label">預計時間</div>
             <div class="col gpx-map-meta-value">
-              {{
-                Math.round(
-                  gpxMapTrack.elevationLoss ? gpxMapTrack.elevationLoss : 0,
-                )
-              }}
-              m
-            </div>
-          </div>
-          <div class="row justify-between gpx-map-meta">
-            <div class="col-auto gpx-map-meta-label">坡度</div>
-            <div class="col gpx-map-meta-value">
-              {{
-                gpxMapTrack.averageGradePct != null
-                  ? `${gpxMapTrack.averageGradePct > 0 ? '+' : ''}${gpxMapTrack.averageGradePct}%`
-                  : 'N/A'
-              }}
-            </div>
-          </div>
-          <div class="row justify-between gpx-map-meta">
-            <div class="col-auto gpx-map-meta-label">時間</div>
-            <div class="col gpx-map-meta-value">
-              {{ formatNullableDuration(gpxMapTrack.durationMin) }}
-            </div>
-          </div>
-          <div
-            v-if="gpxMapTrack.source === 'uploaded-gpx'"
-            class="row justify-between gpx-map-meta"
-          >
-            <div class="col-auto gpx-map-meta-label">來源</div>
-            <div class="col gpx-map-meta-value">已上傳 GPX</div>
-          </div>
-          <div v-else class="row justify-between gpx-map-meta">
-            <div class="col-auto gpx-map-meta-label">來源</div>
-            <div class="col gpx-map-meta-value">
-              {{ gpxMapTrack.matchScope === 'peak' ? '百岳 GPX' : '步道 GPX' }}
+              {{ selectedRoute.time }}
             </div>
           </div>
           <!-- <div
@@ -1057,12 +1036,14 @@ import { api } from 'src/boot/axios';
 import MapPhase1 from 'src/components/MapPhase1.vue';
 import PreRouteDetailDialog from 'src/components/PreRouteDetailDialog.vue';
 import { useAiRouter } from 'src/composables/useAiRouter';
+import { cacheTilesForRoute, kaoshanDB } from 'src/composables/useMapTileCache';
 import {
   FITNESS_LABELS,
   GEAR_ITEMS,
   ROUTES,
   getRecommendations,
   type GearItem,
+  type HikingRoute,
   type RecommendedRoute,
   type UserProfile,
 } from 'src/data/hikingRoutes';
@@ -1125,6 +1106,10 @@ interface RouteCard {
   elevation: string;
   maxElevation: string;
   time: string;
+  trailShape: string;
+  surface: string;
+  bestSeason: string;
+  tags: string[];
   highlight: string;
   source?: RecommendedRoute;
 }
@@ -1355,7 +1340,9 @@ const lastRecommendationContext = ref<{
 } | null>(null);
 const demandSummary = ref<DemandSummary>({
   goal: '尚未建立',
+  days: '待確認',
   elevation: '待確認',
+  maxElevation: '待確認',
   fitness: '待確認',
   risk: '待確認',
   note: '完成 AI 對話後，這裡會整理本次登山需求與推薦路線。',
@@ -1421,11 +1408,6 @@ function toggleChatCollapsed() {
 function resetChatConversation() {
   stopVoiceCapture();
   voiceRecording.value = false;
-  voiceDraftSnapshot.value = '';
-  voiceDraftCommitted.value = false;
-  recordedVoiceBlob.value = null;
-  overlayFinal.value = '';
-  overlayLive.value = '';
 
   inputText.value = '';
   typing.value = false;
@@ -1579,7 +1561,7 @@ function publishRouteRecommendations(
     summary.elevation = `⬆ ${avg} m`;
   }
   const maxElevNums = normalizedRoutes
-    .map((r) => parseInt(r.maxElevation))
+    .map((r) => parseInt(r.maxElevation ?? ''))
     .filter((v) => !isNaN(v) && v > 0);
   if (maxElevNums.length > 0) {
     summary.maxElevation = `🏔 ${Math.max(...maxElevNums).toLocaleString()} m`;
@@ -1901,6 +1883,7 @@ function buildRouteSkeleton(route: RouteApiResponse): HikingRoute {
     minSlope,
     minDays: route.days,
     highlight: `推薦路線：${route.location}｜滑倒 ${route.risks.slip}、迷路 ${route.risks.lost}、偏離 ${route.risks.deviation}`,
+    requiresPermit: false,
     center: [baseLat, baseLng],
     polyline,
     start: polyline[0]!,
@@ -2417,11 +2400,49 @@ function toRouteCard(route: RecommendedRoute): RouteCard {
     difficulty: routeDifficulty(route),
     distance: route.distance,
     elevation: route.elevation,
-    maxElevation: route.maxElevation,
+    maxElevation: route.maxElevation ?? '',
     time: route.time,
+    trailShape: route.trailShape,
+    surface: getSurfaceLabel(route),
+    bestSeason: getBestSeasonLabel(route),
+    tags: getRouteTags(route),
     highlight: route.highlight,
     source: route,
   };
+}
+
+function getSurfaceLabel(route: RecommendedRoute): string {
+  if (route.risk === 'low') return '石板路、石階';
+  if (route.risk === 'mid') return '土石路、碎石';
+  return '山徑、碎石、陡坡';
+}
+
+function getBestSeasonLabel(route: RecommendedRoute): string {
+  const seasonMap: Record<string, string> = {
+    qixing: '全年',
+    baiyang: '全年',
+    hehuan: '4-11月',
+    hehuane: '5-10月',
+    yushan: '4-5月、9-11月',
+    xueshan: '5-10月',
+    dawu: '10-3月',
+    jiaming: '4-5月、9-11月',
+  };
+  return seasonMap[route.id] ?? '全年';
+}
+
+function getRouteTags(route: RecommendedRoute): string[] {
+  const tagMap: Record<string, string[]> = {
+    qixing: ['火山地形', '台北最高峰', '展望佳'],
+    baiyang: ['太魯閣', '隧道步道', '水濂洞'],
+    hehuan: ['高山步道', '雲海', '入門百岳'],
+    hehuane: ['稜線視野', '花季', '合歡群峰'],
+    yushan: ['百岳', '台灣最高峰', '需申請'],
+    xueshan: ['聖稜線', '高山縱走', '雪景'],
+    dawu: ['原始檜木林', '南台灣最高峰', '聖山'],
+    jiaming: ['高山湖泊', '山屋行程', '中央山脈'],
+  };
+  return tagMap[route.id] ?? [route.highlight];
 }
 
 function routeDifficulty(route: RecommendedRoute): 'easy' | 'medium' | 'hard' {
@@ -2440,8 +2461,6 @@ function selectRecommendedRoute(card: RouteCard) {
   if (!card.source) return;
   showPlanningTools();
   selectedRoute.value = card.source;
-  // 執行動作，不回傳結果
-  void loadRouteWeather(card.source);
   messages.value.push({
     id: Date.now(),
     role: 'bot',
@@ -2793,18 +2812,12 @@ function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-// ── Voice Overlay ────────────────────────────────
+// ── Voice Recording ────────────────────────────────
 const voiceSupported = ref(false);
 const voiceRecording = ref(false);
-const overlayLive = ref('');
-const overlayFinal = ref('');
-const recordedVoiceBlob = ref<Blob | null>(null);
-const voiceDraftSnapshot = ref('');
-const voiceDraftCommitted = ref(false);
 let mediaRecorder: MediaRecorder | null = null;
 let mediaStream: MediaStream | null = null;
 let mediaChunks: Blob[] = [];
-let speechSocket: WebSocket | null = null;
 
 onMounted(() => {
   voiceSupported.value = isVoiceInputSupported();
@@ -2831,16 +2844,6 @@ function getSupportedAudioMimeType() {
   return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
 }
 
-function getSpeechStreamUrl() {
-  const baseUrl =
-    api.defaults.baseURL ??
-    `${window.location.protocol}//${window.location.host}/api/v1`;
-  const url = new URL(baseUrl, window.location.href);
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  url.pathname = `${url.pathname.replace(/\/$/, '')}/chat/speech/stream`;
-  return url.toString();
-}
-
 function openVoiceRecording() {
   voiceSupported.value = isVoiceInputSupported();
   if (!voiceSupported.value) {
@@ -2853,11 +2856,6 @@ function openVoiceRecording() {
     });
     return;
   }
-  voiceDraftSnapshot.value = inputText.value;
-  voiceDraftCommitted.value = false;
-  overlayFinal.value = '';
-  overlayLive.value = '';
-  recordedVoiceBlob.value = null;
   voiceRecording.value = true;
   void startOverlayRecording();
 }
@@ -2871,7 +2869,7 @@ async function startOverlayRecording() {
       id: Date.now(),
       role: 'bot',
       type: 'text',
-      text: '目前瀏覽器不支援即時語音輸入，請改用文字輸入。',
+      text: '目前瀏覽器不支援語音輸入，請改用文字輸入。',
       time: nowTime(),
     });
     return;
@@ -2880,59 +2878,10 @@ async function startOverlayRecording() {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
-    speechSocket = new WebSocket(getSpeechStreamUrl());
-    speechSocket.binaryType = 'arraybuffer';
-
-    speechSocket.onopen = () => {
-      mediaRecorder?.start(250);
-    };
-
-    speechSocket.onmessage = (event) => {
-      const payload = JSON.parse(String(event.data)) as {
-        type: 'transcript' | 'error' | 'done';
-        text?: string;
-        is_final?: boolean;
-        message?: string;
-      };
-      if (payload.type === 'error') {
-        overlayLive.value = '';
-        return;
-      }
-      if (payload.type !== 'transcript' || !payload.text) return;
-
-      if (payload.is_final) {
-        overlayFinal.value =
-          `${overlayFinal.value}${payload.text} `.trimStart();
-        overlayLive.value = '';
-      } else {
-        overlayLive.value = payload.text;
-      }
-      inputText.value = composeVoiceDraft(
-        `${overlayFinal.value}${overlayLive.value}`,
-      );
-      voiceDraftCommitted.value = Boolean(inputText.value.trim());
-    };
-
-    speechSocket.onerror = () => {
-      overlayLive.value = '';
-      stopVoiceCapture();
-      voiceRecording.value = false;
-    };
-
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size <= 0) return;
-      mediaChunks.push(event.data);
-      if (speechSocket?.readyState !== WebSocket.OPEN) return;
-      void event.data.arrayBuffer().then((buffer) => {
-        if (speechSocket?.readyState === WebSocket.OPEN) {
-          speechSocket.send(buffer);
-        }
-      });
+      if (event.data.size > 0) mediaChunks.push(event.data);
     };
-    mediaRecorder.onstop = () => {
-      mediaStream?.getTracks().forEach((track) => track.stop());
-      mediaStream = null;
-    };
+    mediaRecorder.start(250);
   } catch (e) {
     console.warn('MediaRecorder error:', e);
     voiceRecording.value = false;
@@ -2946,49 +2895,116 @@ async function startOverlayRecording() {
   }
 }
 
-function stopVoiceRecording() {
-  if (speechSocket?.readyState === WebSocket.OPEN) {
-    speechSocket.send(JSON.stringify({ type: 'stop' }));
+async function stopVoiceRecording() {
+  if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+    voiceRecording.value = false;
+    return;
   }
-  const transcript = `${overlayFinal.value}${overlayLive.value}`.trim();
-  const draft = composeVoiceDraft(transcript);
-  inputText.value = draft;
-  voiceDraftCommitted.value = Boolean(draft.trim());
-  stopVoiceCapture();
+
+  // 在停止前先抓目前的對話歷史，避免計入新語音訊息
+  const currentMessages = buildChatRequestMessages();
+
+  const blobPromise = new Promise<Blob>((resolve) => {
+    mediaRecorder!.onstop = () => {
+      const mimeType = mediaChunks[0]?.type || 'audio/webm';
+      resolve(new Blob(mediaChunks, { type: mimeType }));
+      mediaStream?.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+    };
+  });
+
+  mediaRecorder.stop();
   voiceRecording.value = false;
-  if (draft.trim()) {
-    void sendUserMsg(draft);
-  }
+
+  const blob = await blobPromise;
+  if (blob.size === 0) return;
+
+  await sendVoiceBlob(blob, currentMessages);
 }
 
 function cancelVoiceRecording() {
   stopVoiceCapture();
-  inputText.value = voiceDraftSnapshot.value;
   voiceRecording.value = false;
 }
 
-function composeVoiceDraft(transcript: string) {
-  const prefix = voiceDraftSnapshot.value.trim();
-  const content = transcript.trim();
-  if (!prefix) return content;
-  if (!content) return prefix;
-  return `${prefix} ${content}`.trim();
-}
-
 function stopVoiceCapture() {
-  if (
-    speechSocket &&
-    (speechSocket.readyState === WebSocket.CONNECTING ||
-      speechSocket.readyState === WebSocket.OPEN)
-  ) {
-    speechSocket.close();
-  }
-  speechSocket = null;
   if (mediaRecorder?.state === 'recording') {
     mediaRecorder.stop();
   }
   mediaStream?.getTracks().forEach((track) => track.stop());
   mediaStream = null;
+}
+
+async function sendVoiceBlob(blob: Blob, currentMessages: ApiChatMessage[]) {
+  quickReplies.value = [];
+  typing.value = true;
+
+  const formData = new FormData();
+  formData.append('audio', blob, 'recording.webm');
+  formData.append('messages', JSON.stringify(currentMessages));
+  formData.append('history_context', historyContext.value);
+
+  let transcribedText = '';
+  let replyText = '語音辨識失敗，請再試一次。';
+  let ready = false;
+  let extractedProfile: Record<string, unknown> | null | undefined = null;
+
+  try {
+    const { data } = await api.post<{
+      transcribed_text: string;
+      reply: string;
+      ready: boolean;
+      extracted_profile?: Record<string, unknown> | null;
+    }>('/ai/voice', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    transcribedText = data.transcribed_text;
+    replyText = data.reply;
+    ready = data.ready;
+    extractedProfile = data.extracted_profile;
+  } catch (err) {
+    console.error('[Voice API 失敗]', err);
+    typing.value = false;
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'text',
+      text: '語音辨識失敗，請再試一次。',
+      time: nowTime(),
+    });
+    return;
+  }
+
+  if (transcribedText.trim()) {
+    messages.value.push({
+      id: Date.now(),
+      role: 'user',
+      type: 'text',
+      text: transcribedText,
+      time: nowTime(),
+    });
+  }
+
+  typing.value = false;
+  messages.value.push({
+    id: Date.now() + 1,
+    role: 'bot',
+    type: 'text',
+    text: replyText,
+    time: nowTime(),
+  });
+
+  const combinedText = `${historyContext.value}\n${transcribedText}`.trim();
+
+  if (ready) {
+    const aiRouteIds = Array.isArray(extractedProfile?.recommendedRouteIds)
+      ? (extractedProfile!.recommendedRouteIds as string[])
+      : undefined;
+    const profile = extractedProfile
+      ? normalizeExtractedProfile(extractedProfile, combinedText)
+      : fallbackProfileFromText(combinedText, profileForm.value?.fitness ?? 3);
+    await recommendRoutesFromProfile(profile, combinedText, aiRouteIds);
+  }
 }
 
 function notifyContact(c: { name: string }) {
@@ -3205,7 +3221,13 @@ function toggleGpxOverlay() {
 }
 
 function openMapGpxImport() {
-  mapGpxInput.value?.click();
+  const input = mapGpxInput.value;
+  if (!input) return;
+  if (typeof (input as HTMLInputElement & { showPicker?: () => void }).showPicker === 'function') {
+    (input as HTMLInputElement & { showPicker: () => void }).showPicker();
+    return;
+  }
+  input.click();
 }
 
 function formatDuration(totalMinutes: number) {
@@ -3313,11 +3335,11 @@ function buildPolylineFallbackTrack(route: RecommendedRoute): GpxMapTrack {
 }
 
 const gpxMapTrack = computed<GpxMapTrack | null>(() => {
-  if (uploadedGpxTrack.value) return uploadedGpxTrack.value;
   if (selectedDbGpxTrack.value)
     return buildDatabaseTrack(selectedDbGpxTrack.value);
   if (selectedRoute.value?.polyline?.length)
     return buildPolylineFallbackTrack(selectedRoute.value);
+  if (uploadedGpxTrack.value) return uploadedGpxTrack.value;
   return null;
 });
 
@@ -3350,8 +3372,19 @@ async function loadRouteGpxTracks(route: RecommendedRoute | null) {
 
 watch(
   selectedRoute,
-  (route) => {
-    void loadRouteGpxTracks(route);
+  async (route) => {
+    await loadRouteGpxTracks(route);
+    if (!route) {
+      gearAssessment.value = null;
+      return;
+    }
+
+    await loadRouteWeather(route);
+    if (canAssessGear.value) {
+      await assessGearList();
+    } else {
+      gearAssessment.value = null;
+    }
   },
   { immediate: true },
 );
@@ -4004,7 +4037,12 @@ async function loadRouteWeather(route: RecommendedRoute) {
 function toggleWeatherMode() {
   weatherMode.value = weatherMode.value === 'mock' ? 'gemini' : 'mock';
   if (selectedRoute.value) {
-    void loadRouteWeather(selectedRoute.value);
+    void (async () => {
+      await loadRouteWeather(selectedRoute.value);
+      if (canAssessGear.value) {
+        await assessGearList();
+      }
+    })();
   }
 }
 
@@ -4017,12 +4055,16 @@ function escapeXml(value: string) {
     .replace(/'/g, '&apos;');
 }
 
-function buildGpxXml(route: RecommendedRoute) {
-  const trackPoints = route.polyline
+function buildGpxXml(
+  routeName: string,
+  trackPoints: [number, number][],
+  desc: string,
+) {
+  const gpxPoints = trackPoints
     .map(
       ([lat, lon], index) => `
         <trkpt lat="${lat}" lon="${lon}">
-          <name>${escapeXml(route.name)}-${index + 1}</name>
+          <name>${escapeXml(routeName)}-${index + 1}</name>
         </trkpt>`,
     )
     .join('');
@@ -4030,15 +4072,289 @@ function buildGpxXml(route: RecommendedRoute) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="KaoShan" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
-    <name>${escapeXml(route.name)} GPX</name>
-    <desc>${escapeXml(route.highlight)}</desc>
+    <name>${escapeXml(routeName)} GPX</name>
+    <desc>${escapeXml(desc)}</desc>
   </metadata>
   <trk>
-    <name>${escapeXml(route.name)} GPX</name>
-    <trkseg>${trackPoints}
+    <name>${escapeXml(routeName)} GPX</name>
+    <trkseg>${gpxPoints}
     </trkseg>
   </trk>
   </gpx>`;
+}
+
+function sanitizeFileName(value: string) {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function downloadCurrentGpx() {
+  const track = gpxMapTrack.value;
+  if (!track || !selectedRoute.value) return;
+
+  const xml = buildGpxXml(
+    track.name || selectedRoute.value.name,
+    track.points,
+    selectedRoute.value.highlight,
+  );
+  const blob = new Blob([xml], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${sanitizeFileName(selectedRoute.value.name || selectedRoute.value.id)}.gpx`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function buildTileManifest(trackPoints: [number, number][]) {
+  if (!trackPoints.length) {
+    return {
+      source: 'browser-indexeddb',
+      zoom_range: [10, 15],
+      point_count: 0,
+      bbox: null,
+      center: null,
+      tile_keys: [],
+    };
+  }
+
+  const lats = trackPoints.map(([lat]) => lat);
+  const lons = trackPoints.map(([, lon]) => lon);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  const bbox = { minLat, maxLat, minLon, maxLon };
+  const center = [
+    Math.round(((minLat + maxLat) / 2) * 1e6) / 1e6,
+    Math.round(((minLon + maxLon) / 2) * 1e6) / 1e6,
+  ] as [number, number];
+
+  const lon2tile = (lon: number, z: number) =>
+    Math.floor(((lon + 180) / 360) * 2 ** z);
+  const lat2tile = (lat: number, z: number) => {
+    const rad = (lat * Math.PI) / 180;
+    return Math.floor(
+      ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) *
+        2 ** z,
+    );
+  };
+
+  const keys: string[] = [];
+  for (let z = 10; z <= 15; z += 1) {
+    const xMin = lon2tile(minLon, z);
+    const xMax = lon2tile(maxLon, z);
+    const yMin = lat2tile(maxLat, z);
+    const yMax = lat2tile(minLat, z);
+    for (let x = xMin; x <= xMax; x += 1) {
+      for (let y = yMin; y <= yMax; y += 1) {
+        keys.push(`${z}/${x}/${y}`);
+        if (keys.length >= 1000) {
+          return {
+            source: 'browser-indexeddb',
+            zoom_range: [10, 15],
+            point_count: trackPoints.length,
+            bbox,
+            center,
+            tile_keys: keys,
+            truncated: true,
+          };
+        }
+      }
+    }
+  }
+
+  return {
+    source: 'browser-indexeddb',
+    zoom_range: [10, 15],
+    point_count: trackPoints.length,
+    bbox,
+    center,
+    tile_keys: keys,
+    truncated: false,
+  };
+}
+
+type OfflineZipEntry = {
+  path: string;
+  data: Uint8Array;
+  date?: Date;
+};
+
+const textEncoder = new TextEncoder();
+
+function toUtf8Bytes(value: string) {
+  return textEncoder.encode(value);
+}
+
+function concatPath(...segments: string[]) {
+  return segments
+    .flatMap((segment) => segment.split('/'))
+    .filter(Boolean)
+    .join('/');
+}
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let c = i;
+    for (let j = 0; j < 8; j += 1) {
+      c = (c & 1) !== 0 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes: Uint8Array) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i += 1) {
+    crc = CRC32_TABLE[(crc ^ bytes[i]!) & 0xff]! ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function dosDateTime(date: Date) {
+  const year = Math.max(1980, date.getFullYear());
+  const dosTime =
+    (date.getHours() << 11) | (date.getMinutes() << 5) | (date.getSeconds() >> 1);
+  const dosDate =
+    ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+  return { dosTime, dosDate };
+}
+
+function buildZipLocalHeader(
+  nameBytes: Uint8Array,
+  crc: number,
+  size: number,
+  date: Date,
+) {
+  const header = new Uint8Array(30 + nameBytes.length);
+  const view = new DataView(header.buffer);
+  const { dosTime, dosDate } = dosDateTime(date);
+  view.setUint32(0, 0x04034b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, 0, true);
+  view.setUint16(10, dosTime, true);
+  view.setUint16(12, dosDate, true);
+  view.setUint32(14, crc, true);
+  view.setUint32(18, size, true);
+  view.setUint32(22, size, true);
+  view.setUint16(26, nameBytes.length, true);
+  view.setUint16(28, 0, true);
+  header.set(nameBytes, 30);
+  return header;
+}
+
+function buildZipCentralHeader(
+  nameBytes: Uint8Array,
+  crc: number,
+  size: number,
+  date: Date,
+  offset: number,
+) {
+  const header = new Uint8Array(46 + nameBytes.length);
+  const view = new DataView(header.buffer);
+  const { dosTime, dosDate } = dosDateTime(date);
+  view.setUint32(0, 0x02014b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(6, 20, true);
+  view.setUint16(8, 0, true);
+  view.setUint16(10, 0, true);
+  view.setUint16(12, dosTime, true);
+  view.setUint16(14, dosDate, true);
+  view.setUint32(16, crc, true);
+  view.setUint32(20, size, true);
+  view.setUint32(24, size, true);
+  view.setUint16(28, nameBytes.length, true);
+  view.setUint16(30, 0, true);
+  view.setUint16(32, 0, true);
+  view.setUint16(34, 0, true);
+  view.setUint16(36, 0, true);
+  view.setUint32(38, 0, true);
+  view.setUint32(42, offset, true);
+  header.set(nameBytes, 46);
+  return header;
+}
+
+function buildZipEndRecord(entryCount: number, centralSize: number, centralOffset: number) {
+  const footer = new Uint8Array(22);
+  const view = new DataView(footer.buffer);
+  view.setUint32(0, 0x06054b50, true);
+  view.setUint16(4, 0, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, entryCount, true);
+  view.setUint16(10, entryCount, true);
+  view.setUint32(12, centralSize, true);
+  view.setUint32(16, centralOffset, true);
+  view.setUint16(20, 0, true);
+  return footer;
+}
+
+async function buildZipBlob(entries: OfflineZipEntry[]) {
+  const parts: Uint8Array[] = [];
+  const centralParts: Uint8Array[] = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const normalizedPath = concatPath(entry.path);
+    const nameBytes = toUtf8Bytes(normalizedPath);
+    const data = entry.data;
+    const date = entry.date ?? new Date();
+    const crc = crc32(data);
+    const localHeader = buildZipLocalHeader(nameBytes, crc, data.length, date);
+    const centralHeader = buildZipCentralHeader(
+      nameBytes,
+      crc,
+      data.length,
+      date,
+      offset,
+    );
+
+    parts.push(localHeader, data);
+    centralParts.push(centralHeader);
+    offset += localHeader.length + data.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const endRecord = buildZipEndRecord(entries.length, centralSize, offset);
+
+  return new Blob([...parts, ...centralParts, endRecord], {
+    type: 'application/zip',
+  });
+}
+
+async function collectTileEntries(tileKeys: string[]) {
+  if (!tileKeys.length) {
+    return {
+      entries: [] as OfflineZipEntry[],
+      missingKeys: [] as string[],
+    };
+  }
+
+  const tileRecords = await kaoshanDB.tiles.bulkGet(tileKeys);
+  const entries: OfflineZipEntry[] = [];
+  const missingKeys: string[] = [];
+
+  for (let index = 0; index < tileKeys.length; index += 1) {
+    const key = tileKeys[index]!;
+    const record = tileRecords[index];
+    if (!record?.blob) {
+      missingKeys.push(key);
+      continue;
+    }
+    entries.push({
+      path: `tiles/${key}.png`,
+      data: new Uint8Array(await record.blob.arrayBuffer()),
+    });
+  }
+
+  return { entries, missingKeys };
 }
 
 function encodePdfUcs2(text: string) {
@@ -4144,20 +4460,18 @@ async function downloadOfflinePackage() {
   if (!selectedRoute.value) return;
   offlinePackageDownloading.value = true;
   try {
-    const userId = auth.profile?.userId ?? 'guest';
-    let meta: OfflinePackageMeta | null = null;
+    const track = gpxMapTrack.value;
+    const routePoints = track?.points?.length
+      ? track.points
+      : (selectedRoute.value.polyline as [number, number][]);
+    const tilePoints = routePoints.map(([lat, lon]) => [lon, lat] as [number, number]);
+    await cacheTilesForRoute(tilePoints);
 
-    try {
-      const { data } = await api.post<OfflinePackageMeta>('/offline/package', {
-        route_id: selectedRoute.value.id,
-        user_id: userId,
-      });
-      meta = data;
-    } catch (_) {
-      meta = null;
-    }
-
-    const gpxXml = buildGpxXml(selectedRoute.value);
+    const gpxXml = buildGpxXml(
+      selectedRoute.value.name,
+      routePoints,
+      selectedRoute.value.highlight,
+    );
     const routeData = {
       id: selectedRoute.value.id,
       name: selectedRoute.value.name,
@@ -4180,7 +4494,9 @@ async function downloadOfflinePackage() {
       source: lastDetectedGearIds.value.has(item.id) ? 'ai-detect' : 'manual',
     }));
     const packagePayload = {
-      meta,
+      route_id: selectedRoute.value.id,
+      user_id: auth.profile?.userId ?? 'guest',
+      created_at: new Date().toISOString(),
       route: routeData,
       gpx: {
         file_name: `${selectedRoute.value.id}.gpx`,
@@ -4204,14 +4520,78 @@ async function downloadOfflinePackage() {
         reminder:
           '離線狀態請優先報平安、保留電量、回到可通訊位置後再送出位置。',
       },
-      created_at: new Date().toISOString(),
+      tiles_manifest: buildTileManifest(routePoints),
     };
 
-    const pdfBlob = buildOfflinePackagePdf(selectedRoute.value, packagePayload);
-    const url = URL.createObjectURL(pdfBlob);
+    const tileManifest = packagePayload.tiles_manifest as ReturnType<typeof buildTileManifest>;
+    const { entries: tileEntries, missingKeys } = await collectTileEntries(
+      tileManifest.tile_keys,
+    );
+    const baseEntries: OfflineZipEntry[] = [
+      {
+        path: 'manifest.json',
+        data: toUtf8Bytes(
+          JSON.stringify(
+            {
+              bundle_version: '1.0',
+              route_id: packagePayload.route_id,
+              user_id: packagePayload.user_id,
+              created_at: packagePayload.created_at,
+              files: [
+                'manifest.json',
+                'route.json',
+                `gpx/${selectedRoute.value.id}.gpx`,
+                'gear.json',
+                'ai_risk_assessment.json',
+                'emergency.json',
+                'tiles_manifest.json',
+              ],
+              notes: [
+                'GPX 與路線資料會隨包輸出。',
+                '地圖圖磚會一併匯出為 tiles/*.png。',
+              ],
+            },
+            null,
+            2,
+          ),
+        ),
+      },
+      { path: 'route.json', data: toUtf8Bytes(JSON.stringify(packagePayload.route, null, 2)) },
+      {
+        path: `gpx/${selectedRoute.value.id}.gpx`,
+        data: toUtf8Bytes(packagePayload.gpx.xml),
+      },
+      { path: 'gear.json', data: toUtf8Bytes(JSON.stringify(packagePayload.gear, null, 2)) },
+      {
+        path: 'ai_risk_assessment.json',
+        data: toUtf8Bytes(JSON.stringify(packagePayload.ai_risk_assessment, null, 2)),
+      },
+      {
+        path: 'emergency.json',
+        data: toUtf8Bytes(JSON.stringify(packagePayload.emergency, null, 2)),
+      },
+      {
+        path: 'tiles_manifest.json',
+        data: toUtf8Bytes(
+          JSON.stringify(
+            {
+              ...tileManifest,
+              cached_tile_count: tileEntries.length,
+              missing_tile_count: missingKeys.length,
+              missing_tile_keys: missingKeys,
+              included_tile_count: tileEntries.length,
+            },
+            null,
+            2,
+          ),
+        ),
+      },
+    ];
+    const zipBlob = await buildZipBlob([...baseEntries, ...tileEntries]);
+    const url = URL.createObjectURL(zipBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `kaoshan-offline-${selectedRoute.value.id}.pdf`;
+    link.download = `kaoshan-offline-${selectedRoute.value.id}.zip`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
   } finally {
@@ -6028,7 +6408,7 @@ async function downloadOfflinePackage() {
     linear-gradient(135deg, rgba(6, 199, 85, 0.1), rgba(14, 165, 233, 0.08)),
     var(--bg-card);
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
