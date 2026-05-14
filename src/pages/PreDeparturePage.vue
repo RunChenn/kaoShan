@@ -158,7 +158,7 @@
                     <div class="route-card-name">{{ cardOf(m).name }}</div>
                     <div class="route-card-region">{{ cardOf(m).region }}</div>
                   </div>
-                  <span
+                  <!-- <span
                     :class="[
                       'route-source-badge',
                       cardOf(m).routeKind === 'peak'
@@ -186,7 +186,7 @@
                           ? '百岳'
                           : '步道'
                     }}
-                  </span>
+                  </span> -->
                   <span
                     :class="[
                       'route-diff-badge',
@@ -428,7 +428,7 @@
                 hidden
               />
             </label>
-            <button
+            <!-- <button
               v-if="voiceSupported"
               class="input-icon-btn"
               :class="{ 'voice-btn-active': voiceRecording }"
@@ -438,7 +438,7 @@
               "
             >
               {{ voiceRecording ? '🔴' : '🎙' }}
-            </button>
+            </button> -->
             <input
               class="line-input"
               :placeholder="
@@ -528,7 +528,7 @@
                   {{ card.region }}
                 </div>
               </div>
-              <span
+              <!-- <span
                 :class="[
                   'route-source-badge',
                   card.routeKind === 'peak' ? 'source-peak' : 'source-trail',
@@ -554,7 +554,7 @@
                       ? '百岳'
                       : '步道'
                 }}
-              </span>
+              </span> -->
               <span :class="['route-diff-badge', `diff-${card.difficulty}`]">
                 {{
                   { easy: '入門', medium: '中級', hard: '進階' }[
@@ -857,7 +857,7 @@
         </div>
       </div>
 
-      <div v-if="selectedRoute" class="offline-download-card">
+      <!-- <div v-if="selectedRoute" class="offline-download-card">
         <div class="offline-download-title">離線下載包</div>
         <div class="offline-download-desc">
           會打包路線資料、正式 GPX、裝備清單、AI 風險評估與緊急求救資料，並先快取地圖圖磚。
@@ -872,7 +872,7 @@
             offlinePackageDownloading ? '建立中...' : '離線下載包'
           }}</span>
         </button>
-      </div>
+      </div> -->
     </aside>
 
     <!-- Map area — only shown after route is selected -->
@@ -1361,7 +1361,8 @@ const messages = ref<Message[]>([
     role: 'bot',
     type: 'text',
     time: nowTime(),
-    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
+    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
+    // text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
   },
 ]);
 
@@ -1372,7 +1373,8 @@ function createInitialMessages(): Message[] {
       role: 'bot',
       type: 'text',
       time: nowTime(),
-      text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
+      text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
+      // text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
     },
   ];
 }
@@ -2685,6 +2687,7 @@ async function onFileUpload(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
   (e.target as HTMLInputElement).value = '';
+  const isGpxUpload = file.name.endsWith('.gpx');
 
   // Reading message
   messages.value.push({
@@ -2699,7 +2702,7 @@ async function onFileUpload(e: Event) {
   let record: ParsedHistory | null = null;
   try {
     const text = await file.text();
-    if (file.name.endsWith('.gpx')) {
+    if (isGpxUpload) {
       const parsed = parseGpxTrack(text);
       record = parsed.history;
       uploadedGpxTrack.value = parsed.track;
@@ -2798,6 +2801,10 @@ async function onFileUpload(e: Event) {
     text: analysisReply,
     time: nowTime(),
   });
+
+  if (isGpxUpload) {
+    return;
+  }
 
   await recommendRoutesFromProfile(
     fallbackProfileFromText(
@@ -3223,7 +3230,10 @@ function toggleGpxOverlay() {
 function openMapGpxImport() {
   const input = mapGpxInput.value;
   if (!input) return;
-  if (typeof (input as HTMLInputElement & { showPicker?: () => void }).showPicker === 'function') {
+  if (
+    typeof (input as HTMLInputElement & { showPicker?: () => void })
+      .showPicker === 'function'
+  ) {
     (input as HTMLInputElement & { showPicker: () => void }).showPicker();
     return;
   }
@@ -3335,11 +3345,11 @@ function buildPolylineFallbackTrack(route: RecommendedRoute): GpxMapTrack {
 }
 
 const gpxMapTrack = computed<GpxMapTrack | null>(() => {
+  if (uploadedGpxTrack.value) return uploadedGpxTrack.value;
   if (selectedDbGpxTrack.value)
     return buildDatabaseTrack(selectedDbGpxTrack.value);
   if (selectedRoute.value?.polyline?.length)
     return buildPolylineFallbackTrack(selectedRoute.value);
-  if (uploadedGpxTrack.value) return uploadedGpxTrack.value;
   return null;
 });
 
@@ -3373,6 +3383,7 @@ async function loadRouteGpxTracks(route: RecommendedRoute | null) {
 watch(
   selectedRoute,
   async (route) => {
+    uploadedGpxTrack.value = null;
     await loadRouteGpxTracks(route);
     if (!route) {
       gearAssessment.value = null;
@@ -4221,7 +4232,9 @@ function crc32(bytes: Uint8Array) {
 function dosDateTime(date: Date) {
   const year = Math.max(1980, date.getFullYear());
   const dosTime =
-    (date.getHours() << 11) | (date.getMinutes() << 5) | (date.getSeconds() >> 1);
+    (date.getHours() << 11) |
+    (date.getMinutes() << 5) |
+    (date.getSeconds() >> 1);
   const dosDate =
     ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
   return { dosTime, dosDate };
@@ -4282,7 +4295,11 @@ function buildZipCentralHeader(
   return header;
 }
 
-function buildZipEndRecord(entryCount: number, centralSize: number, centralOffset: number) {
+function buildZipEndRecord(
+  entryCount: number,
+  centralSize: number,
+  centralOffset: number,
+) {
   const footer = new Uint8Array(22);
   const view = new DataView(footer.buffer);
   view.setUint32(0, 0x06054b50, true);
@@ -4464,7 +4481,9 @@ async function downloadOfflinePackage() {
     const routePoints = track?.points?.length
       ? track.points
       : (selectedRoute.value.polyline as [number, number][]);
-    const tilePoints = routePoints.map(([lat, lon]) => [lon, lat] as [number, number]);
+    const tilePoints = routePoints.map(
+      ([lat, lon]) => [lon, lat] as [number, number],
+    );
     await cacheTilesForRoute(tilePoints);
 
     const gpxXml = buildGpxXml(
@@ -4523,7 +4542,9 @@ async function downloadOfflinePackage() {
       tiles_manifest: buildTileManifest(routePoints),
     };
 
-    const tileManifest = packagePayload.tiles_manifest as ReturnType<typeof buildTileManifest>;
+    const tileManifest = packagePayload.tiles_manifest as ReturnType<
+      typeof buildTileManifest
+    >;
     const { entries: tileEntries, missingKeys } = await collectTileEntries(
       tileManifest.tile_keys,
     );
@@ -4556,15 +4577,23 @@ async function downloadOfflinePackage() {
           ),
         ),
       },
-      { path: 'route.json', data: toUtf8Bytes(JSON.stringify(packagePayload.route, null, 2)) },
+      {
+        path: 'route.json',
+        data: toUtf8Bytes(JSON.stringify(packagePayload.route, null, 2)),
+      },
       {
         path: `gpx/${selectedRoute.value.id}.gpx`,
         data: toUtf8Bytes(packagePayload.gpx.xml),
       },
-      { path: 'gear.json', data: toUtf8Bytes(JSON.stringify(packagePayload.gear, null, 2)) },
+      {
+        path: 'gear.json',
+        data: toUtf8Bytes(JSON.stringify(packagePayload.gear, null, 2)),
+      },
       {
         path: 'ai_risk_assessment.json',
-        data: toUtf8Bytes(JSON.stringify(packagePayload.ai_risk_assessment, null, 2)),
+        data: toUtf8Bytes(
+          JSON.stringify(packagePayload.ai_risk_assessment, null, 2),
+        ),
       },
       {
         path: 'emergency.json',
