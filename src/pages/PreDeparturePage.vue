@@ -21,50 +21,6 @@
     </div>
   </Teleport>
 
-  <!-- Voice Overlay -->
-  <Teleport to="body">
-    <div
-      v-if="voiceOverlay"
-      class="voice-overlay"
-      @click.self="closeVoiceOverlay"
-    >
-      <div class="voice-overlay-panel">
-        <!-- Recording phase -->
-        <template v-if="overlayPhase === 'recording'">
-          <div class="voice-overlay-title">語音輸入</div>
-          <div class="voice-wave-lg">
-            <div v-for="i in 5" :key="i" class="voice-bar-lg" />
-          </div>
-          <div class="voice-overlay-live">
-            <span class="voice-final-text">{{ overlayFinal }}</span>
-            <span class="voice-interim-text">{{ overlayLive }}</span>
-            <span v-if="!overlayFinal && !overlayLive" class="voice-placeholder"
-              >請說話...</span
-            >
-          </div>
-          <button class="voice-stop-btn" @click="stopOverlayRecording">
-            停止錄音
-          </button>
-          <button class="voice-cancel-link" @click="closeVoiceOverlay">
-            取消
-          </button>
-        </template>
-
-        <!-- Sending phase -->
-        <template v-else>
-          <div class="voice-overlay-title">整理文字中...</div>
-          <div class="voice-wave-lg">
-            <div v-for="i in 5" :key="i" class="voice-bar-lg" />
-          </div>
-          <div class="voice-overlay-live">
-            <span class="voice-final-text">{{ overlayFinal }}</span>
-            <span class="voice-placeholder">正在把語音文字放進輸入框...</span>
-          </div>
-        </template>
-      </div>
-    </div>
-  </Teleport>
-
   <div class="p1-grid" :class="{ 'has-map': !!selectedRoute }">
     <!-- ── Sidebar ── -->
     <aside class="p1-sidebar">
@@ -94,13 +50,13 @@
             <button
               v-if="showAiModeToggle"
               class="chat-small-btn ai-mode-toggle"
-              :class="{ 'ai-mode-openai': aiChatMode === 'openai' }"
+              :class="{ 'ai-mode-gemini': aiChatMode === 'gemini' }"
               :title="
-                aiChatMode === 'mock' ? '目前使用假資料' : '目前使用 OpenAI'
+                aiChatMode === 'mock' ? '目前使用假資料' : '目前使用 Gemini'
               "
               @click="toggleAiChatMode"
             >
-              {{ aiChatMode === 'mock' ? '假資料' : 'OpenAI' }}
+              {{ aiChatMode === 'mock' ? '假資料' : 'Gemini' }}
             </button>
             <button
               v-if="recommendationsVisible && !chatCollapsed"
@@ -211,6 +167,25 @@
                     ]"
                   >
                     {{ cardOf(m).routeKind === 'peak' ? '百岳' : '步道' }}
+                  </span>
+                  <span
+                    v-if="cardOf(m).source?.category"
+                    :class="[
+                      'route-category-badge',
+                      cardOf(m).source?.category === 'small_peak'
+                        ? 'category-small-peak'
+                        : cardOf(m).source?.category === 'peak'
+                          ? 'category-peak'
+                          : 'category-trail',
+                    ]"
+                  >
+                    {{
+                      cardOf(m).source?.category === 'small_peak'
+                        ? '小百岳'
+                        : cardOf(m).source?.category === 'peak'
+                          ? '百岳'
+                          : '步道'
+                    }}
                   </span>
                   <span
                     :class="[
@@ -431,41 +406,59 @@
           </div>
         </div> -->
 
-        <div v-if="!chatCollapsed" class="line-input-bar">
-          <label class="input-icon-btn" title="上傳 GPX / JSON 紀錄">
-            📎
+        <div v-if="!chatCollapsed" class="line-input-wrap">
+          <!-- 錄音中狀態列 -->
+          <div v-if="voiceRecording" class="voice-status-bar">
+            <span class="voice-status-waves">
+              <span v-for="i in 4" :key="i" class="voice-status-dot" />
+            </span>
+            <span class="voice-status-label">錄音中</span>
+            <button class="voice-status-cancel" @click="cancelVoiceRecording">
+              取消
+            </button>
+          </div>
+
+          <div class="line-input-bar">
+            <label class="input-icon-btn" title="上傳 GPX / JSON 紀錄">
+              📎
+              <input
+                type="file"
+                accept=".gpx,.json"
+                @change="onFileUpload"
+                hidden
+              />
+            </label>
+            <button
+              v-if="voiceSupported"
+              class="input-icon-btn"
+              :class="{ 'voice-btn-active': voiceRecording }"
+              :title="voiceRecording ? '停止錄音' : '語音輸入'"
+              @click="
+                voiceRecording ? stopVoiceRecording() : openVoiceRecording()
+              "
+            >
+              {{ voiceRecording ? '🔴' : '🎙' }}
+            </button>
             <input
-              type="file"
-              accept=".gpx,.json"
-              @change="onFileUpload"
-              hidden
+              class="line-input"
+              :placeholder="
+                voiceRecording ? '請說話...' : '傳訊息給 KaoShan...'
+              "
+              v-model="inputText"
+              @compositionstart="isComposing = true"
+              @compositionend="isComposing = false"
+              @keydown.enter.exact.prevent="
+                !isComposing && sendUserMsg(inputText)
+              "
             />
-          </label>
-          <button
-            v-if="voiceSupported"
-            class="input-icon-btn"
-            title="語音輸入"
-            @click="openVoiceOverlay"
-          >
-            🎙
-          </button>
-          <input
-            class="line-input"
-            placeholder="傳訊息給 KaoShan..."
-            v-model="inputText"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-            @keydown.enter.exact.prevent="
-              !isComposing && sendUserMsg(inputText)
-            "
-          />
-          <button
-            class="line-send-btn"
-            :class="{ active: inputText.trim() }"
-            @click.prevent="sendUserMsg(inputText)"
-          >
-            發送
-          </button>
+            <button
+              class="line-send-btn"
+              :class="{ active: inputText.trim() }"
+              @click.prevent="sendUserMsg(inputText)"
+            >
+              發送
+            </button>
+          </div>
         </div>
       </div>
 
@@ -534,6 +527,25 @@
                 ]"
               >
                 {{ card.routeKind === 'peak' ? '百岳' : '步道' }}
+              </span>
+              <span
+                v-if="card.source?.category"
+                :class="[
+                  'route-category-badge',
+                  card.source.category === 'small_peak'
+                    ? 'category-small-peak'
+                    : card.source.category === 'peak'
+                      ? 'category-peak'
+                      : 'category-trail',
+                ]"
+              >
+                {{
+                  card.source.category === 'small_peak'
+                    ? '小百岳'
+                    : card.source.category === 'peak'
+                      ? '百岳'
+                      : '步道'
+                }}
               </span>
               <span :class="['route-diff-badge', `diff-${card.difficulty}`]">
                 {{
@@ -791,20 +803,20 @@
           <button
             v-if="showWeatherModeToggle"
             class="chat-small-btn weather-mode-toggle"
-            :class="{ 'ai-mode-openai': weatherMode === 'openai' }"
+            :class="{ 'ai-mode-gemini': weatherMode === 'gemini' }"
             :title="
-              weatherMode === 'mock' ? '目前使用假資料' : '目前使用 OpenAI'
+              weatherMode === 'mock' ? '目前使用假資料' : '目前使用 Gemini'
             "
             @click="toggleWeatherMode"
           >
-            {{ weatherMode === 'mock' ? '假資料' : 'OpenAI' }}
+            {{ weatherMode === 'mock' ? '假資料' : 'Gemini' }}
           </button>
         </div>
         <div v-if="weatherLoading" class="weather-loading">
           {{
             weatherMode === 'mock'
               ? '正在產生本地假天氣建議...'
-              : '正在取得中央氣象署資料並呼叫 OpenAI...'
+              : '正在取得中央氣象署資料並呼叫 Gemini...'
           }}
         </div>
         <div class="weather-cols">
@@ -822,6 +834,7 @@
         </div>
         <div v-if="routeWeather?.source" class="weather-source">
           來源：{{ routeWeather.source }}
+          <span v-if="weatherModelDisplay" class="weather-model-badge">{{ weatherModelDisplay }}</span>
         </div>
         <div
           v-if="showWeatherModeToggle"
@@ -1059,16 +1072,16 @@ const appStore = useAppStore();
 const aiRouter = useAiRouter();
 const auth = useAuthStore();
 const showAiModeToggle = import.meta.env.DEV;
-const aiChatMode = ref<'mock' | 'openai'>(showAiModeToggle ? 'mock' : 'openai');
+const aiChatMode = ref<'mock' | 'gemini'>(showAiModeToggle ? 'mock' : 'gemini');
 const shouldUseOpenAiChat = computed(
-  () => !showAiModeToggle || aiChatMode.value === 'openai',
+  () => !showAiModeToggle || aiChatMode.value === 'gemini',
 );
 const showWeatherModeToggle = import.meta.env.DEV;
-const weatherMode = ref<'mock' | 'openai'>(
-  showWeatherModeToggle ? 'mock' : 'openai',
+const weatherMode = ref<'mock' | 'gemini'>(
+  showWeatherModeToggle ? 'mock' : 'gemini',
 );
 const shouldUseOpenAiWeather = computed(
-  () => !showWeatherModeToggle || weatherMode.value === 'openai',
+  () => !showWeatherModeToggle || weatherMode.value === 'gemini',
 );
 
 interface ParsedHistory {
@@ -1269,9 +1282,10 @@ interface OfflinePackageMeta {
 interface ProfileForm {
   age: number;
   weight: number;
-  level: 'beginner' | 'experienced';
+  level: 'beginner' | 'experienced' | 'advanced';
   fitness: number;
   target_days: number;
+  slopeCoeff: number;
 }
 
 interface RouteApiResponse {
@@ -1279,6 +1293,8 @@ interface RouteApiResponse {
   name: string;
   location: string;
   route_kind?: 'trail' | 'peak';
+  category?: 'trail' | 'peak' | 'small_peak' | null;
+  description?: string | null;
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   days: number;
   distance_km: number;
@@ -1289,6 +1305,10 @@ interface RouteApiResponse {
     lost: number;
     deviation: number;
   };
+  match_score?: number | null;
+  match_rank?: number | null;
+  match_reason?: string | null;
+  recommendation_source?: 'gemini' | 'heuristic' | 'mock' | null;
 }
 
 interface CachedRouteRecommendation {
@@ -1297,7 +1317,7 @@ interface CachedRouteRecommendation {
 }
 
 // ── LINE Chatbox ─────────────────────────────────
-const ROUTE_RECOMMEND_CACHE_PREFIX = 'kaoshan:routes:recommend:';
+const ROUTE_RECOMMEND_CACHE_PREFIX = 'kaoshan:routes:recommend:v4:';
 const ROUTE_RECOMMEND_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 const msgListEl = ref<HTMLDivElement>();
 const msgEndEl = ref<HTMLDivElement>();
@@ -1376,7 +1396,7 @@ function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
 }
 
 function toggleAiChatMode() {
-  aiChatMode.value = aiChatMode.value === 'mock' ? 'openai' : 'mock';
+  aiChatMode.value = aiChatMode.value === 'mock' ? 'gemini' : 'mock';
 }
 
 function toggleChatCollapsed() {
@@ -1385,13 +1405,12 @@ function toggleChatCollapsed() {
 
 function resetChatConversation() {
   stopVoiceCapture();
-  voiceOverlay.value = false;
+  voiceRecording.value = false;
   voiceDraftSnapshot.value = '';
   voiceDraftCommitted.value = false;
   recordedVoiceBlob.value = null;
   overlayFinal.value = '';
   overlayLive.value = '';
-  overlayPhase.value = 'recording';
 
   inputText.value = '';
   typing.value = false;
@@ -1444,6 +1463,22 @@ const quickReplies = ref<QuickReply[]>(QUICK_IDLE);
 
 function cardOf(m: Message): RouteCard {
   return m.card!;
+}
+
+function buildRecommendationDialogueText(cards: RouteCard[]) {
+  const topCards = cards.slice(0, 3);
+  if (topCards.length === 0) return '';
+  const lines = topCards.map((card, index) => {
+    const reason = card.highlight?.trim() || '依您的條件做出的推薦。';
+    return `${index + 1}. ${card.name}：${reason}`;
+  });
+  return `AI 已依您的條件找出 15 條符合的路線，先列出前 3 條：\n${lines.join('\n')}\n請在下方選擇一條路線，再進行裝備與天氣檢查。`;
+}
+
+function shouldRefreshRecommendations(msg: string) {
+  return /換需求|加需求|重新推薦|重新規劃|換路線|改成|改為|調整|更輕鬆|更簡單|更難|縮短|拉長|增加|減少|不要/.test(
+    msg,
+  );
 }
 
 function showPlanningTools() {
@@ -1514,23 +1549,36 @@ function publishRouteRecommendations(
         : uniqueRegions.slice(0, 2).join('、')
       : '待確認地區';
   demandSummary.value = summary;
-  recommendedRouteCards.value = getRecommendationBatch(normalizedRoutes, 0).map(
+  const displayCards = getRecommendationBatch(normalizedRoutes, 0).map(
     toRouteCard,
   );
+  const recommendationText = buildRecommendationDialogueText(displayCards);
+  const lastBotText = [...messages.value]
+    .reverse()
+    .find((message) => message.role === 'bot' && message.type === 'text')
+    ?.text?.trim();
+  if (recommendationText && recommendationText !== lastBotText) {
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'bot',
+      type: 'text',
+      text: recommendationText,
+      time: nowTime(),
+    });
+  }
+  recommendedRouteCards.value = displayCards;
   recommendationsVisible.value = true;
   chatCollapsed.value = true;
-  messages.value.push({
-    id: Date.now() + 2,
-    role: 'bot',
-    type: 'text',
-    text: '我已完成需求統整，推薦路線已整理在下方區塊。請先選擇一條路線，再進入裝備與天氣檢查。',
-    time: nowTime(),
-  });
   quickReplies.value = [];
 }
 
 function rerollRecommendations() {
   const context = lastRecommendationContext.value;
+  console.log('Rerolling recommendations with context:', context);
+  console.log(
+    'Rerolling recommendations with context:',
+    rerollingRecommendations.value,
+  );
   if (!context || rerollingRecommendations.value) return;
   rerollingRecommendations.value = true;
   try {
@@ -1543,6 +1591,23 @@ function rerollRecommendations() {
       context.routes,
       nextStart,
     ).map(toRouteCard);
+
+    const recommendationText = buildRecommendationDialogueText(
+      recommendedRouteCards.value,
+    );
+    const lastBotText = [...messages.value]
+      .reverse()
+      .find((message) => message.role === 'bot' && message.type === 'text')
+      ?.text?.trim();
+    if (recommendationText && recommendationText !== lastBotText) {
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        text: recommendationText,
+        time: nowTime(),
+      });
+    }
 
     const visibleRouteIds = new Set(
       recommendedRouteCards.value.flatMap((card) =>
@@ -1579,12 +1644,21 @@ function fallbackProfileFromText(text: string, fitness = 3): ProfileForm {
   return {
     age: Number(ageMatch?.[1] ?? 30),
     weight: Number(weightMatch?.[1] ?? 70),
-    level: /新手|第一次|入門/.test(text) ? 'beginner' : 'experienced',
+    level: /新手|第一次|入門/.test(text)
+      ? 'beginner'
+      : /百岳|進階|高手|資深|多次/.test(text)
+        ? 'advanced'
+        : 'experienced',
     fitness: Math.min(
       5,
       Math.max(1, /進階|百岳|挑戰|體力好/.test(text) ? 4 : fitness),
     ),
     target_days: Math.min(5, Math.max(1, targetDays || 1)),
+    slopeCoeff: /陡坡|挑戰|刺激|陡峭/.test(text)
+      ? 4
+      : /緩坡|平緩|輕鬆/.test(text)
+        ? 2
+        : 3,
   };
 }
 
@@ -1595,7 +1669,7 @@ function profileToRecommendationInput(profile: ProfileForm): UserProfile {
     height: '',
     experience: profile.level,
     fitness: profile.fitness,
-    slopeCoeff: 3,
+    slopeCoeff: profile.slopeCoeff ?? 3,
     targetDays: profile.target_days,
   };
 }
@@ -1605,13 +1679,19 @@ function normalizeExtractedProfile(
   fallbackText: string,
 ): ProfileForm {
   const fallback = fallbackProfileFromText(fallbackText);
-  const experience = String(
+  const exp = String(
     extracted?.experience ?? extracted?.level ?? fallback.level,
   );
+  const level: ProfileForm['level'] =
+    exp === 'advanced'
+      ? 'advanced'
+      : exp === 'experienced'
+        ? 'experienced'
+        : 'beginner';
   return {
     age: Number(extracted?.age ?? fallback.age),
     weight: Number(extracted?.weight ?? fallback.weight),
-    level: experience === 'beginner' ? 'beginner' : 'experienced',
+    level,
     fitness: Math.min(
       5,
       Math.max(1, Number(extracted?.fitness ?? fallback.fitness)),
@@ -1626,6 +1706,10 @@ function normalizeExtractedProfile(
             fallback.target_days,
         ),
       ),
+    ),
+    slopeCoeff: Math.min(
+      5,
+      Math.max(1, Number(extracted?.slopeCoeff ?? fallback.slopeCoeff ?? 3)),
     ),
   };
 }
@@ -1666,6 +1750,15 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
       : route.difficulty === 'medium'
         ? 'mid'
         : 'high';
+  const aiScore = route.match_score ?? null;
+  const aiReason = route.match_reason?.trim();
+  const isGemini = route.recommendation_source === 'gemini';
+  const categoryLabel =
+    route.category === 'small_peak'
+      ? '小百岳'
+      : route.category === 'peak'
+        ? '百岳'
+        : '步道';
   return {
     ...baseRoute,
     id: route.id,
@@ -1676,23 +1769,39 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
     elevation: `${route.elevation_gain}m`,
     time: `${route.estimated_hours}h`,
     minDays: route.days,
-    highlight: `滑倒風險 ${route.risks.slip}、迷路風險 ${route.risks.lost}、偏離風險 ${route.risks.deviation}`,
-    matchScore: risk === 'low' ? 88 : risk === 'mid' ? 74 : 58,
+    highlight:
+      aiReason ??
+      `滑倒風險 ${route.risks.slip}、迷路風險 ${route.risks.lost}、偏離風險 ${route.risks.deviation}`,
+    matchScore: aiScore ?? (risk === 'low' ? 88 : risk === 'mid' ? 74 : 58),
     matchLabel:
-      risk === 'low' ? '推薦' : risk === 'mid' ? '可考慮' : '需審慎評估',
+      aiScore != null
+        ? isGemini
+          ? `${categoryLabel} AI 推薦`
+          : `${categoryLabel} 依條件排序`
+        : risk === 'low'
+          ? '推薦'
+          : risk === 'mid'
+            ? '可考慮'
+            : '需審慎評估',
     matchBg:
-      risk === 'low'
+      aiScore != null
         ? 'rgba(34,197,94,0.10)'
-        : risk === 'mid'
-          ? 'rgba(251,146,60,0.12)'
-          : 'rgba(239,68,68,0.10)',
+        : risk === 'low'
+          ? 'rgba(34,197,94,0.10)'
+          : risk === 'mid'
+            ? 'rgba(251,146,60,0.12)'
+            : 'rgba(239,68,68,0.10)',
     matchColor:
-      risk === 'low'
+      aiScore != null
         ? 'var(--summit-accent)'
-        : risk === 'mid'
-          ? 'var(--risk-mid)'
-          : 'var(--risk-high)',
+        : risk === 'low'
+          ? 'var(--summit-accent)'
+          : risk === 'mid'
+            ? 'var(--risk-mid)'
+            : 'var(--risk-high)',
     reasons: [
+      { icon: '🗂', text: `${categoryLabel}` },
+      ...(aiReason ? [{ icon: '🤖', text: aiReason }] : []),
       { icon: '📏', text: `距離 ${route.distance_km}km` },
       { icon: '⬆', text: `累積爬升 ${route.elevation_gain}m` },
       { icon: '⏱', text: `預估 ${route.estimated_hours} 小時` },
@@ -1765,15 +1874,36 @@ function getSimilarRouteCandidates(
   routes: RecommendedRoute[],
   profile?: ProfileForm,
 ): RecommendedRoute[] {
-  const candidates = profile
-    ? [...routes, ...getRecommendations(profileToRecommendationInput(profile))]
-    : routes;
-  const seen = new Set<string>();
-  return candidates.filter((route) => {
-    const key = route.id || route.name;
-    if (seen.has(key)) return false;
-    seen.add(key);
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  return routes.filter((route) => {
+    const id = route.id;
+    const name = route.name;
+    if ((id && seenIds.has(id)) || seenNames.has(name)) return false;
+    if (id) seenIds.add(id);
+    seenNames.add(name);
     return true;
+  });
+}
+
+function prioritizeRoutesByIds(
+  routes: RecommendedRoute[],
+  preferredIds?: string[],
+): RecommendedRoute[] {
+  if (!preferredIds || preferredIds.length === 0) return routes;
+  const preferredOrder = new Map<string, number>();
+  preferredIds.forEach((id, index) => {
+    if (!preferredOrder.has(id)) {
+      preferredOrder.set(id, index);
+    }
+  });
+  return [...routes].sort((a, b) => {
+    const aIndex = preferredOrder.get(a.id);
+    const bIndex = preferredOrder.get(b.id);
+    if (aIndex != null && bIndex != null) return aIndex - bIndex;
+    if (aIndex != null) return -1;
+    if (bIndex != null) return 1;
+    return 0;
   });
 }
 
@@ -1809,6 +1939,7 @@ function readCachedRouteRecommendations(
     const cached = JSON.parse(raw) as CachedRouteRecommendation;
     if (
       !Array.isArray(cached.routes) ||
+      cached.routes.length < 15 ||
       Date.now() - cached.savedAt > ROUTE_RECOMMEND_CACHE_TTL_MS
     ) {
       window.localStorage.removeItem(getRouteRecommendCacheKey(profile));
@@ -1842,8 +1973,114 @@ function writeCachedRouteRecommendations(
 async function recommendRoutesFromProfile(
   profile: ProfileForm,
   sourceMessage: string,
+  aiRouteIds?: string[],
 ) {
   profileForm.value = profile;
+
+  // Gemini 直接指定路線 ID → 比對資料庫，有就用，沒有就找最相近的
+  if (aiRouteIds && aiRouteIds.length > 0) {
+    try {
+      const { data: dbRoutes } = await api.post<RouteApiResponse[]>(
+        '/routes/recommend',
+        profile,
+      );
+      const dbMap = new Map(dbRoutes.map((r) => [r.id, r]));
+
+      // 計算兩條路線的相似度分數（越低越相近）
+      const difficultyRank: Record<string, number> = {
+        easy: 0,
+        medium: 1,
+        hard: 2,
+        expert: 3,
+      };
+      // Gemini 系統提示中的路線 ID → 名稱 / 難度 / 天數對照表
+      const nameByKeyword: Record<string, string> = {
+        'alishan-forest': '阿里山國家森林遊樂區巨木群步道',
+        hehuane:          '合歡東峰',
+        baiyang:          '白楊步道',       // DB 目前無此步道，fallback 到相似度
+        'hehuan-main':    '合歡主峰',
+        qixing:           '七星山主峰',
+        yuanzui:          '鳶嘴稍來小雪山國家步道',
+        dawu:             '北大武山',
+        xueshan:          '雪山主峰',
+        'yushan-main':    '玉山主峰',
+        jiaming:          '嘉明湖國家步道',
+      };
+      const diffByKeyword: Record<string, string> = {
+        'alishan-forest': 'easy', hehuane: 'easy', baiyang: 'easy',
+        'hehuan-main': 'medium', qixing: 'medium', yuanzui: 'medium',
+        dawu: 'hard', xueshan: 'hard',
+        'yushan-main': 'expert', jiaming: 'expert',
+      };
+      const daysByKeyword: Record<string, number> = {
+        'alishan-forest': 1, hehuane: 1, baiyang: 1,
+        'hehuan-main': 1, qixing: 1, yuanzui: 1,
+        dawu: 2, xueshan: 2, 'yushan-main': 2, jiaming: 3,
+      };
+      function findMostSimilar(
+        targetId: string,
+        candidates: RouteApiResponse[],
+      ): RouteApiResponse {
+        const targetDiff = difficultyRank[diffByKeyword[targetId] ?? 'medium'] ?? 1;
+        const targetDays = daysByKeyword[targetId] ?? 1;
+        return candidates.reduce((best, r) => {
+          const diffScore = Math.abs(
+            (difficultyRank[r.difficulty] ?? 1) - targetDiff,
+          );
+          const dayScore = Math.abs(r.days - targetDays);
+          const bestDiff = Math.abs(
+            (difficultyRank[best.difficulty] ?? 1) - targetDiff,
+          );
+          const bestDay = Math.abs(best.days - targetDays);
+          return diffScore * 2 + dayScore < bestDiff * 2 + bestDay ? r : best;
+        });
+      }
+
+      const dbNameMap = new Map(dbRoutes.map((r) => [r.name, r]));
+
+      const matched: RouteApiResponse[] = [];
+      const usedIds = new Set<string>();
+      for (const id of aiRouteIds) {
+        // 1. ID 完全吻合
+        const byId = dbMap.get(id);
+        if (byId && !usedIds.has(byId.id)) {
+          matched.push(byId);
+          usedIds.add(byId.id);
+          continue;
+        }
+        // 2. 名稱吻合（資料庫 ID 不同但路線名稱相同）
+        const targetName = nameByKeyword[id];
+        const byName = targetName ? dbNameMap.get(targetName) : undefined;
+        if (byName && !usedIds.has(byName.id)) {
+          matched.push(byName);
+          usedIds.add(byName.id);
+          continue;
+        }
+        // 3. 找最相近的（難度 + 天數）
+        const remaining = dbRoutes.filter((r) => !usedIds.has(r.id));
+        if (remaining.length > 0) {
+          const similar = findMostSimilar(id, remaining);
+          matched.push(similar);
+          usedIds.add(similar.id);
+        }
+      }
+
+      const aiRoutes = matched.map(apiRouteToRecommendedRoute);
+      // 剩餘 DB 路線補進候選池供「換路線」使用
+      const rest = dbRoutes
+        .filter((r) => !usedIds.has(r.id))
+        .map(apiRouteToRecommendedRoute);
+      publishRouteRecommendations(
+        getSimilarRouteCandidates([...aiRoutes, ...rest]),
+        sourceMessage,
+        profile,
+      );
+      return;
+    } catch (_) {
+      // 抓失敗則 fallback 到一般推薦流程
+    }
+  }
+
   const cachedRoutes = readCachedRouteRecommendations(profile);
   if (cachedRoutes) {
     publishRouteRecommendations(
@@ -1919,56 +2156,64 @@ async function replyWithLocalRouteRecommendations(msg: string) {
 }
 
 async function replyWithMockAi(msg: string) {
+  console.log('[replyWithMockAi] mode:', aiChatMode.value, '| msg:', msg);
   await sleep(650);
-  typing.value = false;
+  // typing 繼續顯示，直到各路徑真正拿到回覆才關閉
 
-  if (/裝備|清單|gear/i.test(msg)) {
-    if (!selectedRoute.value) {
-      const routes = getRecommendations(
-        profileToRecommendationInput(fallbackProfileFromText(msg, 2)),
-      );
+  // ── Mock 模式：關鍵字捷徑（不呼叫 API）─────────────────────────
+  if (aiChatMode.value !== 'gemini') {
+    if (/裝備|清單|gear/i.test(msg)) {
+      if (!selectedRoute.value) {
+        const routes = getRecommendations(
+          profileToRecommendationInput(fallbackProfileFromText(msg, 2)),
+        );
+        typing.value = false;
+        messages.value.push({
+          id: Date.now() + 1,
+          role: 'bot',
+          type: 'text',
+          text: '我會先幫你整理路線需求。選定路線後，才會展開對應的裝備清單、AI 裝備辨識與明日天氣。',
+          time: nowTime(),
+        });
+        setTimeout(() => publishRouteRecommendations(routes, msg), 500);
+        return;
+      }
+      showPlanningTools();
+      typing.value = false;
       messages.value.push({
         id: Date.now() + 1,
         role: 'bot',
         type: 'text',
-        text: '我會先幫你整理路線需求。選定路線後，才會展開對應的裝備清單、AI 裝備辨識與明日天氣。',
+        text: '我已把出發前檢查區打開。先確認登山鞋、雨衣、頭燈、保暖層、水與離線地圖；如果要快速檢查裝備，可以點下面的 AI 裝備辨識。',
+        time: nowTime(),
+      });
+      quickReplies.value = [
+        { label: '查詢明日天氣', action: 'weather' },
+        { label: '推薦路線', action: 'plan' },
+      ];
+      return;
+    }
+
+    if (/體能|分析|GPX|紀錄/i.test(msg) || historyContext.value) {
+      const routes = getRecommendations(
+        profileToRecommendationInput(
+          fallbackProfileFromText(`${historyContext.value}\n${msg}`, 3),
+        ),
+      );
+      typing.value = false;
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'bot',
+        type: 'text',
+        text: '我先用示範體能資料幫你估算：目前適合 1 日、低到中風險、爬升不要太連續的路線。接下來可以看推薦路線與出發前檢查。',
         time: nowTime(),
       });
       setTimeout(() => publishRouteRecommendations(routes, msg), 500);
       return;
     }
-    showPlanningTools();
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'bot',
-      type: 'text',
-      text: '我已把出發前檢查區打開。先確認登山鞋、雨衣、頭燈、保暖層、水與離線地圖；如果要快速檢查裝備，可以點下面的 AI 裝備辨識。',
-      time: nowTime(),
-    });
-    quickReplies.value = [
-      { label: '查詢明日天氣', action: 'weather' },
-      { label: '推薦路線', action: 'plan' },
-    ];
-    return;
   }
 
-  if (/體能|分析|GPX|紀錄/i.test(msg) || historyContext.value) {
-    const routes = getRecommendations(
-      profileToRecommendationInput(
-        fallbackProfileFromText(`${historyContext.value}\n${msg}`, 3),
-      ),
-    );
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'bot',
-      type: 'text',
-      text: '我先用示範體能資料幫你估算：目前適合 1 日、低到中風險、爬升不要太連續的路線。接下來可以看推薦路線與出發前檢查。',
-      time: nowTime(),
-    });
-    setTimeout(() => publishRouteRecommendations(routes, msg), 500);
-    return;
-  }
-
+  // ── Gemini API 呼叫（Gemini 模式永遠走這裡）─────────────────────
   let replyText =
     '我收到你的訊息了。可以再補充這次想走的地區、天數或體力狀況，我會依照你的回答慢慢整理規劃。';
   let ready = false;
@@ -1978,17 +2223,24 @@ async function replyWithMockAi(msg: string) {
       reply: string;
       ready: boolean;
       extracted_profile?: Record<string, unknown> | null;
+      raw_reply?: string | null;
     }>('/chat', {
       messages: buildChatRequestMessages(),
       history_context: historyContext.value,
     });
+    console.group('[Gemini 原始回覆]');
+    console.log('raw_reply:', data.raw_reply);
+    console.log('ready:', data.ready);
+    console.log('extracted_profile:', data.extracted_profile);
+    console.groupEnd();
     replyText = data.reply;
     ready = data.ready;
     extractedProfile = data.extracted_profile;
-  } catch (_) {
-    // 後端暫時不可用時保留自然回覆，不再固定要求同一組欄位。
+  } catch (err) {
+    console.error('[Gemini chat 失敗]', err);
   }
 
+  typing.value = false;
   messages.value.push({
     id: Date.now() + 1,
     role: 'bot',
@@ -1997,12 +2249,32 @@ async function replyWithMockAi(msg: string) {
     time: nowTime(),
   });
 
+  const combinedText = `${historyContext.value}\n${msg}`.trim();
+  if (recommendationsVisible.value && shouldRefreshRecommendations(msg)) {
+    const refreshedProfile = fallbackProfileFromText(
+      combinedText,
+      profileForm.value?.fitness ?? 3,
+    );
+    await recommendRoutesFromProfile(refreshedProfile, combinedText);
+    return;
+  }
+
   if (ready && extractedProfile) {
-    const combinedText = `${historyContext.value}\n${msg}`.trim();
+    const aiRouteIds = Array.isArray(extractedProfile.recommendedRouteIds)
+      ? (extractedProfile.recommendedRouteIds as string[])
+      : undefined;
     await recommendRoutesFromProfile(
       normalizeExtractedProfile(extractedProfile, combinedText),
       combinedText,
+      aiRouteIds,
     );
+  } else if (
+    aiChatMode.value === 'gemini' &&
+    /裝備|清單|gear/i.test(msg) &&
+    selectedRoute.value
+  ) {
+    // Gemini 提到裝備且已選路線 → 自動開啟出發前工具
+    showPlanningTools();
   }
 }
 
@@ -2042,7 +2314,7 @@ async function sendUserMsg(text: string, clearInput = true) {
     return;
   }
 
-  if (/天氣|氣象|下雨/.test(msg)) {
+  if (/天氣|氣象|下雨/.test(msg) && !shouldUseOpenAiChat.value) {
     typing.value = false;
     messages.value.push({
       id: Date.now(),
@@ -2090,7 +2362,7 @@ function toRouteCard(route: RecommendedRoute): RouteCard {
     emoji: route.emoji,
     name: route.name,
     region: route.region,
-    routeKind: route.source?.route_kind ?? 'trail',
+    routeKind: 'trail',
     difficulty: routeDifficulty(route),
     distance: route.distance,
     elevation: route.elevation,
@@ -2310,7 +2582,7 @@ function parseGpxTrack(text: string): {
       name,
       distanceKm: track.distanceKm,
       elevationGain: track.elevationGain,
-      durationMin: track.durationMin,
+      durationMin: track.durationMin ?? 0,
       date: rawDate ?? '',
     },
     track,
@@ -2436,7 +2708,7 @@ async function onFileUpload(e: Event) {
   // Set history context
   historyContext.value = `使用者上傳了一筆登山紀錄：${record.name}，距離 ${record.distanceKm}km，爬升 ${record.elevationGain}m，時間 ${Math.floor(record.durationMin / 60)}小時${record.durationMin % 60}分。`;
 
-  // 呼叫後端 GPT-4o 進行體能分析
+  // 呼叫後端 Gemini 進行體能分析
   await sleep(500);
   typing.value = true;
 
@@ -2472,8 +2744,7 @@ function sleep(ms: number) {
 
 // ── Voice Overlay ────────────────────────────────
 const voiceSupported = ref(false);
-const voiceOverlay = ref(false);
-const overlayPhase = ref<'recording' | 'sending'>('recording');
+const voiceRecording = ref(false);
 const overlayLive = ref('');
 const overlayFinal = ref('');
 const recordedVoiceBlob = ref<Blob | null>(null);
@@ -2495,7 +2766,7 @@ onBeforeUnmount(() => {
 
 function isMediaRecorderSupported() {
   return Boolean(
-    navigator.mediaDevices?.getUserMedia &&
+    typeof navigator.mediaDevices?.getUserMedia === 'function' &&
     typeof window.MediaRecorder !== 'undefined',
   );
 }
@@ -2519,7 +2790,7 @@ function getSpeechStreamUrl() {
   return url.toString();
 }
 
-function openVoiceOverlay() {
+function openVoiceRecording() {
   voiceSupported.value = isVoiceInputSupported();
   if (!voiceSupported.value) {
     messages.value.push({
@@ -2536,8 +2807,7 @@ function openVoiceOverlay() {
   overlayFinal.value = '';
   overlayLive.value = '';
   recordedVoiceBlob.value = null;
-  overlayPhase.value = 'recording';
-  voiceOverlay.value = true;
+  voiceRecording.value = true;
   void startOverlayRecording();
 }
 
@@ -2545,13 +2815,17 @@ async function startOverlayRecording() {
   if (mediaRecorder?.state === 'recording') return;
   const mimeType = getSupportedAudioMimeType();
   if (!isMediaRecorderSupported() || !mimeType) {
-    overlayLive.value = '';
-    overlayFinal.value = '目前瀏覽器不支援即時語音輸入，請改用文字輸入。';
-    overlayPhase.value = 'confirming';
+    voiceRecording.value = false;
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'text',
+      text: '目前瀏覽器不支援即時語音輸入，請改用文字輸入。',
+      time: nowTime(),
+    });
     return;
   }
   mediaChunks = [];
-  overlayLive.value = '正在連線 Google 語音辨識...';
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
@@ -2559,7 +2833,6 @@ async function startOverlayRecording() {
     speechSocket.binaryType = 'arraybuffer';
 
     speechSocket.onopen = () => {
-      overlayLive.value = '語音辨識中，文字會即時填入輸入框。';
       mediaRecorder?.start(250);
     };
 
@@ -2572,13 +2845,13 @@ async function startOverlayRecording() {
       };
       if (payload.type === 'error') {
         overlayLive.value = '';
-        overlayFinal.value = payload.message || 'Google 語音辨識暫時無法使用。';
         return;
       }
       if (payload.type !== 'transcript' || !payload.text) return;
 
       if (payload.is_final) {
-        overlayFinal.value = `${overlayFinal.value}${payload.text}`.trim();
+        overlayFinal.value =
+          `${overlayFinal.value}${payload.text} `.trimStart();
         overlayLive.value = '';
       } else {
         overlayLive.value = payload.text;
@@ -2591,8 +2864,8 @@ async function startOverlayRecording() {
 
     speechSocket.onerror = () => {
       overlayLive.value = '';
-      overlayFinal.value = 'Google 語音辨識連線失敗，請稍後再試。';
-      overlayPhase.value = 'sending';
+      stopVoiceCapture();
+      voiceRecording.value = false;
     };
 
     mediaRecorder.ondataavailable = (event) => {
@@ -2611,28 +2884,32 @@ async function startOverlayRecording() {
     };
   } catch (e) {
     console.warn('MediaRecorder error:', e);
-    overlayLive.value = '';
-    overlayFinal.value = '無法啟用麥克風，請確認瀏覽器權限。';
-    overlayPhase.value = 'sending';
+    voiceRecording.value = false;
+    messages.value.push({
+      id: Date.now(),
+      role: 'bot',
+      type: 'text',
+      text: '無法啟用麥克風，請確認瀏覽器權限。',
+      time: nowTime(),
+    });
   }
 }
 
-function stopOverlayRecording() {
-  if (mediaRecorder?.state === 'recording') {
-    mediaRecorder.stop();
-    overlayPhase.value = 'sending';
-    if (speechSocket?.readyState === WebSocket.OPEN) {
-      speechSocket.send(JSON.stringify({ type: 'stop' }));
-    }
-    const transcript = `${overlayFinal.value}${overlayLive.value}`;
-    inputText.value = composeVoiceDraft(transcript);
-    voiceDraftCommitted.value = Boolean(inputText.value.trim());
-    window.setTimeout(() => {
-      closeVoiceOverlay();
-    }, 500);
-  } else {
-    overlayPhase.value = 'sending';
+function stopVoiceRecording() {
+  if (speechSocket?.readyState === WebSocket.OPEN) {
+    speechSocket.send(JSON.stringify({ type: 'stop' }));
   }
+  const transcript = `${overlayFinal.value}${overlayLive.value}`.trim();
+  inputText.value = composeVoiceDraft(transcript);
+  voiceDraftCommitted.value = Boolean(inputText.value.trim());
+  stopVoiceCapture();
+  voiceRecording.value = false;
+}
+
+function cancelVoiceRecording() {
+  stopVoiceCapture();
+  inputText.value = voiceDraftSnapshot.value;
+  voiceRecording.value = false;
 }
 
 function composeVoiceDraft(transcript: string) {
@@ -2641,59 +2918,6 @@ function composeVoiceDraft(transcript: string) {
   if (!prefix) return content;
   if (!content) return prefix;
   return `${prefix} ${content}`.trim();
-}
-
-async function processVoiceBlob(blob: Blob) {
-  messages.value.push({
-    id: Date.now(),
-    role: 'user',
-    type: 'text',
-    text: '已送出語音輸入',
-    time: nowTime(),
-  });
-  typing.value = true;
-  try {
-    const res = await aiRouter.voice(blob, 'voice.webm');
-    typing.value = false;
-    if (res.transcribed_text) {
-      overlayFinal.value = res.transcribed_text;
-      inputText.value = composeVoiceDraft(res.transcribed_text);
-      voiceDraftCommitted.value = true;
-      messages.value.push({
-        id: Date.now() + 1,
-        role: 'bot',
-        type: 'text',
-        text: `Whisper 轉文字：${res.transcribed_text}`,
-        time: nowTime(),
-      });
-    }
-    messages.value.push({
-      id: Date.now() + 2,
-      role: 'bot',
-      type: 'text',
-      text: `${res.reply}\n\n模型路由：${res.model_used}`,
-      time: nowTime(),
-    });
-    await completeProfileAndRecommend(res.transcribed_text || res.reply);
-    closeVoiceOverlay();
-  } catch (_) {
-    typing.value = false;
-    messages.value.push({
-      id: Date.now() + 3,
-      role: 'bot',
-      type: 'text',
-      text: '語音分析暫時無法使用，請改用文字輸入描述需求。',
-      time: nowTime(),
-    });
-  }
-}
-
-function closeVoiceOverlay() {
-  stopVoiceCapture();
-  if (!voiceDraftCommitted.value) {
-    inputText.value = voiceDraftSnapshot.value;
-  }
-  voiceOverlay.value = false;
 }
 
 function stopVoiceCapture() {
@@ -2856,7 +3080,7 @@ function applyMockGearAssessment() {
       '登山杖 (保護膝蓋，特別是下坡路段)',
       '身分證件與健保卡',
     ],
-    model_used: 'gemini-3.1-flash-lite',
+    model_used: 'gemini-2.0-flash',
     fallback: true,
   };
 }
@@ -3111,9 +3335,6 @@ const gearPhotoUrl = ref('');
 const gearPhotoLightbox = ref(false);
 const lastDetectedGearIds = ref<Set<string>>(new Set());
 const recognizedShoe = ref<ShoeRecognition | null>(null);
-const detectedVisionCount = computed(
-  () => visionItems.value.filter((item) => item.detected).length,
-);
 
 const MOCK_VISION_RAW_TEXT = `這是一張非常典型的長程徒步或登山裝備清單（Flat Lay），涵蓋了睡眠、衣物、烹飪與補給。以下為您辨識出的物品：
 
@@ -3506,12 +3727,6 @@ async function onGearPhotoSelected(event: Event) {
   }
 }
 
-function waterproofLabel(value: boolean | null | undefined) {
-  if (value === true) return '防水';
-  if (value === false) return '未防水';
-  return '未知';
-}
-
 // ── Static data ───────────────────────────────────
 const contacts = [
   { emoji: '👨', name: '王大明（父）', rel: '家人 · 追蹤中' },
@@ -3613,7 +3828,7 @@ function buildMockRouteWeather(route: RecommendedRoute): RouteWeatherResponse {
     source: '本地假資料',
     model_used: 'mock',
     fallback: true,
-    fallback_reason: '已切回本地假資料，未呼叫 OpenAI / CWA。',
+    fallback_reason: '已切回本地假資料，未呼叫 Gemini / CWA。',
   };
 }
 
@@ -3645,36 +3860,42 @@ const routeWeatherRisk = computed<'low' | 'medium' | 'high'>(() => {
 });
 const weatherAiStatusLabel = computed(() => {
   if (weatherMode.value === 'mock') return '本地假資料';
-  if (weatherLoading.value) return 'OpenAI 檢查中...';
-  if (!routeWeather.value) return 'OpenAI 未回應';
+  if (weatherLoading.value) return 'Gemini 檢查中...';
+  if (!routeWeather.value) return 'Gemini 未回應';
   if (
     routeWeather.value.fallback ||
     routeWeather.value.model_used === 'fallback'
   ) {
-    return 'OpenAI 失敗，已切回假資料';
+    return 'Gemini 失敗，已切回假資料';
   }
   if (
     routeWeather.value.model_used &&
     routeWeather.value.model_used !== 'mock'
   ) {
-    return 'OpenAI 成功';
+    return 'Gemini 成功';
   }
-  return 'OpenAI 狀態未確認';
+  return 'Gemini 狀態未確認';
 });
 const weatherFallbackReasonText = computed(() =>
-  weatherMode.value === 'openai'
+  weatherMode.value === 'gemini'
     ? (routeWeather.value?.fallback_reason ?? weatherFallbackReason.value)
     : null,
 );
+const weatherModelDisplay = computed(() => {
+  const m = routeWeather.value?.model_used;
+  if (!m || m === 'mock' || m === 'fallback' || m === 'local-fallback') return null;
+  if (m.startsWith('gemini')) return 'gemini';
+  return m;
+});
 const weatherAiStatusClass = computed(() => ({
   success:
-    weatherMode.value === 'openai' &&
+    weatherMode.value === 'gemini' &&
     !!routeWeather.value &&
     !routeWeather.value.fallback &&
     routeWeather.value.model_used !== 'fallback' &&
     routeWeather.value.model_used !== 'mock',
   warning:
-    weatherMode.value === 'openai' &&
+    weatherMode.value === 'gemini' &&
     (!routeWeather.value ||
       routeWeather.value.fallback ||
       routeWeather.value.model_used === 'fallback' ||
@@ -3702,14 +3923,14 @@ async function loadRouteWeather(route: RecommendedRoute) {
     weatherFallbackReason.value = data.fallback_reason ?? null;
   } catch (_) {
     routeWeather.value = buildMockRouteWeather(route);
-    weatherFallbackReason.value = 'OpenAI / CWA 請求失敗，已改用本地假資料。';
+    weatherFallbackReason.value = 'Gemini / CWA 請求失敗，已改用本地假資料。';
   } finally {
     weatherLoading.value = false;
   }
 }
 
 function toggleWeatherMode() {
-  weatherMode.value = weatherMode.value === 'mock' ? 'openai' : 'mock';
+  weatherMode.value = weatherMode.value === 'mock' ? 'gemini' : 'mock';
   if (selectedRoute.value) {
     void loadRouteWeather(selectedRoute.value);
   }
@@ -3929,139 +4150,94 @@ async function downloadOfflinePackage() {
 
 <style scoped>
 /* ── Voice Overlay ── */
-.voice-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.92);
-  backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.voice-overlay-panel {
+/* Voice inline status bar */
+.line-input-wrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  padding: 40px 32px;
-  width: min(400px, 90vw);
 }
 
-.voice-overlay-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.06rem;
-}
-
-/* Wave bars */
-.voice-wave-lg {
+.voice-status-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 60px;
+  gap: 8px;
+  padding: 5px 12px;
+  background: rgba(6, 199, 85, 0.08);
+  border-bottom: 1px solid rgba(6, 199, 85, 0.2);
 }
 
-.voice-bar-lg {
-  width: 6px;
-  border-radius: 3px;
+.voice-status-waves {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+}
+
+.voice-status-dot {
+  display: block;
+  width: 3px;
+  border-radius: 2px;
   background: #06c755;
-  animation: voice-bounce 0.8s ease-in-out infinite alternate;
-  height: 20px;
+  animation: voice-status-bounce 0.7s ease-in-out infinite alternate;
+  height: 8px;
 }
 
-.voice-bar-lg:nth-child(1) {
-  animation-duration: 0.7s;
+.voice-status-dot:nth-child(1) {
+  animation-duration: 0.5s;
 }
-.voice-bar-lg:nth-child(2) {
-  animation-duration: 0.9s;
+.voice-status-dot:nth-child(2) {
+  animation-duration: 0.8s;
 }
-.voice-bar-lg:nth-child(3) {
+.voice-status-dot:nth-child(3) {
   animation-duration: 0.6s;
 }
-.voice-bar-lg:nth-child(4) {
-  animation-duration: 1s;
-}
-.voice-bar-lg:nth-child(5) {
-  animation-duration: 0.75s;
+.voice-status-dot:nth-child(4) {
+  animation-duration: 0.9s;
 }
 
-@keyframes voice-bounce {
+@keyframes voice-status-bounce {
   from {
-    height: 8px;
+    height: 3px;
   }
   to {
-    height: 52px;
+    height: 14px;
   }
 }
 
-/* Live text area */
-.voice-overlay-live {
-  width: 100%;
-  min-height: 80px;
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 14px;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  text-align: center;
+.voice-status-label {
+  font-size: 0.75rem;
+  color: #06c755;
+  font-weight: 600;
+  letter-spacing: 0.03rem;
+  flex: 1;
 }
 
-.voice-final-text {
-  color: #fff;
-  font-weight: 500;
-}
-
-.voice-interim-text {
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.voice-placeholder {
-  color: rgba(255, 255, 255, 0.3);
-  font-style: italic;
-}
-
-/* Buttons */
-.voice-stop-btn {
-  padding: 12px 32px;
-  border-radius: 24px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: transparent;
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.voice-stop-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
-.voice-cancel-link {
+.voice-status-cancel {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.8rem;
+  color: #999;
+  font-size: 0.72rem;
   font-family: inherit;
   cursor: pointer;
-  padding: 0;
+  padding: 0 2px;
 }
 
-.voice-cancel-link:hover {
-  color: rgba(255, 255, 255, 0.7);
+.voice-status-cancel:hover {
+  color: #e53935;
 }
 
-/* Confirm phase */
-.voice-confirm-label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.55);
-  align-self: flex-start;
+/* Mic button active state */
+.voice-btn-active {
+  animation: voice-btn-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voice-btn-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 .voice-confirm-textarea {
@@ -5005,6 +5181,21 @@ async function downloadOfflinePackage() {
   margin-top: 10px;
   font-size: 0.66rem;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.weather-model-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(79, 172, 91, 0.15);
+  color: #4fac5b;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .weather-ai-status {
@@ -5407,7 +5598,7 @@ async function downloadOfflinePackage() {
   background: rgba(255, 255, 255, 0.28);
 }
 
-.ai-mode-openai {
+.ai-mode-gemini {
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(255, 255, 255, 0.92);
   color: #047a34;
@@ -5955,6 +6146,15 @@ async function downloadOfflinePackage() {
   flex-shrink: 0;
 }
 
+.route-category-badge {
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02rem;
+  flex-shrink: 0;
+}
+
 .source-trail {
   background: rgba(26, 140, 85, 0.12);
   color: var(--summit-accent);
@@ -5962,6 +6162,24 @@ async function downloadOfflinePackage() {
 }
 
 .source-peak {
+  background: rgba(91, 76, 245, 0.12);
+  color: var(--risk-mid);
+  border: 1px solid rgba(91, 76, 245, 0.22);
+}
+
+.category-trail {
+  background: rgba(26, 140, 85, 0.1);
+  color: var(--summit-accent);
+  border: 1px solid rgba(26, 140, 85, 0.18);
+}
+
+.category-small-peak {
+  background: rgba(11, 147, 82, 0.12);
+  color: #0b9352;
+  border: 1px solid rgba(11, 147, 82, 0.22);
+}
+
+.category-peak {
   background: rgba(91, 76, 245, 0.12);
   color: var(--risk-mid);
   border: 1px solid rgba(91, 76, 245, 0.22);

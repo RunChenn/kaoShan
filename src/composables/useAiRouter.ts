@@ -2,9 +2,9 @@
  * AI 智慧路由 composable
  *
  * 三種輸入自動對應後端模型：
- *   chat()         → POST /ai/chat          → GPT-4o
- *   hikingRecord() → POST /ai/hiking-record  → GPT-4o
- *   voice()        → POST /ai/voice          → Whisper → GPT-4o
+ *   chat()         → POST /ai/chat          → Gemini
+ *   hikingRecord() → POST /ai/hiking-record  → Gemini
+ *   voice()        → POST /ai/voice          → Google STT → Gemini
  */
 
 import { api } from 'src/boot/axios'
@@ -17,7 +17,7 @@ export interface AiRouterResponse {
 }
 
 export function useAiRouter() {
-  /** 文字聊天 → GPT-4o */
+  /** 文字聊天 → Gemini */
   async function chat(message: string): Promise<AiRouterResponse> {
     const form = new FormData()
     form.append('message', message)
@@ -25,7 +25,7 @@ export function useAiRouter() {
     return data
   }
 
-  /** 爬山紀錄文字分析 → GPT-4o */
+  /** 爬山紀錄文字分析 → Gemini */
   async function hikingRecord(content: string): Promise<AiRouterResponse> {
     const form = new FormData()
     form.append('content', content)
@@ -33,7 +33,7 @@ export function useAiRouter() {
     return data
   }
 
-  /** 語音 blob → Whisper 轉文字 → 自動路由 */
+  /** 語音 blob → Google STT 轉文字 → Gemini */
   async function voice(
     audioBlob: Blob,
     filename = 'audio.webm',
@@ -41,7 +41,7 @@ export function useAiRouter() {
     const form = new FormData()
     form.append('audio', audioBlob, filename)
     const { data } = await api.post<AiRouterResponse>('/ai/voice', form, {
-      timeout: 30000, // Whisper 可能需要較長時間
+      timeout: 30000, // Google STT 可能需要較長時間
     })
     return data
   }

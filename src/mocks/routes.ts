@@ -26,6 +26,88 @@ export interface HikingRoute {
   description: string
 }
 
+function clampRisk(value: number): number {
+  return Math.max(5, Math.min(95, Math.round(value)))
+}
+
+function buildRisks(
+  difficulty: HikingRoute['difficulty'],
+  routeKind: 'trail' | 'peak',
+  distanceKm: number,
+  estimatedHours: number,
+  elevationGain: number,
+  days: number,
+) {
+  const base =
+    difficulty === 'easy'
+      ? { slip: 12, lost: 8, deviation: 6 }
+      : difficulty === 'medium'
+        ? { slip: 28, lost: 16, deviation: 12 }
+        : difficulty === 'hard'
+          ? { slip: 46, lost: 26, deviation: 20 }
+          : { slip: 62, lost: 34, deviation: 28 }
+  const bias =
+    routeKind === 'peak'
+      ? { slip: 3, lost: 2, deviation: 1 }
+      : { slip: -1, lost: -2, deviation: -2 }
+  const dayPenalty = Math.max(0, days - 1)
+
+  let slip =
+    base.slip +
+    distanceKm * 1.35 +
+    elevationGain / 160 +
+    estimatedHours * 0.6 +
+    dayPenalty * 2 +
+    bias.slip
+  let lost =
+    base.lost +
+    distanceKm * 0.95 +
+    elevationGain / 260 +
+    estimatedHours * 0.35 +
+    dayPenalty * 3 +
+    bias.lost
+  let deviation =
+    base.deviation +
+    distanceKm * 0.8 +
+    elevationGain / 320 +
+    estimatedHours * 0.3 +
+    dayPenalty * 2 +
+    bias.deviation
+
+  if (distanceKm > 20) {
+    lost += 6
+    deviation += 5
+  } else if (distanceKm > 12) {
+    lost += 3
+    deviation += 2
+  }
+
+  if (elevationGain > 1500) {
+    slip += 6
+    lost += 4
+    deviation += 3
+  } else if (elevationGain > 800) {
+    slip += 3
+    lost += 2
+    deviation += 1
+  }
+
+  if (routeKind === 'peak' && (difficulty === 'hard' || difficulty === 'expert')) {
+    slip += 3
+    lost += 2
+    deviation += 2
+  }
+
+  const rockfall = clampRisk((slip + lost + deviation) / 3 + (routeKind === 'peak' ? 6 : 3))
+
+  return {
+    slip: clampRisk(slip),
+    lost: clampRisk(lost),
+    deviation: clampRisk(deviation),
+    rockfall,
+  }
+}
+
 export const mockRoutes: HikingRoute[] = [
   {
     id: 'yushan-main',
@@ -37,7 +119,7 @@ export const mockRoutes: HikingRoute[] = [
     estimatedHours: 16,
     elevationGain: 2150,
     thumbnail: 'https://picsum.photos/seed/yushan/400/250',
-    risks: { slip: 72, lost: 35, deviation: 28, rockfall: 55 },
+    risks: buildRisks('expert', 'peak', 19.7, 16, 2150, 2),
     gear: {
       required: ['登山杖', '頭燈', '保暖層', '雨衣', '急救包', '地圖', '指南針'],
       optional: ['衛星電話', '備用電池', '雪爪'],
@@ -59,7 +141,7 @@ export const mockRoutes: HikingRoute[] = [
     estimatedHours: 2.5,
     elevationGain: 150,
     thumbnail: 'https://picsum.photos/seed/alishan/400/250',
-    risks: { slip: 18, lost: 12, deviation: 8, rockfall: 10 },
+    risks: buildRisks('easy', 'trail', 5.2, 2.5, 150, 1),
     gear: {
       required: ['運動鞋', '雨衣', '水壺'],
       optional: ['登山杖', '相機'],
@@ -81,7 +163,7 @@ export const mockRoutes: HikingRoute[] = [
     estimatedHours: 3,
     elevationGain: 280,
     thumbnail: 'https://picsum.photos/seed/hehuan/400/250',
-    risks: { slip: 42, lost: 22, deviation: 18, rockfall: 35 },
+    risks: buildRisks('medium', 'peak', 4.4, 3, 280, 1),
     gear: {
       required: ['登山鞋', '保暖層', '防風外套', '頭燈'],
       optional: ['登山杖', '太陽眼鏡'],
@@ -103,7 +185,7 @@ export const mockRoutes: HikingRoute[] = [
     estimatedHours: 2,
     elevationGain: 50,
     thumbnail: 'https://picsum.photos/seed/taroko/400/250',
-    risks: { slip: 25, lost: 10, deviation: 5, rockfall: 45 },
+    risks: buildRisks('easy', 'trail', 4.4, 2, 50, 1),
     gear: {
       required: ['運動鞋', '頭燈（隧道用）', '水壺'],
       optional: ['泳衣（溪邊戲水）'],
@@ -125,7 +207,7 @@ export const mockRoutes: HikingRoute[] = [
     estimatedHours: 14,
     elevationGain: 1580,
     thumbnail: 'https://picsum.photos/seed/wuling/400/250',
-    risks: { slip: 58, lost: 45, deviation: 38, rockfall: 62 },
+    risks: buildRisks('hard', 'peak', 12.4, 14, 1580, 2),
     gear: {
       required: ['登山靴', '頭燈', '保暖層', '雨衣', '急救包', '登山杖', '地圖'],
       optional: ['衛星電話', '備用糧食', '帳篷'],
