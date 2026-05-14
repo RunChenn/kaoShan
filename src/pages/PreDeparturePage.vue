@@ -834,15 +834,17 @@
         </div>
         <div v-if="routeWeather?.source" class="weather-source">
           來源：{{ routeWeather.source }}
-          <span v-if="weatherModelDisplay" class="weather-model-badge">{{ weatherModelDisplay }}</span>
+          <!-- <span v-if="weatherModelDisplay" class="weather-model-badge">{{
+            weatherModelDisplay
+          }}</span> -->
         </div>
-        <div
+        <!-- <div
           v-if="showWeatherModeToggle"
           class="weather-ai-status"
           :class="weatherAiStatusClass"
         >
           {{ weatherAiStatusLabel }}
-        </div>
+        </div> -->
       </div>
 
       <div v-if="selectedRoute" class="offline-download-card">
@@ -1996,32 +1998,46 @@ async function recommendRoutesFromProfile(
       // Gemini 系統提示中的路線 ID → 名稱 / 難度 / 天數對照表
       const nameByKeyword: Record<string, string> = {
         'alishan-forest': '阿里山國家森林遊樂區巨木群步道',
-        hehuane:          '合歡東峰',
-        baiyang:          '白楊步道',       // DB 目前無此步道，fallback 到相似度
-        'hehuan-main':    '合歡主峰',
-        qixing:           '七星山主峰',
-        yuanzui:          '鳶嘴稍來小雪山國家步道',
-        dawu:             '北大武山',
-        xueshan:          '雪山主峰',
-        'yushan-main':    '玉山主峰',
-        jiaming:          '嘉明湖國家步道',
+        hehuane: '合歡東峰',
+        baiyang: '白楊步道', // DB 目前無此步道，fallback 到相似度
+        'hehuan-main': '合歡主峰',
+        qixing: '七星山主峰',
+        yuanzui: '鳶嘴稍來小雪山國家步道',
+        dawu: '北大武山',
+        xueshan: '雪山主峰',
+        'yushan-main': '玉山主峰',
+        jiaming: '嘉明湖國家步道',
       };
       const diffByKeyword: Record<string, string> = {
-        'alishan-forest': 'easy', hehuane: 'easy', baiyang: 'easy',
-        'hehuan-main': 'medium', qixing: 'medium', yuanzui: 'medium',
-        dawu: 'hard', xueshan: 'hard',
-        'yushan-main': 'expert', jiaming: 'expert',
+        'alishan-forest': 'easy',
+        hehuane: 'easy',
+        baiyang: 'easy',
+        'hehuan-main': 'medium',
+        qixing: 'medium',
+        yuanzui: 'medium',
+        dawu: 'hard',
+        xueshan: 'hard',
+        'yushan-main': 'expert',
+        jiaming: 'expert',
       };
       const daysByKeyword: Record<string, number> = {
-        'alishan-forest': 1, hehuane: 1, baiyang: 1,
-        'hehuan-main': 1, qixing: 1, yuanzui: 1,
-        dawu: 2, xueshan: 2, 'yushan-main': 2, jiaming: 3,
+        'alishan-forest': 1,
+        hehuane: 1,
+        baiyang: 1,
+        'hehuan-main': 1,
+        qixing: 1,
+        yuanzui: 1,
+        dawu: 2,
+        xueshan: 2,
+        'yushan-main': 2,
+        jiaming: 3,
       };
       function findMostSimilar(
         targetId: string,
         candidates: RouteApiResponse[],
       ): RouteApiResponse {
-        const targetDiff = difficultyRank[diffByKeyword[targetId] ?? 'medium'] ?? 1;
+        const targetDiff =
+          difficultyRank[diffByKeyword[targetId] ?? 'medium'] ?? 1;
         const targetDays = daysByKeyword[targetId] ?? 1;
         return candidates.reduce((best, r) => {
           const diffScore = Math.abs(
@@ -2259,15 +2275,14 @@ async function replyWithMockAi(msg: string) {
     return;
   }
 
-  if (ready && extractedProfile) {
-    const aiRouteIds = Array.isArray(extractedProfile.recommendedRouteIds)
-      ? (extractedProfile.recommendedRouteIds as string[])
+  if (ready) {
+    const aiRouteIds = Array.isArray(extractedProfile?.recommendedRouteIds)
+      ? (extractedProfile!.recommendedRouteIds as string[])
       : undefined;
-    await recommendRoutesFromProfile(
-      normalizeExtractedProfile(extractedProfile, combinedText),
-      combinedText,
-      aiRouteIds,
-    );
+    const profile = extractedProfile
+      ? normalizeExtractedProfile(extractedProfile, combinedText)
+      : fallbackProfileFromText(combinedText, profileForm.value?.fitness ?? 3);
+    await recommendRoutesFromProfile(profile, combinedText, aiRouteIds);
   } else if (
     aiChatMode.value === 'gemini' &&
     /裝備|清單|gear/i.test(msg) &&
@@ -3862,7 +3877,10 @@ const weatherAiStatusLabel = computed(() => {
   if (weatherMode.value === 'mock') return '本地假資料';
   if (weatherLoading.value) return 'Gemini 檢查中...';
   if (!routeWeather.value) return 'Gemini 未回應';
-  if (routeWeather.value.fallback_stage === 'gemini' || routeWeather.value.model_used === 'fallback') {
+  if (
+    routeWeather.value.fallback_stage === 'gemini' ||
+    routeWeather.value.model_used === 'fallback'
+  ) {
     return 'Gemini 失敗，已切回假資料';
   }
   if (routeWeather.value.fallback_stage === 'cwa') {
@@ -3881,18 +3899,23 @@ const weatherFallbackReasonText = computed(() =>
     ? (() => {
         if (!routeWeather.value) return weatherFallbackReason.value;
         if (routeWeather.value.fallback_stage === 'gemini') {
-          return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
+          return (
+            routeWeather.value.fallback_reason ?? weatherFallbackReason.value
+          );
         }
         if (routeWeather.value.fallback_stage === 'cwa') {
           return 'CWA 暫時無法取得即時資料，已由 Gemini 根據預設天氣時段產生建議。';
         }
-        return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
+        return (
+          routeWeather.value.fallback_reason ?? weatherFallbackReason.value
+        );
       })()
     : null,
 );
 const weatherModelDisplay = computed(() => {
   const m = routeWeather.value?.model_used;
-  if (!m || m === 'mock' || m === 'fallback' || m === 'local-fallback') return null;
+  if (!m || m === 'mock' || m === 'fallback' || m === 'local-fallback')
+    return null;
   if (m.startsWith('gemini')) return 'gemini';
   return m;
 });
