@@ -119,16 +119,16 @@
         </div> -->
 
         <!-- AI match reasons (from source) -->
-        <div v-if="source?.reasons?.length" class="section">
+        <!-- <div v-if="source?.reasons?.length" class="section">
           <div class="section-label">配對分析</div>
           <div class="reasons-list">
             <div v-for="r in source.reasons" :key="r.text" class="reason-item">
-              <!-- <span class="reason-icon">{{ r.icon }}</span> -->
+              <span class="reason-icon">{{ r.icon }}</span>
               <span class="reason-icon">●</span>
               <span class="reason-text">{{ r.text }}</span>
             </div>
           </div>
-        </div>
+        </div> -->
 
         <!-- Permit info -->
         <div class="section">
