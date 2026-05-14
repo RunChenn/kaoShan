@@ -109,7 +109,7 @@ function drawMap() {
     if (firstPoint) {
       L.marker(firstPoint, {
         icon: L.divIcon({
-          html: '<div class="gpx-marker gpx-marker-start"><span class="material-icons" style="font-size:14px;line-height:1">directions_walk</span></div>',
+          html: '<div class="gpx-marker gpx-marker-start"><span class="material-icons" style="font-size:14px;line-height:1">hiking</span></div>',
           iconSize: [28, 24],
           iconAnchor: [14, 12],
           className: '',

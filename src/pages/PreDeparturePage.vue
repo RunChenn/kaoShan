@@ -93,7 +93,7 @@
           <div>
             <div class="chat-collapsed-title">KaoShan 已完成需求統整</div>
             <!-- <div class="chat-collapsed-sub">
-              {{ demandSummary.goal }} · {{ demandSummary.days }} ·
+              {{ demandSummary.goal }} · {{ demandSummary.elevation }} ·
               {{ demandSummary.fitness }} · {{ demandSummary.risk }}
             </div> -->
           </div>
@@ -203,7 +203,7 @@
                 <div class="route-card-meta">
                   <span>📏 {{ cardOf(m).distance }}</span>
                   <span>⬆ {{ cardOf(m).elevation }}</span>
-                  <span>⏱ {{ cardOf(m).days }}</span>
+                  <span>🏔 {{ cardOf(m).maxElevation || '—' }}</span>
                 </div>
                 <div class="route-card-highlight">
                   {{ cardOf(m).highlight }}
@@ -476,9 +476,17 @@
             <strong>{{ demandSummary.goal }}</strong>
           </div>
           <div class="demand-item">
-            <span>天數</span>
+            <span>行程天數</span>
             <strong>{{ demandSummary.days }}</strong>
           </div>
+          <!-- <div class="demand-item">
+            <span>海拔爬升</span>
+            <strong>{{ demandSummary.elevation }}</strong>
+          </div>
+          <div class="demand-item">
+            <span>最高海拔</span>
+            <strong>{{ demandSummary.maxElevation }}</strong>
+          </div> -->
           <div class="demand-item">
             <span>體能</span>
             <strong>{{ demandSummary.fitness }}</strong>
@@ -569,8 +577,10 @@
                 <div class="route-card-meta-data">{{ card.time }}</div>
               </div>
               <div class="route-card-meta-item">
-                <div class="route-card-meta-title">天數</div>
-                <div class="route-card-meta-data">{{ card.days }}</div>
+                <div class="route-card-meta-title">海拔高度</div>
+                <div class="route-card-meta-data">
+                  {{ card.maxElevation || '—' }}
+                </div>
               </div>
             </div>
             <div class="route-card-highlight">{{ card.highlight }}</div>
@@ -594,6 +604,62 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- 天氣 -->
+      <div v-if="planningRevealed" class="card anim-slide-up">
+        <div class="section-label weather-section-header">
+          <div class="weather-section-title">
+            明日天氣
+            <span v-if="routeWeather?.location_name" class="weather-location">
+              {{ routeWeather.location_name }}
+            </span>
+          </div>
+          <button
+            v-if="showWeatherModeToggle"
+            class="chat-small-btn weather-mode-toggle"
+            :class="{ 'ai-mode-gemini': weatherMode === 'gemini' }"
+            :title="
+              weatherMode === 'mock' ? '目前使用假資料' : '目前使用 Gemini'
+            "
+            @click="toggleWeatherMode"
+          >
+            {{ weatherMode === 'mock' ? '假資料' : 'Gemini' }}
+          </button>
+        </div>
+        <div v-if="weatherLoading" class="weather-loading">
+          {{
+            weatherMode === 'mock'
+              ? '正在產生本地假天氣建議...'
+              : '正在取得中央氣象署資料並呼叫 Gemini...'
+          }}
+        </div>
+        <div class="weather-cols">
+          <div v-for="w in displayedWeather" :key="w.label" class="weather-col">
+            <div class="weather-icon">{{ w.icon }}</div>
+            <div class="weather-temp">{{ w.temp }}</div>
+            <div class="weather-label">{{ w.label }}</div>
+          </div>
+        </div>
+        <div class="custom-advice-box weather-advice-box">
+          {{ weatherAdvice }}
+        </div>
+        <div v-if="weatherFallbackReasonText" class="weather-fallback-note">
+          {{ weatherFallbackReasonText }}
+        </div>
+        <div v-if="routeWeather?.source" class="weather-source">
+          來源：{{ routeWeather.source }}
+          <!-- <span v-if="weatherModelDisplay" class="weather-model-badge">{{
+            weatherModelDisplay
+          }}</span> -->
+        </div>
+        <!-- <div
+          v-if="showWeatherModeToggle"
+          class="weather-ai-status"
+          :class="weatherAiStatusClass"
+        >
+          {{ weatherAiStatusLabel }}
+        </div> -->
       </div>
 
       <!-- AI 裝備辨識 -->
@@ -789,62 +855,6 @@
             </button>
           </div>
         </div>
-      </div>
-
-      <!-- 天氣 -->
-      <div v-if="planningRevealed" class="card anim-slide-up">
-        <div class="section-label weather-section-header">
-          <div class="weather-section-title">
-            明日天氣
-            <span v-if="routeWeather?.location_name" class="weather-location">
-              {{ routeWeather.location_name }}
-            </span>
-          </div>
-          <button
-            v-if="showWeatherModeToggle"
-            class="chat-small-btn weather-mode-toggle"
-            :class="{ 'ai-mode-gemini': weatherMode === 'gemini' }"
-            :title="
-              weatherMode === 'mock' ? '目前使用假資料' : '目前使用 Gemini'
-            "
-            @click="toggleWeatherMode"
-          >
-            {{ weatherMode === 'mock' ? '假資料' : 'Gemini' }}
-          </button>
-        </div>
-        <div v-if="weatherLoading" class="weather-loading">
-          {{
-            weatherMode === 'mock'
-              ? '正在產生本地假天氣建議...'
-              : '正在取得中央氣象署資料並呼叫 Gemini...'
-          }}
-        </div>
-        <div class="weather-cols">
-          <div v-for="w in displayedWeather" :key="w.label" class="weather-col">
-            <div class="weather-icon">{{ w.icon }}</div>
-            <div class="weather-temp">{{ w.temp }}</div>
-            <div class="weather-label">{{ w.label }}</div>
-          </div>
-        </div>
-        <div class="custom-advice-box weather-advice-box">
-          {{ weatherAdvice }}
-        </div>
-        <div v-if="weatherFallbackReasonText" class="weather-fallback-note">
-          {{ weatherFallbackReasonText }}
-        </div>
-        <div v-if="routeWeather?.source" class="weather-source">
-          來源：{{ routeWeather.source }}
-          <!-- <span v-if="weatherModelDisplay" class="weather-model-badge">{{
-            weatherModelDisplay
-          }}</span> -->
-        </div>
-        <!-- <div
-          v-if="showWeatherModeToggle"
-          class="weather-ai-status"
-          :class="weatherAiStatusClass"
-        >
-          {{ weatherAiStatusLabel }}
-        </div> -->
       </div>
 
       <div v-if="selectedRoute" class="offline-download-card">
@@ -1113,8 +1123,8 @@ interface RouteCard {
   difficulty: 'easy' | 'medium' | 'hard';
   distance: string;
   elevation: string;
+  maxElevation: string;
   time: string;
-  days: string;
   highlight: string;
   source?: RecommendedRoute;
 }
@@ -1149,6 +1159,8 @@ interface QuickReply {
 interface DemandSummary {
   goal: string;
   days: string;
+  elevation: string;
+  maxElevation: string;
   fitness: string;
   risk: string;
   note: string;
@@ -1302,6 +1314,7 @@ interface RouteApiResponse {
   distance_km: number;
   estimated_hours: number;
   elevation_gain: number;
+  max_elevation: number;
   risks: {
     slip: number;
     lost: number;
@@ -1342,7 +1355,7 @@ const lastRecommendationContext = ref<{
 } | null>(null);
 const demandSummary = ref<DemandSummary>({
   goal: '尚未建立',
-  days: '待確認',
+  elevation: '待確認',
   fitness: '待確認',
   risk: '待確認',
   note: '完成 AI 對話後，這裡會整理本次登山需求與推薦路線。',
@@ -1428,6 +1441,8 @@ function resetChatConversation() {
   demandSummary.value = {
     goal: '尚未建立',
     days: '待確認',
+    elevation: '待確認',
+    maxElevation: '待確認',
     fitness: '待確認',
     risk: '待確認',
     note: '完成 AI 對話後，這裡會整理本次登山需求與推薦路線。',
@@ -1492,11 +1507,9 @@ function buildDemandSummary(msg: string): DemandSummary {
     goal: /北部|中部|南部|東部/.test(msg)
       ? (msg.match(/(北部|中部|南部|東部)/)?.[1] ?? '待確認地區')
       : '待確認地區',
-    days: /兩天|2天/.test(msg)
-      ? '2 天 1 夜'
-      : /三天|3天/.test(msg)
-        ? '3 天 2 夜'
-        : '1 日行程',
+    days: '待確認',
+    elevation: '待確認',
+    maxElevation: '待確認',
     fitness: /進階|挑戰|百岳/.test(msg)
       ? '良好，可接受較長爬升'
       : /體能|分析|GPX|紀錄/.test(msg)
@@ -1515,7 +1528,9 @@ function buildDemandSummaryFromProfile(
     goal: /北部|中部|南部|東部/.test(sourceMessage)
       ? (sourceMessage.match(/(北部|中部|南部|東部)/)?.[1] ?? '待確認地區')
       : '待確認地區',
-    days: `${profile.target_days} 日行程`,
+    days: '待確認',
+    elevation: '待確認',
+    maxElevation: '待確認',
     fitness: `${FITNESS_LABELS[profile.fitness]}（${profile.fitness}/5）`,
     risk:
       profile.level === 'experienced' && profile.fitness >= 4
@@ -1550,6 +1565,25 @@ function publishRouteRecommendations(
         ? uniqueRegions[0]!
         : uniqueRegions.slice(0, 2).join('、')
       : '待確認地區';
+
+  const maxDays = Math.max(...normalizedRoutes.map((r) => r.minDays ?? 1));
+  summary.days = maxDays >= 2 ? `${maxDays} 天行程` : '1 日行程';
+
+  const elevations = normalizedRoutes
+    .map((r) => r.elevation_gain)
+    .filter((v): v is number => typeof v === 'number' && v > 0);
+  if (elevations.length > 0) {
+    const avg = Math.round(
+      elevations.reduce((a, b) => a + b, 0) / elevations.length,
+    );
+    summary.elevation = `⬆ ${avg} m`;
+  }
+  const maxElevNums = normalizedRoutes
+    .map((r) => parseInt(r.maxElevation))
+    .filter((v) => !isNaN(v) && v > 0);
+  if (maxElevNums.length > 0) {
+    summary.maxElevation = `🏔 ${Math.max(...maxElevNums).toLocaleString()} m`;
+  }
   demandSummary.value = summary;
   const displayCards = getRecommendationBatch(normalizedRoutes, 0).map(
     toRouteCard,
@@ -1769,6 +1803,7 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
     risk,
     distance: `${route.distance_km}km`,
     elevation: `${route.elevation_gain}m`,
+    maxElevation: route.max_elevation > 0 ? `${route.max_elevation}m` : '',
     time: `${route.estimated_hours}h`,
     minDays: route.days,
     highlight:
@@ -1778,7 +1813,7 @@ function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
     matchLabel:
       aiScore != null
         ? isGemini
-          ? `${categoryLabel} AI 推薦`
+          ? `${categoryLabel} 推薦`
           : `${categoryLabel} 依條件排序`
         : risk === 'low'
           ? '推薦'
@@ -1856,6 +1891,7 @@ function buildRouteSkeleton(route: RouteApiResponse): HikingRoute {
     name: route.name,
     distance: `${route.distance_km}km`,
     elevation: `${route.elevation_gain}m`,
+    maxElevation: route.max_elevation > 0 ? `${route.max_elevation}m` : '',
     time: `${route.estimated_hours}h`,
     risk:
       difficulty === 'easy' ? 'low' : difficulty === 'medium' ? 'mid' : 'high',
@@ -2381,8 +2417,8 @@ function toRouteCard(route: RecommendedRoute): RouteCard {
     difficulty: routeDifficulty(route),
     distance: route.distance,
     elevation: route.elevation,
+    maxElevation: route.maxElevation,
     time: route.time,
-    days: `${route.minDays}天`,
     highlight: route.highlight,
     source: route,
   };
@@ -2915,10 +2951,14 @@ function stopVoiceRecording() {
     speechSocket.send(JSON.stringify({ type: 'stop' }));
   }
   const transcript = `${overlayFinal.value}${overlayLive.value}`.trim();
-  inputText.value = composeVoiceDraft(transcript);
-  voiceDraftCommitted.value = Boolean(inputText.value.trim());
+  const draft = composeVoiceDraft(transcript);
+  inputText.value = draft;
+  voiceDraftCommitted.value = Boolean(draft.trim());
   stopVoiceCapture();
   voiceRecording.value = false;
+  if (draft.trim()) {
+    void sendUserMsg(draft);
+  }
 }
 
 function cancelVoiceRecording() {

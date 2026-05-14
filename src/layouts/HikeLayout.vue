@@ -7,7 +7,7 @@
         <span>KaoShan</span>
       </div>
 
-      <div class="nav-tabs">
+      <!-- <div class="nav-tabs">
         <button
           v-for="tab in TABS"
           :key="tab.path"
@@ -17,7 +17,7 @@
         >
           {{ tab.icon }} {{ tab.label }}
         </button>
-      </div>
+      </div> -->
 
       <div class="nav-actions">
         <button

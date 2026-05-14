@@ -303,6 +303,16 @@
 
     <!-- ③ 裝備確認 -->
     <div v-if="tab === 'gear'" class="q-pa-md">
+      <!-- AI 裝備建議載入中 -->
+      <div v-if="gearSuggestLoading" class="row items-center q-mb-sm" style="opacity:0.6;gap:8px">
+        <q-spinner-dots color="primary" size="18px" />
+        <span class="text-caption">AI 分析路線裝備需求中…</span>
+      </div>
+      <div v-else-if="suggestedGear && !suggestedGear.fallback" class="row items-center q-mb-sm" style="gap:6px;opacity:0.7">
+        <q-icon name="auto_awesome" color="primary" size="14px" />
+        <span class="text-caption text-primary">依路線 AI 客製化建議</span>
+      </div>
+
       <!-- Camera preview -->
       <div class="camera-box anim-fade q-mb-md">
         <div
@@ -532,8 +542,15 @@ import {
 } from 'src/mocks/weather';
 import { usePlanStore } from 'src/stores/plan';
 import type { ShoeRecognition, GearAssessResponse } from 'src/stores/plan';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+
+interface GearSuggestResponse {
+  required: string[];
+  optional: string[];
+  model_used: string;
+  fallback: boolean;
+}
 
 const vRoute = useRoute();
 const router = useRouter();
@@ -541,6 +558,8 @@ const plan = usePlanStore();
 const tab = ref('info');
 const scanning = ref(false);
 const gearScanned = ref(false);
+const gearSuggestLoading = ref(false);
+const suggestedGear = ref<GearSuggestResponse | null>(null);
 const gearResults = ref(mockGearResults);
 const gearPhotoInput = ref<HTMLInputElement>();
 const recognizedShoe = ref<ShoeRecognition | null>(null);
@@ -577,6 +596,29 @@ watch(tab, (newTab) => {
     })
   }
 })
+
+// 進頁面時從後端取得 AI 動態裝備建議
+onMounted(async () => {
+  const routeId = vRoute.params.id as string;
+  if (!routeId) return;
+  gearSuggestLoading.value = true;
+  try {
+    const { data } = await api.get<GearSuggestResponse>(`/gear/suggest`, {
+      params: { route_id: routeId },
+    });
+    suggestedGear.value = data;
+    // 將 AI 建議的清單作為初始裝備項目（全部 detected: false）
+    gearResults.value = [
+      ...data.required.map((name) => ({ name, detected: false, confidence: 0 })),
+      ...data.optional.map((name) => ({ name, detected: false, confidence: 0 })),
+    ];
+  } catch (_) {
+    // 失敗時保留 mockGearResults 作為 fallback
+  } finally {
+    gearSuggestLoading.value = false;
+  }
+});
+
 const missingItems = computed(() =>
   gearResults.value.filter((g) => !g.detected),
 );
@@ -784,9 +826,12 @@ function mergeGearDetectionWithRouteChecklist(
       .filter((item) => item.detected)
       .map((item) => [normalizeGearLabel(item.name), item.confidence]),
   );
-  const checklist = route.value
-    ? [...route.value.gear.required, ...route.value.gear.optional]
-    : items.map((item) => item.name);
+  // 優先用 AI 動態建議清單，fallback 到路線靜態資料，最後用辨識結果本身
+  const checklist = suggestedGear.value
+    ? [...suggestedGear.value.required, ...suggestedGear.value.optional]
+    : route.value
+      ? [...route.value.gear.required, ...route.value.gear.optional]
+      : items.map((item) => item.name);
 
   const merged = checklist.map((name) => {
     const normalizedName = normalizeGearLabel(name);
