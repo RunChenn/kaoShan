@@ -3862,11 +3862,11 @@ const weatherAiStatusLabel = computed(() => {
   if (weatherMode.value === 'mock') return '本地假資料';
   if (weatherLoading.value) return 'Gemini 檢查中...';
   if (!routeWeather.value) return 'Gemini 未回應';
-  if (
-    routeWeather.value.fallback ||
-    routeWeather.value.model_used === 'fallback'
-  ) {
+  if (routeWeather.value.fallback_stage === 'gemini' || routeWeather.value.model_used === 'fallback') {
     return 'Gemini 失敗，已切回假資料';
+  }
+  if (routeWeather.value.fallback_stage === 'cwa') {
+    return 'Gemini 成功，CWA 暫不可用';
   }
   if (
     routeWeather.value.model_used &&
@@ -3878,7 +3878,16 @@ const weatherAiStatusLabel = computed(() => {
 });
 const weatherFallbackReasonText = computed(() =>
   weatherMode.value === 'gemini'
-    ? (routeWeather.value?.fallback_reason ?? weatherFallbackReason.value)
+    ? (() => {
+        if (!routeWeather.value) return weatherFallbackReason.value;
+        if (routeWeather.value.fallback_stage === 'gemini') {
+          return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
+        }
+        if (routeWeather.value.fallback_stage === 'cwa') {
+          return 'CWA 暫時無法取得即時資料，已由 Gemini 根據預設天氣時段產生建議。';
+        }
+        return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
+      })()
     : null,
 );
 const weatherModelDisplay = computed(() => {
@@ -3891,13 +3900,13 @@ const weatherAiStatusClass = computed(() => ({
   success:
     weatherMode.value === 'gemini' &&
     !!routeWeather.value &&
-    !routeWeather.value.fallback &&
+    routeWeather.value.fallback_stage !== 'gemini' &&
     routeWeather.value.model_used !== 'fallback' &&
     routeWeather.value.model_used !== 'mock',
   warning:
     weatherMode.value === 'gemini' &&
     (!routeWeather.value ||
-      routeWeather.value.fallback ||
+      routeWeather.value.fallback_stage === 'gemini' ||
       routeWeather.value.model_used === 'fallback' ||
       routeWeather.value.model_used === 'mock'),
   mock: weatherMode.value === 'mock',
