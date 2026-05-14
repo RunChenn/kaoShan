@@ -1472,7 +1472,7 @@ function buildRecommendationDialogueText(cards: RouteCard[]) {
     const reason = card.highlight?.trim() || '依您的條件做出的推薦。';
     return `${index + 1}. ${card.name}：${reason}`;
   });
-  return `AI 已依您的條件找出 15 條符合的路線，先列出前 3 條：\n${lines.join('\n')}\n請在下方選擇一條路線，再進行裝備與天氣檢查。`;
+  return `為您推薦以下路線：\n${lines.join('\n')}\n請在下方選擇一條路線，再進行裝備與天氣檢查。`;
 }
 
 function shouldRefreshRecommendations(msg: string) {
