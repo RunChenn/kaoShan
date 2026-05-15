@@ -1311,14 +1311,7 @@ interface RouteApiResponse {
   recommendation_source?: 'gemini' | 'heuristic' | 'mock' | null;
 }
 
-interface CachedRouteRecommendation {
-  savedAt: number;
-  routes: RouteApiResponse[];
-}
-
 // ── LINE Chatbox ─────────────────────────────────
-const ROUTE_RECOMMEND_CACHE_PREFIX = 'kaoshan:routes:recommend:v4:';
-const ROUTE_RECOMMEND_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 const msgListEl = ref<HTMLDivElement>();
 const msgEndEl = ref<HTMLDivElement>();
 const inputText = ref('');
@@ -1361,7 +1354,7 @@ const messages = ref<Message[]>([
     role: 'bot',
     type: 'text',
     time: nowTime(),
-    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用兩種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
+    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用兩種方式開始規劃：\n1. 直接聊天：告訴我體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n年齡只有在您特別提到時才會納入參考。\n\n我會依照這些資料幫您推薦適合的路線。`,
     // text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
   },
 ]);
@@ -1373,7 +1366,7 @@ function createInitialMessages(): Message[] {
       role: 'bot',
       type: 'text',
       time: nowTime(),
-      text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用兩種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
+      text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用兩種方式開始規劃：\n1. 直接聊天：告訴我體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n年齡只有在您特別提到時才會納入參考。\n\n我會依照這些資料幫您推薦適合的路線。`,
       // text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
     },
   ];
@@ -1529,7 +1522,9 @@ function publishRouteRecommendations(
   sourceMessage: string,
   profile?: ProfileForm,
 ) {
-  const normalizedRoutes = getSimilarRouteCandidates(routes, profile);
+  const normalizedRoutes = rotateRoutesByScore(
+    getSimilarRouteCandidates(routes, profile),
+  );
   lastRecommendationContext.value = {
     routes: normalizedRoutes,
     sourceMessage,
@@ -1662,7 +1657,7 @@ function fallbackProfileFromText(text: string, fitness = 3): ProfileForm {
       ? 3
       : Number(daysMatch?.[1] ?? 1);
   return {
-    age: Number(ageMatch?.[1] ?? 30),
+    age: Number(ageMatch?.[1] ?? 0),
     weight: Number(weightMatch?.[1] ?? 70),
     level: /新手|第一次|入門/.test(text)
       ? 'beginner'
@@ -1709,7 +1704,7 @@ function normalizeExtractedProfile(
         ? 'experienced'
         : 'beginner';
   return {
-    age: Number(extracted?.age ?? fallback.age),
+    age: Number(extracted?.age ?? fallback.age ?? 0),
     weight: Number(extracted?.weight ?? fallback.weight),
     level,
     fitness: Math.min(
@@ -1909,6 +1904,24 @@ function getSimilarRouteCandidates(
   });
 }
 
+function rotateRoutesByScore(routes: RecommendedRoute[]): RecommendedRoute[] {
+  const buckets = new Map<number, RecommendedRoute[]>();
+  for (const route of routes) {
+    const key = Math.round((route.matchScore ?? 0) * 10);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(route);
+    else buckets.set(key, [route]);
+  }
+
+  return [...buckets.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .flatMap(([, bucket]) => {
+      if (bucket.length <= 1) return bucket;
+      const offset = Math.floor(Math.random() * bucket.length);
+      return bucket.slice(offset).concat(bucket.slice(0, offset));
+    });
+}
+
 function prioritizeRoutesByIds(
   routes: RecommendedRoute[],
   preferredIds?: string[],
@@ -1941,58 +1954,6 @@ function getRecommendationBatch(
   });
 }
 
-function getRouteRecommendCacheKey(profile: ProfileForm) {
-  const normalized = {
-    age: Math.round(profile.age),
-    weight: Math.round(profile.weight),
-    level: profile.level,
-    fitness: Math.round(profile.fitness),
-    target_days: Math.round(profile.target_days),
-  };
-  return `${ROUTE_RECOMMEND_CACHE_PREFIX}${JSON.stringify(normalized)}`;
-}
-
-function readCachedRouteRecommendations(
-  profile: ProfileForm,
-): RouteApiResponse[] | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(getRouteRecommendCacheKey(profile));
-    if (!raw) return null;
-    const cached = JSON.parse(raw) as CachedRouteRecommendation;
-    if (
-      !Array.isArray(cached.routes) ||
-      cached.routes.length < 15 ||
-      Date.now() - cached.savedAt > ROUTE_RECOMMEND_CACHE_TTL_MS
-    ) {
-      window.localStorage.removeItem(getRouteRecommendCacheKey(profile));
-      return null;
-    }
-    return cached.routes;
-  } catch (_) {
-    return null;
-  }
-}
-
-function writeCachedRouteRecommendations(
-  profile: ProfileForm,
-  routes: RouteApiResponse[],
-) {
-  if (typeof window === 'undefined') return;
-  try {
-    const cached: CachedRouteRecommendation = {
-      savedAt: Date.now(),
-      routes,
-    };
-    window.localStorage.setItem(
-      getRouteRecommendCacheKey(profile),
-      JSON.stringify(cached),
-    );
-  } catch (_) {
-    // localStorage 可能因隱私模式或容量限制失敗，失敗時仍維持原本 API 流程。
-  }
-}
-
 async function recommendRoutesFromProfile(
   profile: ProfileForm,
   sourceMessage: string,
@@ -2008,76 +1969,30 @@ async function recommendRoutesFromProfile(
         profile,
       );
       const dbMap = new Map(dbRoutes.map((r) => [r.id, r]));
+      const normalizeKey = (value: string) =>
+        value
+          .toLowerCase()
+          .replace(/[\s_\-]+/g, '')
+          .replace(/[^0-9a-z\u4e00-\u9fff]+/gi, '');
 
-      // 計算兩條路線的相似度分數（越低越相近）
-      const difficultyRank: Record<string, number> = {
-        easy: 0,
-        medium: 1,
-        hard: 2,
-        expert: 3,
-      };
-      // Gemini 系統提示中的路線 ID → 名稱 / 難度 / 天數對照表
-      const nameByKeyword: Record<string, string> = {
-        'alishan-forest': '阿里山國家森林遊樂區巨木群步道',
-        hehuane: '合歡東峰',
-        baiyang: '白楊步道', // DB 目前無此步道，fallback 到相似度
-        'hehuan-main': '合歡主峰',
-        qixing: '七星山主峰',
-        yuanzui: '鳶嘴稍來小雪山國家步道',
-        dawu: '北大武山',
-        xueshan: '雪山主峰',
-        'yushan-main': '玉山主峰',
-        jiaming: '嘉明湖國家步道',
-      };
-      const diffByKeyword: Record<string, string> = {
-        'alishan-forest': 'easy',
-        hehuane: 'easy',
-        baiyang: 'easy',
-        'hehuan-main': 'medium',
-        qixing: 'medium',
-        yuanzui: 'medium',
-        dawu: 'hard',
-        xueshan: 'hard',
-        'yushan-main': 'expert',
-        jiaming: 'expert',
-      };
-      const daysByKeyword: Record<string, number> = {
-        'alishan-forest': 1,
-        hehuane: 1,
-        baiyang: 1,
-        'hehuan-main': 1,
-        qixing: 1,
-        yuanzui: 1,
-        dawu: 2,
-        xueshan: 2,
-        'yushan-main': 2,
-        jiaming: 3,
-      };
-      function findMostSimilar(
-        targetId: string,
-        candidates: RouteApiResponse[],
-      ): RouteApiResponse {
-        const targetDiff =
-          difficultyRank[diffByKeyword[targetId] ?? 'medium'] ?? 1;
-        const targetDays = daysByKeyword[targetId] ?? 1;
-        return candidates.reduce((best, r) => {
-          const diffScore = Math.abs(
-            (difficultyRank[r.difficulty] ?? 1) - targetDiff,
-          );
-          const dayScore = Math.abs(r.days - targetDays);
-          const bestDiff = Math.abs(
-            (difficultyRank[best.difficulty] ?? 1) - targetDiff,
-          );
-          const bestDay = Math.abs(best.days - targetDays);
-          return diffScore * 2 + dayScore < bestDiff * 2 + bestDay ? r : best;
-        });
-      }
-
-      const dbNameMap = new Map(dbRoutes.map((r) => [r.name, r]));
+      const candidateKeys = dbRoutes.map((route) => ({
+        route,
+        keys: [
+          route.id,
+          route.name,
+          route.location,
+          route.description ?? '',
+        ]
+          .map((value) => normalizeKey(value))
+          .filter(Boolean),
+      }));
 
       const matched: RouteApiResponse[] = [];
       const usedIds = new Set<string>();
       for (const id of aiRouteIds) {
+        const normalizedId = normalizeKey(id);
+        if (!normalizedId) continue;
+
         // 1. ID 完全吻合
         const byId = dbMap.get(id);
         if (byId && !usedIds.has(byId.id)) {
@@ -2085,20 +2000,16 @@ async function recommendRoutesFromProfile(
           usedIds.add(byId.id);
           continue;
         }
-        // 2. 名稱吻合（資料庫 ID 不同但路線名稱相同）
-        const targetName = nameByKeyword[id];
-        const byName = targetName ? dbNameMap.get(targetName) : undefined;
-        if (byName && !usedIds.has(byName.id)) {
-          matched.push(byName);
-          usedIds.add(byName.id);
-          continue;
-        }
-        // 3. 找最相近的（難度 + 天數）
-        const remaining = dbRoutes.filter((r) => !usedIds.has(r.id));
-        if (remaining.length > 0) {
-          const similar = findMostSimilar(id, remaining);
-          matched.push(similar);
-          usedIds.add(similar.id);
+
+        // 2. 用資料庫候選集的 id / 名稱 / 地點 / 描述做文字匹配
+        const byText = candidateKeys.find(({ route, keys }) => {
+          if (usedIds.has(route.id)) return false;
+          return keys.some((key) => key && (key.includes(normalizedId) || normalizedId.includes(key)));
+        })?.route;
+
+        if (byText && !usedIds.has(byText.id)) {
+          matched.push(byText);
+          usedIds.add(byText.id);
         }
       }
 
@@ -2108,7 +2019,7 @@ async function recommendRoutesFromProfile(
         .filter((r) => !usedIds.has(r.id))
         .map(apiRouteToRecommendedRoute);
       publishRouteRecommendations(
-        getSimilarRouteCandidates([...aiRoutes, ...rest]),
+        rotateRoutesByScore(getSimilarRouteCandidates([...aiRoutes, ...rest])),
         sourceMessage,
         profile,
       );
@@ -2118,24 +2029,13 @@ async function recommendRoutesFromProfile(
     }
   }
 
-  const cachedRoutes = readCachedRouteRecommendations(profile);
-  if (cachedRoutes) {
-    publishRouteRecommendations(
-      cachedRoutes.map(apiRouteToRecommendedRoute),
-      sourceMessage,
-      profile,
-    );
-    return;
-  }
-
   try {
     const { data } = await api.post<RouteApiResponse[]>(
       '/routes/recommend',
       profile,
     );
-    writeCachedRouteRecommendations(profile, data);
     publishRouteRecommendations(
-      data.map(apiRouteToRecommendedRoute),
+      rotateRoutesByScore(data.map(apiRouteToRecommendedRoute)),
       sourceMessage,
       profile,
     );

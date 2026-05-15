@@ -267,7 +267,6 @@ export function getRecommendations(profile: UserProfile): RecommendedRoute[] {
   const userFit   = profile.fitness    || 3
   const userSlope = profile.slopeCoeff || 3
   const userDays  = profile.targetDays || 1
-  const userAge   = parseInt(profile.age) || 30
 
   return ROUTES.map(r => {
     const reqExp = EXP_MAP[r.minExp] || 1
@@ -290,9 +289,6 @@ export function getRecommendations(profile: UserProfile): RecommendedRoute[] {
 
     if (r.minDays > userDays)         { score -= 30; reasons.push({ icon: '❌', text: `需要 ${r.minDays} 天，超過您的計劃天數` }) }
     else if (r.minDays === userDays)   { score += 8;  reasons.push({ icon: '✅', text: '天數規劃完全吻合' }) }
-
-    if (userAge > 60 && r.risk === 'high') { score -= 15; reasons.push({ icon: '💡', text: '建議年長者選擇低風險路線' }) }
-    if (userAge < 25 && r.risk === 'low' && userExp >= 2) { score -= 5; reasons.push({ icon: '💡', text: '年輕有活力，可挑戰更高難度' }) }
 
     let matchLabel: string, matchBg: string, matchColor: string
     if (score >= 85)      { matchLabel = '強烈推薦'; matchBg = 'rgba(34,197,94,0.15)';  matchColor = 'var(--risk-low)' }
