@@ -531,25 +531,45 @@
 import { api } from 'src/boot/axios';
 import RiskGauge from 'src/components/RiskGauge.vue';
 import RiskRing from 'src/components/RiskRing.vue';
-import type { GearItem } from 'src/mocks/gear';
-import { mockGearResults } from 'src/mocks/gear';
-import { mockRoutes } from 'src/mocks/routes';
 import {
   conditionColor,
   conditionIcon,
   conditionLabel,
-  mockRouteWeather,
-} from 'src/mocks/weather';
+} from 'src/data/weather';
 import { usePlanStore } from 'src/stores/plan';
 import type { ShoeRecognition, GearAssessResponse } from 'src/stores/plan';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import {
+  fetchRouteById,
+  hydrateRoute,
+  type RouteViewRoute,
+} from 'src/services/routes';
 
 interface GearSuggestResponse {
   required: string[];
   optional: string[];
   model_used: string;
   fallback: boolean;
+}
+
+interface WeatherPeriod {
+  label: string;
+  icon: string;
+  temp: string;
+  condition: string;
+  rain_probability?: string | null;
+}
+
+interface RouteWeatherResponse {
+  location_name: string;
+  periods: WeatherPeriod[];
+  advice: string;
+  source: string;
+  model_used: string;
+  fallback?: boolean;
+  fallback_stage?: string | null;
+  fallback_reason?: string | null;
 }
 
 const vRoute = useRoute();
@@ -560,7 +580,7 @@ const scanning = ref(false);
 const gearScanned = ref(false);
 const gearSuggestLoading = ref(false);
 const suggestedGear = ref<GearSuggestResponse | null>(null);
-const gearResults = ref(mockGearResults);
+const gearResults = ref<Array<{ name: string; detected: boolean; confidence: number }>>([]);
 const gearPhotoInput = ref<HTMLInputElement>();
 const recognizedShoe = ref<ShoeRecognition | null>(null);
 const routeSafety = ref<GearAssessResponse | null>(null);
@@ -582,9 +602,40 @@ interface GearDetectResponse {
   shoe?: ShoeRecognition | null;
 }
 
-const route = computed(() => mockRoutes.find((r) => r.id === vRoute.params.id));
-const routeWeather = computed(
-  () => mockRouteWeather[vRoute.params.id as string] ?? null,
+const route = ref<RouteViewRoute | null>(null);
+const routeWeather = ref<RouteWeatherResponse | null>(null);
+
+async function loadRoute(routeId: string | string[] | undefined) {
+  if (!routeId || Array.isArray(routeId)) {
+    route.value = null;
+    return;
+  }
+  try {
+    const data = await fetchRouteById(routeId);
+    route.value = hydrateRoute(data);
+  } catch (_) {
+    route.value = null;
+  }
+}
+
+watch(
+  () => vRoute.params.id,
+  (routeId) => {
+    void loadRoute(routeId);
+  },
+  { immediate: true },
+);
+
+watch(
+  route,
+  (currentRoute) => {
+    if (!currentRoute) {
+      routeWeather.value = null;
+      return;
+    }
+    void loadRouteWeather(currentRoute);
+  },
+  { immediate: true },
 );
 
 // 切換到天氣 tab 時，將資料儲存到 store 供離線包使用
@@ -592,7 +643,7 @@ watch(tab, (newTab) => {
   if (newTab === 'weather' && routeWeather.value && !plan.weatherData) {
     plan.setWeatherData({
       ...routeWeather.value,
-      source: 'mock',
+      source: 'api',
     })
   }
 })
@@ -613,11 +664,27 @@ onMounted(async () => {
       ...data.optional.map((name) => ({ name, detected: false, confidence: 0 })),
     ];
   } catch (_) {
-    // 失敗時保留 mockGearResults 作為 fallback
+    suggestedGear.value = null;
+    gearResults.value = [];
   } finally {
     gearSuggestLoading.value = false;
   }
 });
+
+async function loadRouteWeather(currentRoute: RouteViewRoute) {
+  try {
+    const { data } = await api.post<RouteWeatherResponse>('/weather/forecast', {
+      route_name: currentRoute.name,
+      location: currentRoute.region,
+      risk: currentRoute.risk,
+      difficulty: routeDifficulty(currentRoute),
+      days: currentRoute.minDays,
+    });
+    routeWeather.value = data;
+  } catch (_) {
+    routeWeather.value = null;
+  }
+}
 
 const missingItems = computed(() =>
   gearResults.value.filter((g) => !g.detected),
@@ -742,7 +809,7 @@ async function onGearPhotoSelected(event: Event) {
     gearResults.value = mergeGearDetectionWithRouteChecklist(data.items);
   } catch (_) {
     recognizedShoe.value = null;
-    gearResults.value = mockGearResults;
+    gearResults.value = [];
   } finally {
     scanning.value = false;
     gearScanned.value = true;

@@ -82,18 +82,12 @@
 
 <script setup lang="ts">
 import RiskCurveChart from 'src/components/RiskCurveChart.vue';
-import { mockHistory } from 'src/mocks/history';
 import { useAfterStore } from 'src/stores/after';
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 
 const after = useAfterStore();
 const expanded = ref<string | null>(null);
-
-onMounted(() => {
-  after.setHistory(mockHistory);
-});
-
-const history = after.history.length ? after.history : mockHistory;
+const history = after.history;
 
 function toggleExpand(id: string) {
   expanded.value = expanded.value === id ? null : id;

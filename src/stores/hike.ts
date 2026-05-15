@@ -1,6 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { BiometricSnapshot, AiDecision } from 'src/mocks/biometrics'
+
+export interface BiometricSnapshot {
+  timestamp: number
+  heartRate: number
+  steps: number
+  altitude: number
+  speed: number
+}
+
+export interface AiDecision {
+  action: 'proceed' | 'rest' | 'retreat'
+  confidence: number
+  reason: string
+  riskScore: number
+}
 
 export interface Position {
   lng: number
@@ -78,7 +92,7 @@ export const useHikeStore = defineStore('hike', () => {
     fatigueIndex.value = Math.round(Math.min(100, (hrFactor * 50 + speedFactor * 50)))
   }
 
-  function setAiDecision(decision: AiDecision) {
+  function setAiDecision(decision: AiDecision | null) {
     aiDecision.value = decision
   }
 

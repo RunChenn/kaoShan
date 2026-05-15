@@ -14,7 +14,7 @@
           步道探索
         </div>
         <div class="text-body2 text-white q-mt-xs" style="opacity:0.65">
-          {{ mockTrails.length }} 條精選台灣步道等你挑戰
+          {{ trails.length }} 條精選台灣步道等你挑戰
         </div>
 
         <!-- Search bar -->
@@ -172,18 +172,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  mockTrails, regionLabels, monthLabels,
-  type TrailRegion,
-} from 'src/mocks/trails'
+import { fetchRoutes, hydrateRoute, type RouteViewRoute } from 'src/services/routes'
 
 const router = useRouter()
 const search        = ref('')
 const searchFocus   = ref(false)
-const selectedRegion = ref<TrailRegion>('all')
+const selectedRegion = ref<'all' | 'north' | 'central' | 'south' | 'east'>('all')
 const selectedDiff   = ref<string | null>(null)
+
+interface TrailCard {
+  id: string
+  name: string
+  location: string
+  region: 'north' | 'central' | 'south' | 'east'
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert'
+  distanceKm: number
+  estimatedHours: number
+  elevationGain: number
+  maxElevation: number
+  thumbnail: string
+  rating: number
+  reviewCount: number
+  bestSeasons: number[]
+  permitRequired: boolean
+  type: 'loop' | 'out-back' | 'one-way'
+}
+
+const regionLabels = {
+  all: '全部',
+  north: '北部',
+  central: '中部',
+  south: '南部',
+  east: '東部',
+}
+
+const monthLabels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 
 const regions = [
   { value: 'all'     as TrailRegion, label: regionLabels.all     },
@@ -217,8 +242,49 @@ function clearFilters() {
   search.value         = ''
 }
 
+const trails = ref<TrailCard[]>([])
+
+function resolveTrailRegion(location: string): TrailCard['region'] {
+  if (/臺北|台北|新北|基隆|宜蘭|桃園|新竹/.test(location)) return 'north'
+  if (/苗栗|臺中|台中|彰化|南投|雲林/.test(location)) return 'central'
+  if (/嘉義|臺南|台南|高雄|屏東/.test(location)) return 'south'
+  return 'east'
+}
+
+function routeToTrail(route: RouteViewRoute): TrailCard {
+  const region = resolveTrailRegion(route.region)
+  const type = route.routeKind === 'peak'
+    ? 'out-back'
+    : route.trailShape.includes('環') ? 'loop' : 'out-back'
+  return {
+    id: route.id,
+    name: route.name,
+    location: route.region,
+    region,
+    difficulty: route.difficulty,
+    distanceKm: route.distanceKm,
+    estimatedHours: route.estimatedHours,
+    elevationGain: route.elevationGain,
+    maxElevation: parseInt(route.maxElevation || '0', 10),
+    thumbnail: route.thumbnail,
+    rating: Math.max(3.6, Math.min(4.9, 4.9 - (route.risk === 'high' ? 0.8 : route.risk === 'mid' ? 0.3 : 0))),
+    reviewCount: Math.max(0, Math.round(route.distanceKm * 120)),
+    bestSeasons: route.routeKind === 'peak' ? [4, 5, 9, 10] : [3, 4, 5, 10, 11],
+    permitRequired: route.requiresPermit,
+    type,
+  }
+}
+
+onMounted(async () => {
+  try {
+    trails.value = (await fetchRoutes()).map((route) => routeToTrail(hydrateRoute(route)))
+  } catch (_) {
+    trails.value = []
+  }
+})
+
 const filtered = computed(() =>
-  mockTrails.filter(t => {
+  trails.value.filter(t => {
     if (selectedRegion.value !== 'all' && t.region !== selectedRegion.value) return false
     if (selectedDiff.value && t.difficulty !== selectedDiff.value) return false
     if (search.value) {

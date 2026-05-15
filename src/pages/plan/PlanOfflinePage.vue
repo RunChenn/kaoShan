@@ -176,7 +176,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { usePlanStore } from 'src/stores/plan'
 import OfflineItem from 'src/components/OfflineItem.vue'
-import { mockRoutes } from 'src/mocks/routes'
 import {
   buildAndSave,
   hasPackage,
@@ -184,6 +183,11 @@ import {
   downloadAsJson,
 } from 'src/composables/useOfflinePackage'
 import type { OfflinePackage } from 'src/composables/useOfflinePackage'
+import {
+  fetchRouteById,
+  hydrateRoute,
+  type RouteViewRoute,
+} from 'src/services/routes'
 
 const plan = usePlanStore()
 const progress = ref(0)
@@ -191,14 +195,16 @@ const currentLabel = ref('')
 const status = ref<'idle' | 'downloading' | 'done' | 'already'>('idle')
 const offlinePkg = ref<OfflinePackage | null>(null)
 const existingDate = ref<string | null>(null)
-
-const selectedRoute = computed(() =>
-  mockRoutes.find((r) => r.id === plan.selectedRouteId) ?? mockRoutes[0]!,
-)
+const selectedRoute = ref<RouteViewRoute | null>(null)
 
 // ── 頁面進入：檢查是否已有離線包 ──────────────────────────
 onMounted(async () => {
   if (!plan.selectedRouteId) return
+  try {
+    selectedRoute.value = hydrateRoute(await fetchRouteById(plan.selectedRouteId))
+  } catch (_) {
+    selectedRoute.value = null
+  }
   const alreadyHas = await hasPackage(plan.selectedRouteId)
   if (alreadyHas) {
     status.value = 'already'
@@ -206,6 +212,7 @@ onMounted(async () => {
     if (pkg) {
       offlinePkg.value = pkg
       existingDate.value = pkg.createdAt.slice(0, 10)
+      selectedRoute.value = pkg.route
     }
   }
 })
@@ -264,7 +271,7 @@ const difficultyLabel: Record<string, string> = {
 }
 
 const slopeMetersPerKm = computed(() =>
-  Math.round(selectedRoute.value.elevationGain / Math.max(selectedRoute.value.distanceKm, 1)),
+  Math.round((selectedRoute.value?.elevationGain ?? 0) / Math.max(selectedRoute.value?.distanceKm ?? 1, 1)),
 )
 
 const slopeLabel = computed(() => {
@@ -276,18 +283,18 @@ const slopeLabel = computed(() => {
 })
 
 const routeDataRows = computed(() => [
-  { label: '路線', value: selectedRoute.value.name },
-  { label: '地點', value: selectedRoute.value.location },
-  { label: '時間', value: `${selectedRoute.value.estimatedHours} 小時 / ${selectedRoute.value.days} 天` },
-  { label: '距離', value: `${selectedRoute.value.distanceKm} km` },
+  { label: '路線', value: selectedRoute.value?.name ?? '—' },
+  { label: '地點', value: selectedRoute.value?.location ?? '—' },
+  { label: '時間', value: selectedRoute.value ? `${selectedRoute.value.estimatedHours} 小時 / ${selectedRoute.value.days} 天` : '—' },
+  { label: '距離', value: selectedRoute.value ? `${selectedRoute.value.distanceKm} km` : '—' },
   { label: '坡度', value: `${slopeLabel.value}（${slopeMetersPerKm.value} m/km）` },
-  { label: '爬升', value: `${selectedRoute.value.elevationGain} m` },
-  { label: '難度', value: difficultyLabel[selectedRoute.value.difficulty] ?? selectedRoute.value.difficulty },
+  { label: '爬升', value: `${selectedRoute.value?.elevationGain ?? 0} m` },
+  { label: '難度', value: selectedRoute.value ? (difficultyLabel[selectedRoute.value.difficulty] ?? selectedRoute.value.difficulty) : '—' },
 ])
 
 const gearChecklist = computed(() => [
-  ...selectedRoute.value.gear.required.map((label) => ({ label, type: 'required' as const })),
-  ...selectedRoute.value.gear.optional.map((label) => ({ label, type: 'optional' as const })),
+  ...(selectedRoute.value?.gear.required ?? []).map((label) => ({ label, type: 'required' as const })),
+  ...(selectedRoute.value?.gear.optional ?? []).map((label) => ({ label, type: 'optional' as const })),
 ])
 
 // 對應實際下載步驟與進度閾值

@@ -496,6 +496,7 @@
             <strong>{{ demandSummary.risk }}</strong>
           </div>
         </div>
+
         <!-- <div class="demand-note">{{ demandSummary.note }}</div> -->
 
         <div class="recommendation-header">
@@ -510,9 +511,12 @@
             <span>換路線</span>
           </button>
         </div>
-        <div class="recommendation-list">
+        <div
+          v-if="visibleRecommendedRouteCards.length > 0"
+          class="recommendation-list"
+        >
           <div
-            v-for="card in recommendedRouteCards"
+            v-for="card in visibleRecommendedRouteCards"
             :key="card.source?.id ?? card.name"
             class="route-card route-card-full"
             :class="{
@@ -603,6 +607,9 @@
               </button>
             </div>
           </div>
+        </div>
+        <div v-else class="recommendation-empty">
+          沒有符合目前體能、難度和天數條件的推薦路線
         </div>
       </div>
 
@@ -1040,13 +1047,23 @@ import { cacheTilesForRoute, kaoshanDB } from 'src/composables/useMapTileCache';
 import {
   FITNESS_LABELS,
   GEAR_ITEMS,
-  ROUTES,
-  getRecommendations,
   type GearItem,
-  type HikingRoute,
-  type RecommendedRoute,
-  type UserProfile,
 } from 'src/data/hikingRoutes';
+import {
+  conditionColor,
+  conditionIcon,
+  conditionLabel,
+} from 'src/data/weather';
+import {
+  fetchRecommendedRoutes,
+  fetchRoutes,
+  hydrateRoute,
+  routeToRecommendation,
+  type RouteApiResponse,
+  type RouteRecommendation,
+  type RouteRecommendationRequest,
+  type RouteViewRoute,
+} from 'src/services/routes';
 import { useAppStore } from 'src/stores/app';
 import { useAuthStore } from 'src/stores/auth';
 import {
@@ -1060,22 +1077,19 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 
+type RecommendedRoute = RouteRecommendation;
+type UserProfile = RouteRecommendationRequest;
+
 const router = useRouter();
 const appStore = useAppStore();
 const aiRouter = useAiRouter();
 const auth = useAuthStore();
-const showAiModeToggle = import.meta.env.DEV;
-const aiChatMode = ref<'mock' | 'gemini'>(showAiModeToggle ? 'mock' : 'gemini');
-const shouldUseOpenAiChat = computed(
-  () => !showAiModeToggle || aiChatMode.value === 'gemini',
-);
-const showWeatherModeToggle = import.meta.env.DEV;
-const weatherMode = ref<'mock' | 'gemini'>(
-  showWeatherModeToggle ? 'mock' : 'gemini',
-);
-const shouldUseOpenAiWeather = computed(
-  () => !showWeatherModeToggle || weatherMode.value === 'gemini',
-);
+const showAiModeToggle = false;
+const aiChatMode = ref<'mock' | 'gemini'>('gemini');
+const shouldUseOpenAiChat = computed(() => true);
+const showWeatherModeToggle = false;
+const weatherMode = ref<'mock' | 'gemini'>('gemini');
+const shouldUseOpenAiWeather = computed(() => true);
 
 interface ParsedHistory {
   name: string;
@@ -1287,30 +1301,6 @@ interface ProfileForm {
   slopeCoeff: number;
 }
 
-interface RouteApiResponse {
-  id: string;
-  name: string;
-  location: string;
-  route_kind?: 'trail' | 'peak';
-  category?: 'trail' | 'peak' | 'small_peak' | null;
-  description?: string | null;
-  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
-  days: number;
-  distance_km: number;
-  estimated_hours: number;
-  elevation_gain: number;
-  max_elevation: number;
-  risks: {
-    slip: number;
-    lost: number;
-    deviation: number;
-  };
-  match_score?: number | null;
-  match_rank?: number | null;
-  match_reason?: string | null;
-  recommendation_source?: 'gemini' | 'heuristic' | 'mock' | null;
-}
-
 interface CachedRouteRecommendation {
   savedAt: number;
   routes: RouteApiResponse[];
@@ -1347,6 +1337,35 @@ const demandSummary = ref<DemandSummary>({
   risk: '待確認',
   note: '完成 AI 對話後，這裡會整理本次登山需求與推薦路線。',
 });
+const selectedRecFitness = ref<number | null>(null);
+const selectedRecDifficulty = ref<'easy' | 'medium' | 'hard' | 'expert' | null>(
+  null,
+);
+const selectedRecDays = ref<number | null>(null);
+
+const fitnessFilters = [
+  { label: '不限', value: null },
+  { label: '1 分', value: 1 },
+  { label: '2 分', value: 2 },
+  { label: '3 分', value: 3 },
+  { label: '4 分', value: 4 },
+  { label: '5 分', value: 5 },
+];
+
+const difficultyFilters = [
+  { label: '不限', value: null },
+  { label: '容易', value: 'easy' as const },
+  { label: '中等', value: 'medium' as const },
+  { label: '困難', value: 'hard' as const },
+  { label: '專家', value: 'expert' as const },
+];
+
+const dayFilters = [
+  { label: '不限', value: null },
+  { label: '1 天', value: 1 },
+  { label: '2 天', value: 2 },
+  { label: '3 天以上', value: 3 },
+];
 
 function nowTime() {
   return new Date().toLocaleTimeString('zh-TW', {
@@ -1400,7 +1419,7 @@ function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
 }
 
 function toggleAiChatMode() {
-  aiChatMode.value = aiChatMode.value === 'mock' ? 'gemini' : 'mock';
+  return;
 }
 
 function toggleChatCollapsed() {
@@ -1466,6 +1485,88 @@ function cardOf(m: Message): RouteCard {
   return m.card!;
 }
 
+function toggleRecommendedFitness(value: number | null) {
+  selectedRecFitness.value = selectedRecFitness.value === value ? null : value;
+}
+
+function toggleRecommendedDifficulty(
+  value: 'easy' | 'medium' | 'hard' | 'expert' | null,
+) {
+  selectedRecDifficulty.value =
+    selectedRecDifficulty.value === value ? null : value;
+}
+
+function toggleRecommendedDays(value: number | null) {
+  selectedRecDays.value = selectedRecDays.value === value ? null : value;
+}
+
+function filterRecommendationRoutes(routes: RecommendedRoute[]) {
+  return routes.filter((route) => {
+    if (
+      selectedRecFitness.value != null &&
+      route.minFitness > selectedRecFitness.value
+    ) {
+      return false;
+    }
+    if (
+      selectedRecDifficulty.value &&
+      route.difficulty !== selectedRecDifficulty.value
+    ) {
+      return false;
+    }
+    if (selectedRecDays.value != null) {
+      if (selectedRecDays.value === 3 && route.minDays < 3) return false;
+      if (
+        selectedRecDays.value !== 3 &&
+        route.minDays !== selectedRecDays.value
+      )
+        return false;
+    }
+    return true;
+  });
+}
+
+function routeSortWeight(route: RecommendedRoute) {
+  const fitnessTarget =
+    selectedRecFitness.value ?? profileForm.value?.fitness ?? 3;
+  const difficultyTarget = selectedRecDifficulty.value;
+  const daysTarget =
+    selectedRecDays.value ?? profileForm.value?.target_days ?? 1;
+  const matchScore = route.matchScore ?? 0;
+  const diffGap =
+    difficultyTarget && route.difficulty !== difficultyTarget ? 4 : 0;
+  const daysGap =
+    selectedRecDays.value == null
+      ? Math.abs(route.minDays - daysTarget)
+      : selectedRecDays.value === 3
+        ? Math.max(0, 3 - route.minDays)
+        : Math.abs(route.minDays - daysTarget);
+  return (
+    -matchScore +
+    Math.abs(route.minFitness - fitnessTarget) * 10 +
+    diffGap * 6 +
+    daysGap * 3 +
+    route.minDays * 0.25
+  );
+}
+
+function sortRecommendationRoutes(routes: RecommendedRoute[]) {
+  return [...routes].sort((a, b) => routeSortWeight(a) - routeSortWeight(b));
+}
+
+const visibleRecommendedRouteCards = computed(() =>
+  getRecommendationBatch(
+    sortRecommendationRoutes(
+      filterRecommendationRoutes(
+        [...recommendedRouteCards.value]
+          .map((card) => card.source)
+          .filter((route): route is RecommendedRoute => !!route),
+      ),
+    ).map(toRouteCard),
+    lastRecommendationContext.value?.displayStart ?? 0,
+  ),
+);
+
 function buildRecommendationDialogueText(cards: RouteCard[]) {
   const topCards = cards.slice(0, 3);
   if (topCards.length === 0) return '';
@@ -1500,7 +1601,7 @@ function buildDemandSummary(msg: string): DemandSummary {
         ? '依上傳紀錄估算：普通至良好'
         : '普通，優先控制負荷',
     risk: /陡|挑戰|百岳/.test(msg) ? '可接受中風險' : '偏好低風險',
-    note: '假資料模式：先以天數、體能、坡度接受度與天氣風險篩選，選定路線後再展開裝備與天氣檢查。',
+    note: '先以資料庫路線的天數、體能、坡度接受度與天氣風險篩選，選定路線後再展開裝備與天氣檢查。',
   };
 }
 
@@ -1520,7 +1621,7 @@ function buildDemandSummaryFromProfile(
       profile.level === 'experienced' && profile.fitness >= 4
         ? '可接受中風險'
         : '優先低風險',
-    note: '已取得 ProfileForm，並透過 POST /api/v1/routes/recommend 取得推薦路線。',
+    note: '已取得 ProfileForm，並透過資料庫路線推薦 API 取得推薦路線。',
   };
 }
 
@@ -1530,6 +1631,11 @@ function publishRouteRecommendations(
   profile?: ProfileForm,
 ) {
   const normalizedRoutes = getSimilarRouteCandidates(routes, profile);
+  if (profile) {
+    selectedRecFitness.value = profile.fitness;
+    selectedRecDays.value = profile.target_days;
+    selectedRecDifficulty.value = null;
+  }
   lastRecommendationContext.value = {
     routes: normalizedRoutes,
     sourceMessage,
@@ -1569,8 +1675,12 @@ function publishRouteRecommendations(
     summary.maxElevation = `🏔 ${Math.max(...maxElevNums).toLocaleString()} m`;
   }
   demandSummary.value = summary;
-  const displayCards = getRecommendationBatch(normalizedRoutes, 0).map(
-    toRouteCard,
+  recommendedRouteCards.value = normalizedRoutes.map(toRouteCard);
+  const displayCards = getRecommendationBatch(
+    sortRecommendationRoutes(filterRecommendationRoutes(normalizedRoutes)).map(
+      toRouteCard,
+    ),
+    0,
   );
   const recommendationText = buildRecommendationDialogueText(displayCards);
   const lastBotText = [...messages.value]
@@ -1586,7 +1696,6 @@ function publishRouteRecommendations(
       time: nowTime(),
     });
   }
-  recommendedRouteCards.value = displayCards;
   recommendationsVisible.value = true;
   chatCollapsed.value = true;
   quickReplies.value = [];
@@ -1594,26 +1703,21 @@ function publishRouteRecommendations(
 
 function rerollRecommendations() {
   const context = lastRecommendationContext.value;
-  console.log('Rerolling recommendations with context:', context);
-  console.log(
-    'Rerolling recommendations with context:',
-    rerollingRecommendations.value,
-  );
+
   if (!context || rerollingRecommendations.value) return;
   rerollingRecommendations.value = true;
   try {
+    const filteredRoutes = sortRecommendationRoutes(
+      filterRecommendationRoutes(context.routes),
+    );
     const nextStart =
-      context.routes.length <= 3
+      filteredRoutes.length <= 3
         ? 0
-        : (context.displayStart + 3) % context.routes.length;
+        : (context.displayStart + 3) % filteredRoutes.length;
     context.displayStart = nextStart;
-    recommendedRouteCards.value = getRecommendationBatch(
-      context.routes,
-      nextStart,
-    ).map(toRouteCard);
 
     const recommendationText = buildRecommendationDialogueText(
-      recommendedRouteCards.value,
+      getRecommendationBatch(filteredRoutes.map(toRouteCard), nextStart),
     );
     const lastBotText = [...messages.value]
       .reverse()
@@ -1630,7 +1734,7 @@ function rerollRecommendations() {
     }
 
     const visibleRouteIds = new Set(
-      recommendedRouteCards.value.flatMap((card) =>
+      visibleRecommendedRouteCards.value.flatMap((card) =>
         card.source?.id ? [card.source.id] : [],
       ),
     );
@@ -1755,142 +1859,11 @@ async function extractProfileWithOpenAi(
 }
 
 function apiRouteToRecommendedRoute(route: RouteApiResponse): RecommendedRoute {
-  const local =
-    ROUTES.find((r) => r.id === route.id) ??
-    ROUTES.find(
-      (r) =>
-        r.name === route.name ||
-        route.name.includes(r.name) ||
-        r.name.includes(route.name),
-    );
-  const baseRoute = local ?? buildRouteSkeleton(route);
-  const risk =
-    route.difficulty === 'easy'
-      ? 'low'
-      : route.difficulty === 'medium'
-        ? 'mid'
-        : 'high';
-  const aiScore = route.match_score ?? null;
-  const aiReason = route.match_reason?.trim();
-  const isGemini = route.recommendation_source === 'gemini';
-  const categoryLabel =
-    route.category === 'small_peak'
-      ? '小百岳'
-      : route.category === 'peak'
-        ? '百岳'
-        : '步道';
-  return {
-    ...baseRoute,
-    id: route.id,
-    name: route.name,
-    region: route.location,
-    risk,
-    distance: `${route.distance_km}km`,
-    elevation: `${route.elevation_gain}m`,
-    maxElevation: route.max_elevation > 0 ? `${route.max_elevation}m` : '',
-    time: `${route.estimated_hours}h`,
-    minDays: route.days,
-    highlight:
-      aiReason ??
-      `滑倒風險 ${route.risks.slip}、迷路風險 ${route.risks.lost}、偏離風險 ${route.risks.deviation}`,
-    matchScore: aiScore ?? (risk === 'low' ? 88 : risk === 'mid' ? 74 : 58),
-    matchLabel:
-      aiScore != null
-        ? isGemini
-          ? `${categoryLabel} 推薦`
-          : `${categoryLabel} 依條件排序`
-        : risk === 'low'
-          ? '推薦'
-          : risk === 'mid'
-            ? '可考慮'
-            : '需審慎評估',
-    matchBg:
-      aiScore != null
-        ? 'rgba(34,197,94,0.10)'
-        : risk === 'low'
-          ? 'rgba(34,197,94,0.10)'
-          : risk === 'mid'
-            ? 'rgba(251,146,60,0.12)'
-            : 'rgba(239,68,68,0.10)',
-    matchColor:
-      aiScore != null
-        ? 'var(--summit-accent)'
-        : risk === 'low'
-          ? 'var(--summit-accent)'
-          : risk === 'mid'
-            ? 'var(--risk-mid)'
-            : 'var(--risk-high)',
-    reasons: [
-      { icon: '🗂', text: `${categoryLabel}` },
-      ...(aiReason ? [{ icon: '🤖', text: aiReason }] : []),
-      { icon: '📏', text: `距離 ${route.distance_km}km` },
-      { icon: '⬆', text: `累積爬升 ${route.elevation_gain}m` },
-      { icon: '⏱', text: `預估 ${route.estimated_hours} 小時` },
-    ],
-  };
+  return routeToRecommendation(route);
 }
 
-function buildRouteSkeleton(route: RouteApiResponse): HikingRoute {
-  const seed = Array.from(route.id || route.name).reduce(
-    (acc, char) => (acc * 33 + char.charCodeAt(0)) % 10_000,
-    7,
-  );
-  const difficulty = route.difficulty;
-  const emojiByDifficulty: Record<RouteApiResponse['difficulty'], string> = {
-    easy: '🌿',
-    medium: '⛰',
-    hard: '🏔',
-    expert: '❄',
-  };
-  const minFitness =
-    difficulty === 'easy'
-      ? 1
-      : difficulty === 'medium'
-        ? 3
-        : difficulty === 'hard'
-          ? 4
-          : 5;
-  const minSlope =
-    difficulty === 'easy'
-      ? 1
-      : difficulty === 'medium'
-        ? 2
-        : difficulty === 'hard'
-          ? 3
-          : 4;
-  const baseLat = 22.8 + (seed % 1200) / 1000;
-  const baseLng = 120.6 + ((seed >> 2) % 1000) / 1000;
-  const trailDelta =
-    difficulty === 'easy' ? 0.01 : difficulty === 'medium' ? 0.015 : 0.02;
-  const polyline: [number, number][] = [
-    [baseLat - trailDelta, baseLng - trailDelta],
-    [baseLat - trailDelta / 3, baseLng - trailDelta / 6],
-    [baseLat + trailDelta / 3, baseLng + trailDelta / 6],
-    [baseLat + trailDelta, baseLng + trailDelta],
-  ];
-
-  return {
-    id: route.id,
-    emoji: emojiByDifficulty[difficulty],
-    name: route.name,
-    distance: `${route.distance_km}km`,
-    elevation: `${route.elevation_gain}m`,
-    maxElevation: route.max_elevation > 0 ? `${route.max_elevation}m` : '',
-    time: `${route.estimated_hours}h`,
-    risk:
-      difficulty === 'easy' ? 'low' : difficulty === 'medium' ? 'mid' : 'high',
-    region: route.location,
-    minFitness,
-    minExp: difficulty === 'easy' ? 'beginner' : 'experienced',
-    minSlope,
-    minDays: route.days,
-    highlight: `推薦路線：${route.location}｜滑倒 ${route.risks.slip}、迷路 ${route.risks.lost}、偏離 ${route.risks.deviation}`,
-    requiresPermit: false,
-    center: [baseLat, baseLng],
-    polyline,
-    start: polyline[0]!,
-    end: polyline[polyline.length - 1]!,
-  };
+function buildRouteSkeleton(route: RouteApiResponse): RouteViewRoute {
+  return hydrateRoute(route);
 }
 
 function getSimilarRouteCandidates(
@@ -2140,10 +2113,17 @@ async function recommendRoutesFromProfile(
       profile,
     );
   } catch (_) {
-    const localRoutes = getRecommendations(
-      profileToRecommendationInput(profile),
-    );
-    publishRouteRecommendations(localRoutes, sourceMessage, profile);
+    try {
+      const localRoutes = (
+        await fetchRoutes({
+          fitness: profile.fitness,
+          target_days: profile.target_days,
+        })
+      ).map(routeToRecommendation);
+      publishRouteRecommendations(localRoutes, sourceMessage, profile);
+    } catch (err) {
+      console.error('database route fallback failed', err);
+    }
   }
 }
 
@@ -2180,20 +2160,31 @@ async function replyWithLocalRouteRecommendations(msg: string) {
     combinedText,
     /體能|分析|GPX|紀錄/i.test(msg) || historyContext.value ? 3 : undefined,
   );
-  const routes = getRecommendations(profileToRecommendationInput(profile));
+  let routes: RouteApiResponse[];
+  try {
+    routes = await fetchRecommendedRoutes(profile);
+  } catch (_) {
+    routes = await fetchRoutes({
+      fitness: profile.fitness,
+      target_days: profile.target_days,
+    });
+  }
 
   messages.value.push({
     id: Date.now() + 1,
     role: 'bot',
     type: 'text',
-    text: '開發模式先用假資料完成需求統整，以下是依目前對話推估出的推薦路線。',
+    text: '我已從資料庫整理出依目前對話推估出的推薦路線。',
     time: nowTime(),
   });
-  publishRouteRecommendations(routes, combinedText, profile);
+  publishRouteRecommendations(
+    routes.map(apiRouteToRecommendedRoute),
+    combinedText,
+    profile,
+  );
 }
 
 async function replyWithMockAi(msg: string) {
-  console.log('[replyWithMockAi] mode:', aiChatMode.value, '| msg:', msg);
   await sleep(650);
   // typing 繼續顯示，直到各路徑真正拿到回覆才關閉
 
@@ -2201,9 +2192,17 @@ async function replyWithMockAi(msg: string) {
   if (aiChatMode.value !== 'gemini') {
     if (/裝備|清單|gear/i.test(msg)) {
       if (!selectedRoute.value) {
-        const routes = getRecommendations(
-          profileToRecommendationInput(fallbackProfileFromText(msg, 2)),
-        );
+        let routes: RouteApiResponse[];
+        try {
+          routes = await fetchRecommendedRoutes(
+            profileToRecommendationInput(fallbackProfileFromText(msg, 2)),
+          );
+        } catch (_) {
+          routes = await fetchRoutes({
+            fitness: 2,
+            target_days: 1,
+          });
+        }
         typing.value = false;
         messages.value.push({
           id: Date.now() + 1,
@@ -2212,7 +2211,14 @@ async function replyWithMockAi(msg: string) {
           text: '我會先幫你整理路線需求。選定路線後，才會展開對應的裝備清單、AI 裝備辨識與明日天氣。',
           time: nowTime(),
         });
-        setTimeout(() => publishRouteRecommendations(routes, msg), 500);
+        setTimeout(
+          () =>
+            publishRouteRecommendations(
+              routes.map(apiRouteToRecommendedRoute),
+              msg,
+            ),
+          500,
+        );
         return;
       }
       showPlanningTools();
@@ -2232,20 +2238,35 @@ async function replyWithMockAi(msg: string) {
     }
 
     if (/體能|分析|GPX|紀錄/i.test(msg) || historyContext.value) {
-      const routes = getRecommendations(
-        profileToRecommendationInput(
-          fallbackProfileFromText(`${historyContext.value}\n${msg}`, 3),
-        ),
-      );
+      let routes: RouteApiResponse[];
+      try {
+        routes = await fetchRecommendedRoutes(
+          profileToRecommendationInput(
+            fallbackProfileFromText(`${historyContext.value}\n${msg}`, 3),
+          ),
+        );
+      } catch (_) {
+        routes = await fetchRoutes({
+          fitness: 3,
+          target_days: 1,
+        });
+      }
       typing.value = false;
       messages.value.push({
         id: Date.now() + 1,
         role: 'bot',
         type: 'text',
-        text: '我先用示範體能資料幫你估算：目前適合 1 日、低到中風險、爬升不要太連續的路線。接下來可以看推薦路線與出發前檢查。',
+        text: '我先依資料庫中的路線幫你估算：目前適合 1 日、低到中風險、爬升不要太連續的路線。接下來可以看推薦路線與出發前檢查。',
         time: nowTime(),
       });
-      setTimeout(() => publishRouteRecommendations(routes, msg), 500);
+      setTimeout(
+        () =>
+          publishRouteRecommendations(
+            routes.map(apiRouteToRecommendedRoute),
+            msg,
+          ),
+        500,
+      );
       return;
     }
   }
@@ -2265,11 +2286,6 @@ async function replyWithMockAi(msg: string) {
       messages: buildChatRequestMessages(),
       history_context: historyContext.value,
     });
-    console.group('[Gemini 原始回覆]');
-    console.log('raw_reply:', data.raw_reply);
-    console.log('ready:', data.ready);
-    console.log('extracted_profile:', data.extracted_profile);
-    console.groupEnd();
     replyText = data.reply;
     ready = data.ready;
     extractedProfile = data.extracted_profile;
@@ -3426,8 +3442,8 @@ const scanning = ref(false);
 const scanned = ref(false);
 const visionItems = ref<GearDetectItem[]>([]);
 const visionRawText = ref('');
-const showVisionMockToggle = import.meta.env.DEV;
-const visionMockMode = ref(showVisionMockToggle);
+const showVisionMockToggle = false;
+const visionMockMode = ref(false);
 const showGearTodoList = false;
 const gearPhotoInput = ref<HTMLInputElement>();
 const gearPhotoUrl = ref('');
@@ -3704,28 +3720,11 @@ function doScan() {
 }
 
 function toggleVisionMockMode() {
-  visionMockMode.value = !visionMockMode.value;
-  if (visionMockMode.value) {
-    applyMockVisionResult();
-  }
+  return;
 }
 
-const MOCK_GEAR_PHOTO_URL = '/src/assets/img/gear.png';
-
 function applyMockVisionResult() {
-  if (scanning.value) return;
-  removeLastDetectedGearItems();
-  scanned.value = true;
-  visionRawText.value = MOCK_VISION_RAW_TEXT;
-  visionItems.value = MOCK_VISION_ITEMS.map((item) => ({ ...item }));
-  recognizedShoe.value = null;
-  gearPhotoUrl.value = MOCK_GEAR_PHOTO_URL;
-  visionItems.value
-    .filter((item) => item.detected)
-    .forEach((item) =>
-      addDetectedGearItem(gearItemFromDetectedLabel(item.name)),
-    );
-  void assessGearList();
+  return;
 }
 
 function resetGearScan() {
@@ -3739,10 +3738,6 @@ function resetGearScan() {
     URL.revokeObjectURL(gearPhotoUrl.value);
   gearPhotoUrl.value = '';
   gearPhotoLightbox.value = false;
-  if (visionMockMode.value) {
-    applyMockVisionResult();
-    return;
-  }
   gearPhotoInput.value?.click();
 }
 
@@ -3807,18 +3802,7 @@ async function onGearPhotoSelected(event: Event) {
     }
   } catch (_) {
     visionRawText.value = '';
-    visionItems.value = [
-      {
-        name: '辨識失敗',
-        detected: false,
-        confidence: 0,
-        brand: null,
-        model: null,
-        primary_use: '請確認 Gemini API Key、模型名稱或網路連線',
-        waterproof: null,
-        notes: null,
-      },
-    ];
+    visionItems.value = [];
   } finally {
     scanning.value = false;
     scanned.value = true;
@@ -3931,23 +3915,19 @@ function buildMockRouteWeather(route: RecommendedRoute): RouteWeatherResponse {
   };
 }
 
-const weather = [
-  { icon: '⛅', temp: '12°C', label: '早晨', condition: '多雲' },
-  { icon: '☀', temp: '18°C', label: '中午', condition: '晴時多雲' },
-  { icon: '🌧', temp: '9°C', label: '下午', condition: '午後陣雨' },
-];
+const weather: WeatherPeriod[] = [];
 
 const routeWeather = ref<RouteWeatherResponse | null>(null);
 const weatherLoading = ref(false);
 const weatherFallbackReason = ref<string | null>(null);
 const offlinePackageDownloading = ref(false);
 const displayedWeather = computed<WeatherPeriod[]>(() =>
-  routeWeather.value?.periods?.length ? routeWeather.value.periods : weather,
+  routeWeather.value?.periods?.length ? routeWeather.value.periods : [],
 );
 const weatherAdvice = computed(
   () =>
     routeWeather.value?.advice ??
-    '建議 13:00 前下山，午後雷陣雨機率偏高。請攜帶雨具與保暖層，若山區雲霧變厚應提前折返。',
+    '目前沒有可用的天氣資料，請直接以最新官方預報與現場狀況為準。',
 );
 const routeWeatherRisk = computed<'low' | 'medium' | 'high'>(() => {
   const text = `${routeWeather.value?.advice ?? ''} ${displayedWeather.value
@@ -3958,17 +3938,16 @@ const routeWeatherRisk = computed<'low' | 'medium' | 'high'>(() => {
   return 'low';
 });
 const weatherAiStatusLabel = computed(() => {
-  if (weatherMode.value === 'mock') return '本地假資料';
   if (weatherLoading.value) return 'Gemini 檢查中...';
-  if (!routeWeather.value) return 'Gemini 未回應';
+  if (!routeWeather.value) return '尚無天氣資料';
   if (
     routeWeather.value.fallback_stage === 'gemini' ||
     routeWeather.value.model_used === 'fallback'
   ) {
-    return 'Gemini 失敗，已切回假資料';
+    return 'Gemini 失敗，無可用資料';
   }
   if (routeWeather.value.fallback_stage === 'cwa') {
-    return 'Gemini 成功，CWA 暫不可用';
+    return 'CWA 暫不可用';
   }
   if (
     routeWeather.value.model_used &&
@@ -3979,26 +3958,20 @@ const weatherAiStatusLabel = computed(() => {
   return 'Gemini 狀態未確認';
 });
 const weatherFallbackReasonText = computed(() =>
-  weatherMode.value === 'gemini'
-    ? (() => {
-        if (!routeWeather.value) return weatherFallbackReason.value;
-        if (routeWeather.value.fallback_stage === 'gemini') {
-          return (
-            routeWeather.value.fallback_reason ?? weatherFallbackReason.value
-          );
-        }
-        if (routeWeather.value.fallback_stage === 'cwa') {
-          return 'CWA 暫時無法取得即時資料，已由 Gemini 根據預設天氣時段產生建議。';
-        }
-        return (
-          routeWeather.value.fallback_reason ?? weatherFallbackReason.value
-        );
-      })()
-    : null,
+  (() => {
+    if (!routeWeather.value) return weatherFallbackReason.value;
+    if (routeWeather.value.fallback_stage === 'gemini') {
+      return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
+    }
+    if (routeWeather.value.fallback_stage === 'cwa') {
+      return 'CWA 暫時無法取得即時資料。';
+    }
+    return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
+  })(),
 );
 const weatherModelDisplay = computed(() => {
   const m = routeWeather.value?.model_used;
-  if (!m || m === 'mock' || m === 'fallback' || m === 'local-fallback')
+  if (!m || m === 'fallback' || m === 'local-fallback')
     return null;
   if (m.startsWith('gemini')) return 'gemini';
   return m;
@@ -4024,10 +3997,6 @@ async function loadRouteWeather(route: RecommendedRoute) {
   routeWeather.value = null;
   weatherFallbackReason.value = null;
   try {
-    if (!shouldUseOpenAiWeather.value) {
-      routeWeather.value = buildMockRouteWeather(route);
-      return;
-    }
     const { data } = await api.post<RouteWeatherResponse>('/weather/forecast', {
       route_name: route.name,
       location: route.region,
@@ -4038,15 +4007,14 @@ async function loadRouteWeather(route: RecommendedRoute) {
     routeWeather.value = data;
     weatherFallbackReason.value = data.fallback_reason ?? null;
   } catch (_) {
-    routeWeather.value = buildMockRouteWeather(route);
-    weatherFallbackReason.value = 'Gemini / CWA 請求失敗，已改用本地假資料。';
+    routeWeather.value = null;
+    weatherFallbackReason.value = 'Gemini / CWA 請求失敗，無法取得天氣資料。';
   } finally {
     weatherLoading.value = false;
   }
 }
 
 function toggleWeatherMode() {
-  weatherMode.value = weatherMode.value === 'mock' ? 'gemini' : 'mock';
   if (selectedRoute.value) {
     void (async () => {
       await loadRouteWeather(selectedRoute.value);
@@ -4056,6 +4024,21 @@ function toggleWeatherMode() {
     })();
   }
 }
+
+watch(
+  visibleRecommendedRouteCards,
+  (cards) => {
+    const visibleRouteIds = new Set(
+      cards.flatMap((card) => (card.source?.id ? [card.source.id] : [])),
+    );
+    if (selectedRoute.value && !visibleRouteIds.has(selectedRoute.value.id)) {
+      selectedRoute.value = null;
+      planningRevealed.value = false;
+      routeWeather.value = null;
+    }
+  },
+  { immediate: true },
+);
 
 function escapeXml(value: string) {
   return value

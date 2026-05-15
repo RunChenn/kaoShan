@@ -172,11 +172,11 @@
 </template>
 
 <script setup lang="ts">
-import type { HikingRoute } from 'src/mocks/routes';
 import { computed } from 'vue';
+import type { RouteViewRoute } from 'src/services/routes';
 
 const props = defineProps<{
-  route: HikingRoute;
+  route: RouteViewRoute;
   modelValue: boolean;
 }>();
 

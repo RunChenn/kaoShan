@@ -238,10 +238,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAfterStore } from 'src/stores/after'
 import { usePlanStore } from 'src/stores/plan'
-import { mockCurrentSummary } from 'src/mocks/history'
 import StatCard from 'src/components/StatCard.vue'
 import RiskCurveChart from 'src/components/RiskCurveChart.vue'
 import RecoveryCard from 'src/components/RecoveryCard.vue'
@@ -250,11 +249,20 @@ const after = useAfterStore()
 const plan = usePlanStore()
 const showReport = ref(false)
 
-onMounted(() => {
-  after.setSummary(mockCurrentSummary)
-})
+const emptySummary = {
+  id: '',
+  date: '',
+  routeName: '尚無資料',
+  difficulty: 'easy' as const,
+  distanceKm: 0,
+  durationMin: 0,
+  elevationGain: 0,
+  calories: 0,
+  maxRiskScore: 0,
+  riskCurve: [],
+}
 
-const summary = computed(() => after.currentSummary ?? mockCurrentSummary)
+const summary = computed(() => after.currentSummary ?? emptySummary)
 
 function formatDuration(min: number): string {
   const h = Math.floor(min / 60)
@@ -265,6 +273,7 @@ function formatDuration(min: number): string {
 // 恢復天數：爬升 × 時間加權公式
 const recoveryDays = computed(() => {
   const s = summary.value
+  if (!s) return 1
   const elevFactor = s.elevationGain / 1000 * 1.5
   const timeFactor = s.durationMin / 60 * 0.5
   return Math.max(1, Math.min(7, Math.round(elevFactor + timeFactor)))
@@ -283,9 +292,9 @@ const recoveryTips = computed(() => {
 
 // 能量補充
 const weight = computed(() => plan.profileForm.weight ?? 65)
-const proteinGrams = computed(() => Math.round(weight.value * 1.6 + summary.value.calories / 100))
-const carbGrams = computed(() => Math.round(summary.value.calories * 0.55 / 4))
-const waterMl = computed(() => Math.round(summary.value.calories * 1.2))
+const proteinGrams = computed(() => Math.round(weight.value * 1.6 + (summary.value?.calories ?? 0) / 100))
+const carbGrams = computed(() => Math.round((summary.value?.calories ?? 0) * 0.55 / 4))
+const waterMl = computed(() => Math.round((summary.value?.calories ?? 0) * 1.2))
 const sleepHours = computed(() => Math.min(10, 7 + Math.ceil(recoveryDays.value / 3)))
 
 // 基線表現
@@ -315,7 +324,7 @@ const improvementSuggestions = computed(() => {
 })
 
 function shareReport() {
-  const text = `登山安全報告 - ${summary.value.routeName}（${summary.value.date}）\n偏離 ${after.events?.deviationCount ?? 0} 次，警報 ${after.events?.alertCount ?? 0} 次，路線評分 ${after.events?.routeScore ?? 0}/10`
+  const text = `登山安全報告 - ${summary.value.routeName}（${summary.value.date || '--'}）\n偏離 ${after.events?.deviationCount ?? 0} 次，警報 ${after.events?.alertCount ?? 0} 次，路線評分 ${after.events?.routeScore ?? 0}/10`
   if (navigator.share) {
     navigator.share({ title: '登山安全報告', text })
   } else {

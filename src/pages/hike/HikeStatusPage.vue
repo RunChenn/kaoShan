@@ -275,7 +275,7 @@
 <script setup lang="ts">
 import BiometricCard from 'src/components/BiometricCard.vue';
 import { useBiometric } from 'src/composables/useBiometric';
-import { conditionIcon, conditionLabel } from 'src/mocks/weather';
+import { conditionIcon, conditionLabel } from 'src/data/weather';
 import { useHikeStore } from 'src/stores/hike';
 import { computed, ref } from 'vue';
 

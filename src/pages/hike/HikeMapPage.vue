@@ -222,7 +222,7 @@
 import { useBiometric } from 'src/composables/useBiometric';
 import { useGeolocation } from 'src/composables/useGeolocation';
 import { useMap } from 'src/composables/useMap';
-import { conditionIcon as condIcons } from 'src/mocks/weather';
+import { conditionIcon as condIcons } from 'src/data/weather';
 import { useHikeStore } from 'src/stores/hike';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
