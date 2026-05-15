@@ -981,6 +981,10 @@
             <span class="material-icons">route</span>
             {{ selectedRoute.name }}
           </strong>
+          <div v-if="routeGpxLoading" class="gpx-map-loading">
+            <q-spinner size="18px" color="primary" />
+            <span>正在取得 GPX...</span>
+          </div>
           <div class="row justify-between gpx-map-meta">
             <div class="col-auto gpx-map-meta-label">海拔高度</div>
             <div class="col gpx-map-meta-value">
@@ -1021,6 +1025,8 @@
         <MapPhase1
           :theme="appStore.config.theme"
           :gpx-track="gpxMapTrack"
+          :route-location="routeMapLocation"
+          :route-location-label="routeMapLocationLabel"
           :show-gpx-overlay="showGpxOverlay"
           class="p1-map-layer"
         />
@@ -1273,6 +1279,15 @@ interface RouteGpxResponse {
   route_kind: 'trail' | 'peak';
   route_name: string;
   tracks: RouteGpxTrackOption[];
+  location_hint?: RouteLocationHint | null;
+}
+
+interface RouteLocationHint {
+  label: string;
+  lat: number;
+  lon: number;
+  source: 'database' | 'keyword' | 'gemini' | 'region';
+  confidence?: number | null;
 }
 
 interface OfflinePackageMeta {
@@ -1392,7 +1407,7 @@ const messages = ref<Message[]>([
     role: 'bot',
     type: 'text',
     time: nowTime(),
-    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用兩種方式開始規劃：\n1. 直接聊天：告訴我體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n我會依照這些資料幫您推薦適合的路線。`,
+    text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用兩種方式開始規劃：\n1. 直接聊天：告訴我體力、登山經驗和想走幾天。\n2. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
     // text: `您好${auth.profile?.displayName ? '，' + auth.profile.displayName : ''}！我是 KaoShan 助理\n\n您可以用三種方式開始規劃：\n1. 直接聊天：告訴我年齡、體力、登山經驗和想走幾天。\n2. 語音輸入：用說的描述這次想走的路線或體能狀況。\n3. 上傳紀錄：上傳 GPX / JSON 登山紀錄，我會分析距離、爬升與體能表現。\n\n我會依照這些資料幫您推薦適合的路線。`,
   },
 ]);
@@ -2387,7 +2402,7 @@ function routeDifficultyLabel(route: RecommendedRoute) {
   return { easy: '入門', medium: '中級', hard: '進階' }[routeDifficulty(route)];
 }
 
-function selectRecommendedRoute(card: RouteCard) {
+async function selectRecommendedRoute(card: RouteCard) {
   if (!card.source) return;
   showPlanningTools();
   selectedRoute.value = card.source;
@@ -2411,7 +2426,7 @@ function askMoreAboutRoute(card: RouteCard) {
 function onDialogSelectRoute() {
   if (dialogRouteCard.value) {
     showRouteDialog.value = false;
-    selectRecommendedRoute(dialogRouteCard.value);
+    void selectRecommendedRoute(dialogRouteCard.value);
   }
 }
 
@@ -3147,9 +3162,66 @@ const showGpxOverlay = ref(true);
 const uploadedGpxTrack = ref<GpxMapTrack | null>(null);
 const routeGpxTracks = ref<RouteGpxTrackOption[]>([]);
 const routeGpxLoading = ref(false);
+const routeGpxMissing = ref(false);
+const routeGpxLocationHint = ref<RouteLocationHint | null>(null);
 const selectedDbGpxTrackId = ref<number | null>(null);
 const gpxScopeFilter = ref<'all' | 'trail' | 'peak'>('all');
 const mapGpxInput = ref<HTMLInputElement | null>(null);
+let routeGpxRequestSeq = 0;
+
+const REGION_CENTER_FALLBACK: Array<[string, [number, number]]> = [
+  ['台北市', [25.033, 121.5654]],
+  ['新北市', [25.012, 121.465]],
+  ['桃園市', [24.9936, 121.301]],
+  ['新竹市', [24.8138, 120.9675]],
+  ['新竹縣', [24.8389, 121.0119]],
+  ['苗栗縣', [24.5602, 120.8214]],
+  ['台中市', [24.1477, 120.6736]],
+  ['彰化縣', [24.0685, 120.5579]],
+  ['南投縣', [23.9097, 120.6858]],
+  ['雲林縣', [23.7092, 120.4313]],
+  ['嘉義市', [23.4801, 120.4491]],
+  ['嘉義縣', [23.4518, 120.2552]],
+  ['台南市', [23.0395, 120.2269]],
+  ['高雄市', [22.6273, 120.3014]],
+  ['屏東縣', [22.5516, 120.5487]],
+  ['台東市', [22.7583, 121.1444]],
+  ['台東縣', [22.7583, 121.1444]],
+  ['花蓮市', [23.9871, 121.6019]],
+  ['花蓮縣', [23.9872, 121.6015]],
+  ['宜蘭市', [24.7512, 121.753]],
+  ['宜蘭縣', [24.7021, 121.7378]],
+  ['澎湖縣', [23.5659, 119.6151]],
+  ['金門縣', [24.4381, 118.3188]],
+  ['連江縣', [26.1591, 119.9515]],
+];
+
+function extractRegionKey(region: string | null | undefined) {
+  if (!region) return '';
+  return (
+    region
+      .split(/[｜|／/、,，\s]/)
+      .map((part) => part.trim())
+      .find(Boolean) ?? region.trim()
+  );
+}
+
+function resolveRouteFallbackLocation(
+  route: RecommendedRoute | null,
+): [number, number] | null {
+  if (!route) return null;
+  if (route.center?.length === 2) return route.center;
+  const regionKey = extractRegionKey(route.region);
+  const entry = REGION_CENTER_FALLBACK.find(([key]) => regionKey.includes(key));
+  return entry?.[1] ?? null;
+}
+
+function resolveRouteLocationLabel(route: RecommendedRoute | null) {
+  if (!route) return null;
+  if (!routeGpxMissing.value) return route.name;
+  const regionKey = extractRegionKey(route.region);
+  return regionKey || '路線所在位置或地區';
+}
 
 function toggleGpxOverlay() {
   showGpxOverlay.value = !showGpxOverlay.value;
@@ -3249,40 +3321,32 @@ const selectedDbGpxTrack = computed(() => {
   return chosen ?? null;
 });
 
-function buildPolylineFallbackTrack(route: RecommendedRoute): GpxMapTrack {
-  const points = route.polyline as [number, number][];
-  const distanceKm = parseFloat(route.distance) || 0;
-  const elevationGain = parseInt(route.elevation) || 0;
-  const durationMin = parseFloat(route.time) * 60 || null;
-  return {
-    name: route.name,
-    points,
-    segments: [points],
-    matchScope: undefined,
-    distanceKm,
-    elevationGain,
-    elevationLoss: null,
-    durationMin,
-    averageGradePct:
-      distanceKm > 0 && elevationGain
-        ? Math.round((elevationGain / (distanceKm * 1000)) * 100 * 10) / 10
-        : null,
-    source: 'route-polyline',
-    hintSegments: [],
-  };
-}
-
 const gpxMapTrack = computed<GpxMapTrack | null>(() => {
   if (uploadedGpxTrack.value) return uploadedGpxTrack.value;
   if (selectedDbGpxTrack.value)
     return buildDatabaseTrack(selectedDbGpxTrack.value);
-  if (selectedRoute.value?.polyline?.length)
-    return buildPolylineFallbackTrack(selectedRoute.value);
   return null;
 });
 
+const routeMapLocation = computed<[number, number] | null>(() => {
+  if (!routeGpxMissing.value) return null;
+  const hint = routeGpxLocationHint.value;
+  if (hint) return [hint.lat, hint.lon];
+  return resolveRouteFallbackLocation(selectedRoute.value);
+});
+
+const routeMapLocationLabel = computed<string | null>(() => {
+  if (!routeGpxMissing.value) return selectedRoute.value?.name ?? null;
+  const hint = routeGpxLocationHint.value;
+  if (hint?.label) return hint.label;
+  return resolveRouteLocationLabel(selectedRoute.value);
+});
+
 async function loadRouteGpxTracks(route: RecommendedRoute | null) {
+  const requestSeq = ++routeGpxRequestSeq;
   routeGpxLoading.value = true;
+  routeGpxMissing.value = false;
+  routeGpxLocationHint.value = null;
   routeGpxTracks.value = [];
   selectedDbGpxTrackId.value = null;
   gpxScopeFilter.value = 'all';
@@ -3294,6 +3358,7 @@ async function loadRouteGpxTracks(route: RecommendedRoute | null) {
 
   try {
     const { data } = await api.get<RouteGpxResponse>(`/routes/${route.id}/gpx`);
+    if (requestSeq !== routeGpxRequestSeq) return;
     routeGpxTracks.value = data.tracks;
     selectedDbGpxTrackId.value = data.tracks[0]?.gpx_track_id ?? null;
     if (
@@ -3301,9 +3366,15 @@ async function loadRouteGpxTracks(route: RecommendedRoute | null) {
     ) {
       gpxScopeFilter.value = 'all';
     }
+    routeGpxMissing.value = !data.tracks.length;
+    routeGpxLocationHint.value = data.location_hint ?? null;
   } catch (_) {
+    if (requestSeq !== routeGpxRequestSeq) return;
     routeGpxTracks.value = [];
+    routeGpxMissing.value = true;
+    routeGpxLocationHint.value = null;
   } finally {
+    if (requestSeq !== routeGpxRequestSeq) return;
     routeGpxLoading.value = false;
   }
 }
@@ -3314,10 +3385,11 @@ watch(
     uploadedGpxTrack.value = null;
     await loadRouteGpxTracks(route);
     if (!route) {
+      routeWeather.value = null;
+      weatherFallbackReason.value = null;
       gearAssessment.value = null;
       return;
     }
-
     await loadRouteWeather(route);
     if (canAssessGear.value) {
       await assessGearList();
@@ -3859,7 +3931,7 @@ const weatherAiStatusLabel = computed(() => {
     return 'Gemini 失敗，無可用資料';
   }
   if (routeWeather.value.fallback_stage === 'cwa') {
-    return 'CWA 暫不可用';
+    return '中央氣象署暫不可用';
   }
   if (
     routeWeather.value.model_used &&
@@ -3876,7 +3948,7 @@ const weatherFallbackReasonText = computed(() =>
       return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
     }
     if (routeWeather.value.fallback_stage === 'cwa') {
-      return 'CWA 暫時無法取得即時資料。';
+      return '中央氣象署暫時無法取得即時資料。';
     }
     return routeWeather.value.fallback_reason ?? weatherFallbackReason.value;
   })(),
@@ -6501,6 +6573,15 @@ async function downloadOfflinePackage() {
   font-size: 0.65rem;
   color: var(--text-muted);
   margin-top: 1px;
+}
+
+.gpx-map-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
 }
 
 .route-diff-badge {

@@ -26,6 +26,8 @@ const props = defineProps<{
       gradePct: number | null;
     }>;
   } | null;
+  routeLocation?: [number, number] | null;
+  routeLocationLabel?: string | null;
   showGpxOverlay?: boolean;
 }>();
 
@@ -34,6 +36,7 @@ let map: L.Map | null = null;
 let routeLayer: L.LayerGroup | null = null; // 路線底線，永遠顯示
 let gpxLayer: L.LayerGroup | null = null; // GPX 標記，隨 showGpxOverlay toggle
 let hintLayer: L.LayerGroup | null = null;
+let locationLayer: L.LayerGroup | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let tileLayers: {
   osm: L.TileLayer;
@@ -69,11 +72,43 @@ function drawMap() {
   routeLayer?.clearLayers();
   gpxLayer?.clearLayers();
   hintLayer?.clearLayers();
+  locationLayer?.clearLayers();
 
   const bounds = L.latLngBounds([]);
   const track = props.gpxTrack;
-
+  const routeLocation = props.routeLocation;
   if (!track?.points.length) {
+    if (routeLocation && locationLayer) {
+      const locationLabel = props.routeLocationLabel ?? '路線所在位置或地標';
+      L.marker(routeLocation, {
+        icon: L.divIcon({
+          html: `<div class="gpx-marker gpx-marker-location">
+            <span class="material-icons gpx-marker-icon">place</span>
+            <span class="gpx-marker-text">${locationLabel}</span>
+
+          </div>`,
+          iconSize: [148, 30],
+          iconAnchor: [74, 15],
+          className: '',
+        }),
+      })
+        .addTo(locationLayer)
+        .bindTooltip(
+          `<div class="gpx-hint-tooltip">
+            <strong>${locationLabel}</strong>
+            <div>目前沒有 GPX 軌跡，先標示路線所在位置或地標。</div>
+          </div>`,
+          {
+            direction: 'top',
+            sticky: true,
+            opacity: 1,
+            className: 'gpx-hint-tooltip-wrap',
+          },
+        );
+      bounds.extend(routeLocation);
+      map.fitBounds(bounds, { padding: [56, 56] });
+      return;
+    }
     map.setView([23.7, 121.0], 7);
     return;
   }
@@ -194,6 +229,7 @@ onMounted(() => {
   routeLayer = L.layerGroup().addTo(map);
   gpxLayer = L.layerGroup().addTo(map);
   hintLayer = L.layerGroup().addTo(map);
+  locationLayer = L.layerGroup().addTo(map);
 
   // L.control
   //   .layers(
@@ -229,9 +265,13 @@ onMounted(() => {
   }
 });
 
-watch([() => props.gpxTrack, () => props.showGpxOverlay], () => drawMap(), {
-  deep: true,
-});
+watch(
+  [() => props.gpxTrack, () => props.routeLocation, () => props.showGpxOverlay],
+  () => drawMap(),
+  {
+    deep: true,
+  },
+);
 
 watch(
   () => props.theme,
@@ -248,6 +288,7 @@ onUnmounted(() => {
   routeLayer = null;
   gpxLayer = null;
   hintLayer = null;
+  locationLayer = null;
   tileLayers = null;
   activeBaseLayer = null;
 });
@@ -261,11 +302,30 @@ onUnmounted(() => {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  color: #111827;
+  color: #000;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.06rem;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  /* box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28); */
+}
+
+:deep(.gpx-marker-location) {
+  min-width: 148px;
+  gap: 6px;
+  padding: 0 12px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+:deep(.gpx-marker-icon) {
+  font-size: 40px;
+  line-height: 1;
+}
+
+:deep(.gpx-marker-text) {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 :deep(.gpx-marker-start) {
@@ -273,7 +333,12 @@ onUnmounted(() => {
 }
 
 :deep(.gpx-marker-end) {
-  background: #fde68a;
+  background: #fb923c;
+}
+
+.gpx-marker-start span,
+.gpx-marker-end span {
+  font-size: 20px;
 }
 
 :deep(.gpx-hint-tooltip-wrap) {

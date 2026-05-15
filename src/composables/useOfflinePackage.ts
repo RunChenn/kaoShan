@@ -29,6 +29,11 @@ export interface OfflinePackage {
 
 interface GpxApiResponse {
   tracks?: { points: [number, number][]; name?: string }[]
+  location_hint?: {
+    label: string
+    lat: number
+    lon: number
+  } | null
 }
 
 // 各路線的近似 GPS 座標（無 GPX 時的 fallback）
@@ -78,12 +83,16 @@ export async function buildAndSave(
   // 5–15%：取得 GPX
   onProgress(5, '取得 GPX 軌跡...')
   let gpx: OfflinePackage['gpx'] = null
+  let routeCenterHint = ROUTE_CENTERS[routeId] ?? [121.0, 23.8]
   try {
     const { data } = await api.get<GpxApiResponse>(`/routes/${routeId}/gpx`, {
       timeout: 10000,
     })
     if (data.tracks?.length) {
       gpx = { tracks: data.tracks }
+    }
+    if (!gpx && data.location_hint) {
+      routeCenterHint = [data.location_hint.lon, data.location_hint.lat]
     }
   } catch { /* GPX 尚未實作或路線無資料，繼續 */ }
   onProgress(15, 'GPX 完成')
@@ -99,7 +108,7 @@ export async function buildAndSave(
   try {
     const points: [number, number][] =
       gpx?.tracks.flatMap((t) => t.points) ??
-      [ROUTE_CENTERS[routeId] ?? [121.0, 23.8]]
+      [routeCenterHint]
 
     await cacheTilesForRoute(points, (completed, total) => {
       const pct = 20 + Math.round((completed / total) * 70)
