@@ -359,11 +359,20 @@
 <script setup lang="ts">
 import logoUrl from 'src/assets/img/logo.png';
 import { api } from 'src/boot/axios';
-import { getRecommendations, type UserProfile } from 'src/data/hikingRoutes';
 import { useAppStore } from 'src/stores/app';
 import { useAuthStore } from 'src/stores/auth';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import {
+  fetchRoutes,
+  fetchRecommendedRoutes,
+  routeToRecommendation,
+  type RouteRecommendation,
+  type RouteRecommendationRequest,
+} from 'src/services/routes';
+
+type UserProfile = RouteRecommendationRequest;
+type RecommendedRoute = RouteRecommendation;
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -475,6 +484,24 @@ function cardOf(m: Message): RouteCard {
   return m.card!;
 }
 
+function routeToLineCard(route: RecommendedRoute): RouteCard {
+  return {
+    emoji: route.emoji,
+    name: route.name,
+    region: route.region,
+    difficulty:
+      route.risk === 'low'
+        ? 'easy'
+        : route.risk === 'mid'
+          ? 'medium'
+          : 'hard',
+    distance: route.distance,
+    elevation: route.elevation,
+    days: `${route.minDays}天`,
+    highlight: route.highlight,
+  };
+}
+
 function buildChatRequestMessages(extraUserContent?: string): ApiChatMessage[] {
   const apiMessages = messages.value
     .filter((m) => m.id !== 1 && m.type === 'text' && m.text?.trim())
@@ -580,7 +607,17 @@ async function sendUserMsg(text: string, clearInput = true) {
     if (ready && extracted_profile) {
       // Show route recommendations
       const profile = extracted_profile as unknown as UserProfile;
-      const routes = getRecommendations(profile);
+      let routes: RecommendedRoute[];
+      try {
+        routes = (await fetchRecommendedRoutes(profile)).map(
+          routeToRecommendation,
+        );
+      } catch (_) {
+        routes = (await fetchRoutes({
+          fitness: profile.fitness,
+          target_days: profile.target_days,
+        })).map(routeToRecommendation);
+      }
       setTimeout(() => {
         messages.value.push({
           id: Date.now() + 2,
@@ -596,21 +633,7 @@ async function sendUserMsg(text: string, clearInput = true) {
               role: 'bot',
               type: 'route-card',
               time: nowTime(),
-              card: {
-                emoji: r.emoji,
-                name: r.name,
-                region: r.region,
-                difficulty:
-                  r.risk === 'low'
-                    ? 'easy'
-                    : r.risk === 'mid'
-                      ? 'medium'
-                      : 'hard',
-                distance: r.distance,
-                elevation: r.elevation,
-                days: `${r.minDays}天`,
-                highlight: r.highlight,
-              },
+              card: routeToLineCard(r),
             });
           }, i * 400);
         });

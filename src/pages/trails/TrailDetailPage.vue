@@ -171,17 +171,81 @@
 
 <script setup lang="ts">
 import { useQuasar } from 'quasar';
-import { mockTrails, regionLabels, type Trail } from 'src/mocks/trails';
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { fetchRouteById, hydrateRoute, type RouteViewRoute } from 'src/services/routes';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 
-const trail = computed<Trail | undefined>(() =>
-  mockTrails.find((t) => t.id === route.params.id),
-);
+interface TrailDetailView extends RouteViewRoute {
+  rating: number
+  reviewCount: number
+  bestSeasons: number[]
+  facilities: {
+    hut: boolean
+    camping: boolean
+    water: boolean
+    toilet: boolean
+  }
+  highlights: string[]
+  tips: string
+  type: 'loop' | 'out-back' | 'one-way'
+}
+
+const regionLabels = {
+  north: '北部',
+  central: '中部',
+  south: '南部',
+  east: '東部',
+}
+
+function resolveTrailRegion(location: string): keyof typeof regionLabels {
+  if (/臺北|台北|新北|基隆|宜蘭|桃園|新竹/.test(location)) return 'north'
+  if (/苗栗|臺中|台中|彰化|南投|雲林/.test(location)) return 'central'
+  if (/嘉義|臺南|台南|高雄|屏東/.test(location)) return 'south'
+  return 'east'
+}
+
+const trail = ref<TrailDetailView | undefined>(undefined)
+
+function toTrailDetail(routeData: RouteViewRoute): TrailDetailView {
+  return {
+    ...routeData,
+    rating: Math.max(3.6, Math.min(4.9, 4.9 - (routeData.risk === 'high' ? 0.8 : routeData.risk === 'mid' ? 0.3 : 0))),
+    reviewCount: Math.max(0, Math.round(routeData.distanceKm * 120)),
+    bestSeasons: routeData.routeKind === 'peak' ? [4, 5, 9, 10] : [3, 4, 5, 10, 11],
+    facilities: {
+      hut: routeData.requiresPermit,
+      camping: routeData.days >= 2,
+      water: true,
+      toilet: routeData.days <= 1,
+    },
+    highlights: [
+      routeData.highlight,
+      routeData.requiresPermit ? '需注意入山規定' : '申請需求低',
+      `資料庫路線：${routeData.routeKind === 'peak' ? '百岳' : '步道'}`,
+    ],
+    tips: routeData.supply.notes,
+    region: resolveTrailRegion(routeData.region),
+    type: routeData.routeKind === 'peak'
+      ? 'out-back'
+      : routeData.trailShape.includes('環')
+        ? 'loop'
+        : 'out-back',
+  }
+}
+
+onMounted(async () => {
+  const routeId = route.params.id
+  if (!routeId || Array.isArray(routeId)) return
+  try {
+    trail.value = toTrailDetail(hydrateRoute(await fetchRouteById(routeId)))
+  } catch (_) {
+    trail.value = undefined
+  }
+})
 
 const diffLabels: Record<string, string> = {
   easy: '容易',

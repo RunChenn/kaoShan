@@ -92,7 +92,6 @@
 
 <script setup lang="ts">
 import { useLiff } from 'src/composables/useLiff';
-import { mockCurrentSummary } from 'src/mocks/history';
 import { useAfterStore } from 'src/stores/after';
 import { computed, ref } from 'vue';
 
@@ -103,7 +102,18 @@ const sendingReturn = ref(false);
 const showSafeSuccess = ref(false);
 const snackbar = ref(false);
 
-const summary = after.currentSummary ?? mockCurrentSummary;
+const summary = after.currentSummary ?? {
+  id: '',
+  date: '',
+  routeName: '尚無資料',
+  difficulty: 'easy' as const,
+  distanceKm: 0,
+  durationMin: 0,
+  elevationGain: 0,
+  calories: 0,
+  maxRiskScore: 0,
+  riskCurve: [],
+};
 const routeScore = computed(() => after.events?.routeScore ?? 7);
 
 const diffMap = {

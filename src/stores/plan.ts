@@ -1,7 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, reactive, computed } from 'vue'
-import type { HikingRoute } from 'src/mocks/routes'
-import type { GearItem } from 'src/mocks/gear'
+import type { RouteViewRoute } from 'src/services/routes'
+
+export interface GearItem {
+  name: string
+  detected: boolean
+  confidence: number
+  brand?: string | null
+  model?: string | null
+  primary_use?: string | null
+  waterproof?: boolean | null
+  notes?: string | null
+}
 
 export interface ProfileForm {
   age: number | null
@@ -50,7 +60,7 @@ export interface WeatherForecastData {
   }>
   departureSuggestion: string
   accidents: Array<{ year: number; type: string; desc: string }>
-  source: 'api' | 'mock'
+  source: 'api'
 }
 
 export const usePlanStore = defineStore('plan', () => {
@@ -66,7 +76,7 @@ export const usePlanStore = defineStore('plan', () => {
     slopeCoefficient: 3,
   })
 
-  const routes = ref<HikingRoute[]>([])
+  const routes = ref<RouteViewRoute[]>([])
   const selectedRouteId = ref<string | null>(null)
   const gearResults = ref<GearItem[]>([])
   const gearPhoto = ref<string | null>(null)

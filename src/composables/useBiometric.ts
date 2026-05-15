@@ -1,26 +1,39 @@
-import { ref, onUnmounted } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { useHikeStore } from 'src/stores/hike'
-import { mockCurrentBiometric, mockAiDecision } from 'src/mocks/biometrics'
+
+export interface BiometricSnapshot {
+  timestamp: number
+  heartRate: number
+  steps: number
+  altitude: number
+  speed: number
+}
+
+export interface AiDecision {
+  action: 'proceed' | 'rest' | 'retreat'
+  confidence: number
+  reason: string
+  riskScore: number
+}
+
+const EMPTY_BIOMETRIC: BiometricSnapshot = {
+  timestamp: Date.now(),
+  heartRate: 0,
+  steps: 0,
+  altitude: 0,
+  speed: 0,
+}
 
 export function useBiometric() {
   const hikeStore = useHikeStore()
-  const current = ref({ ...mockCurrentBiometric })
+  const current = ref<BiometricSnapshot>({ ...EMPTY_BIOMETRIC })
   let intervalId: ReturnType<typeof setInterval> | null = null
 
   function startSimulation() {
-    hikeStore.updateBiometrics(mockCurrentBiometric)
-    hikeStore.setAiDecision(mockAiDecision)
-
-    intervalId = setInterval(() => {
-      current.value = {
-        timestamp: Date.now(),
-        heartRate: Math.round(100 + Math.random() * 30),
-        steps: current.value.steps + Math.round(Math.random() * 15 + 5),
-        altitude: current.value.altitude + Math.round(Math.random() * 5 - 1),
-        speed: parseFloat((1.5 + Math.random() * 2).toFixed(1)),
-      }
-      hikeStore.updateBiometrics(current.value)
-    }, 4000)
+    hikeStore.updateBiometrics(current.value)
+    if (hikeStore.aiDecision === null) {
+      hikeStore.setAiDecision(null)
+    }
   }
 
   function stopSimulation() {

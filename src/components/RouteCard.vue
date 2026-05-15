@@ -55,10 +55,10 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlanStore } from 'src/stores/plan'
-import type { HikingRoute } from 'src/mocks/routes'
+import type { RouteViewRoute } from 'src/services/routes'
 import RouteDetailDialog from 'src/components/RouteDetailDialog.vue'
 
-const props = defineProps<{ route: HikingRoute }>()
+const props = defineProps<{ route: RouteViewRoute }>()
 defineEmits<{ (e: 'click'): void }>()
 
 const showDialog = ref(false)

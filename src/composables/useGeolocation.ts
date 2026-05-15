@@ -1,36 +1,53 @@
-import { ref, onUnmounted } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { useHikeStore } from 'src/stores/hike'
-import { mockCurrentPosition } from 'src/mocks/mapData'
+
+const DEFAULT_POSITION = {
+  lng: 121.5654,
+  lat: 25.033,
+  altitude: 0,
+  accuracy: 50,
+}
 
 export function useGeolocation() {
   const hikeStore = useHikeStore()
   const error = ref<string | null>(null)
-  let intervalId: ReturnType<typeof setInterval> | null = null
+  let watchId: number | null = null
 
   function startMockTracking() {
-    let lng = mockCurrentPosition.lng
-    let lat = mockCurrentPosition.lat
-    let alt = mockCurrentPosition.altitude
+    stopTracking()
 
-    intervalId = setInterval(() => {
-      lng += (Math.random() - 0.48) * 0.0003
-      lat += (Math.random() - 0.48) * 0.0003
-      alt += Math.random() * 5 - 2
+    if (!navigator.geolocation) {
+      error.value = '目前瀏覽器不支援定位'
+      hikeStore.updatePosition({ ...DEFAULT_POSITION })
+      return
+    }
 
-      hikeStore.updatePosition({
-        lng,
-        lat,
-        altitude: Math.round(alt),
-        accuracy: Math.round(5 + Math.random() * 10),
-      })
-    }, 3000)
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        error.value = null
+        hikeStore.updatePosition({
+          lng: position.coords.longitude,
+          lat: position.coords.latitude,
+          altitude: position.coords.altitude ?? 0,
+          accuracy: position.coords.accuracy ?? 0,
+        })
+      },
+      (err) => {
+        error.value = err.message
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10_000,
+        timeout: 15_000,
+      },
+    )
   }
 
   function stopTracking() {
-    if (intervalId) {
-      clearInterval(intervalId)
-      intervalId = null
+    if (watchId != null && navigator.geolocation?.clearWatch) {
+      navigator.geolocation.clearWatch(watchId)
     }
+    watchId = null
   }
 
   onUnmounted(stopTracking)

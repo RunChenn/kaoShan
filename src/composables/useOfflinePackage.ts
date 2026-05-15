@@ -1,16 +1,15 @@
 import { api } from 'src/boot/axios'
-import { mockRoutes } from 'src/mocks/routes'
-import type { GearItem } from 'src/mocks/gear'
 import { usePlanStore } from 'src/stores/plan'
-import type { ShoeRecognition, GearAssessResponse, WeatherForecastData } from 'src/stores/plan'
+import type { GearItem, ShoeRecognition, GearAssessResponse, WeatherForecastData } from 'src/stores/plan'
 import { cacheTilesForRoute, kaoshanDB } from 'src/composables/useMapTileCache'
+import { fetchRouteById, hydrateRoute, type RouteViewRoute } from 'src/services/routes'
 
 // ── Types ─────────────────────────────────────────────────
 export interface OfflinePackage {
   version: '1.0'
   routeId: string
   createdAt: string
-  route: (typeof mockRoutes)[0]
+  route: RouteViewRoute
   gear: {
     items: GearItem[]
     shoe: ShoeRecognition | null
@@ -52,8 +51,7 @@ export async function buildAndSave(
   onProgress: (pct: number, label: string) => void,
 ): Promise<OfflinePackage> {
   const plan = usePlanStore()
-  const route = mockRoutes.find((r) => r.id === routeId)
-  if (!route) throw new Error(`Route "${routeId}" not found`)
+  const route = hydrateRoute(await fetchRouteById(routeId))
 
   // 0–5%：彙整 store 資料
   onProgress(0, '準備資料...')

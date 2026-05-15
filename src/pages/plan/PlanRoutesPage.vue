@@ -11,6 +11,20 @@
 
     <!-- Filters -->
     <div class="q-px-md q-pb-sm">
+      <!-- Fitness -->
+      <div class="filter-section anim-slide-up" style="animation-delay:0.02s">
+        <div class="filter-label">體能篩選</div>
+        <div class="chip-row">
+          <button
+            v-for="f in fitnessFilters"
+            :key="f.value"
+            class="filter-chip"
+            :class="{ 'chip-active chip-fitness': selectedFitness === f.value }"
+            @click="toggleFitness(f.value)"
+          >{{ f.label }}</button>
+        </div>
+      </div>
+
       <!-- Difficulty -->
       <div class="filter-section anim-slide-up" style="animation-delay:0.04s">
         <div class="filter-label">難度篩選</div>
@@ -59,7 +73,7 @@
 
     <!-- Empty state -->
     <div
-      v-if="filteredRoutes.length === 0"
+      v-if="!loadingRoutes && filteredRoutes.length === 0"
       class="empty-state anim-scale"
       style="animation-delay:0.1s"
     >
@@ -70,20 +84,34 @@
       <div class="text-caption text-grey-4 q-mt-xs">試試調整篩選條件</div>
     </div>
 
+    <div
+      v-if="loadingRoutes"
+      class="q-px-md q-mt-lg text-center text-caption text-grey-5"
+    >
+      正在載入資料庫路線...
+    </div>
+
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { mockRoutes } from 'src/mocks/routes'
 import { usePlanStore } from 'src/stores/plan'
 import RouteCard from 'src/components/RouteCard.vue'
+import {
+  fetchRoutes,
+  hydrateRoute,
+  type RouteViewRoute,
+} from 'src/services/routes'
 
 const router = useRouter()
 const plan   = usePlanStore()
 
+const selectedFitness = ref<number | null>(plan.profileForm.fitness ?? null)
 const selectedDifficulty = ref<string | null>(null)
+const routes = ref<RouteViewRoute[]>([])
+const loadingRoutes = ref(false)
 
 // 從 store 帶入 targetDays（AI 聊天萃取或使用者手動設定）
 const initialDays = plan.profileForm.targetDays
@@ -98,12 +126,24 @@ const difficulties = [
   { label: '專家', value: 'expert' },
 ]
 
+const fitnessFilters = [
+  { label: '不限', value: null },
+  { label: '1 分', value: 1 },
+  { label: '2 分', value: 2 },
+  { label: '3 分', value: 3 },
+  { label: '4 分', value: 4 },
+  { label: '5 分', value: 5 },
+]
+
 const dayFilters = [
   { label: '1 天', value: 1 },
   { label: '2 天', value: 2 },
   { label: '3 天以上', value: 3 },
 ]
 
+function toggleFitness(v: number | null) {
+  selectedFitness.value = selectedFitness.value === v ? null : v
+}
 function toggleDifficulty(v: string) {
   selectedDifficulty.value = selectedDifficulty.value === v ? null : v
 }
@@ -111,15 +151,35 @@ function toggleDays(v: number) {
   selectedDays.value = selectedDays.value === v ? null : v
 }
 
+onMounted(async () => {
+  loadingRoutes.value = true
+  try {
+    const data = await fetchRoutes()
+    routes.value = data.map(hydrateRoute)
+  } catch (_) {
+    routes.value = []
+  } finally {
+    loadingRoutes.value = false
+  }
+})
+
 const filteredRoutes = computed(() =>
-  mockRoutes.filter(r => {
-    if (selectedDifficulty.value && r.difficulty !== selectedDifficulty.value) return false
-    if (selectedDays.value) {
-      if (selectedDays.value === 3 && r.days < 3) return false
-      if (selectedDays.value !== 3 && r.days !== selectedDays.value) return false
-    }
-    return true
-  })
+  routes.value
+    .filter((r) => {
+      if (selectedFitness.value != null && r.minFitness > selectedFitness.value) return false
+      if (selectedDifficulty.value && r.difficulty !== selectedDifficulty.value) return false
+      if (selectedDays.value) {
+        if (selectedDays.value === 3 && r.days < 3) return false
+        if (selectedDays.value !== 3 && r.days !== selectedDays.value) return false
+      }
+      return true
+    })
+    .sort((a, b) => {
+      const fitness = selectedFitness.value ?? plan.profileForm.fitness ?? 3
+      const aScore = Math.abs(a.minFitness - fitness) * 10 + a.minDays * 2 + a.elevationGain / 500
+      const bScore = Math.abs(b.minFitness - fitness) * 10 + b.minDays * 2 + b.elevationGain / 500
+      return aScore - bScore
+    })
 )
 
 function selectRoute(id: string) {
@@ -184,6 +244,12 @@ function selectRoute(id: string) {
   background: #C8902A !important;
   border-color: #C8902A !important;
   box-shadow: 0 3px 12px rgba(200,144,42,0.42);
+}
+
+.chip-fitness.chip-active {
+  background: #2A6BC8 !important;
+  border-color: #2A6BC8 !important;
+  box-shadow: 0 3px 12px rgba(42,107,200,0.34);
 }
 
 :global(.body--dark) .filter-chip {

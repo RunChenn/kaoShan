@@ -1,6 +1,26 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { HikeHistory } from 'src/mocks/history'
+
+export interface HikeHistory {
+  id: string
+  date: string
+  routeName: string
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert'
+  distanceKm: number
+  durationMin: number
+  elevationGain: number
+  calories: number
+  maxRiskScore: number
+  riskCurve: number[]
+  deviationCount?: number
+  alertCount?: number
+  maxHeartRate?: number
+  lowestSpeed?: number
+  restStops?: number
+  routeScore?: number
+  predictedDurationMin?: number
+  predictedMaxHR?: number
+}
 
 export interface HikeEvents {
   deviationCount: number

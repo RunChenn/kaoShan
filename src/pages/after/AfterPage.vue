@@ -54,22 +54,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useAfterStore } from 'src/stores/after'
-import { mockCurrentSummary, mockHistory } from 'src/mocks/history'
 
 const after = useAfterStore()
 
-onMounted(() => {
-  after.setSummary(mockCurrentSummary)
-  after.setHistory(mockHistory)
-})
-
-const latestSummary = computed(() => after.currentSummary ?? mockCurrentSummary)
-const historyCount  = computed(() => after.history.length || mockHistory.length)
+const latestSummary = computed(() => after.currentSummary)
+const historyCount  = computed(() => after.history.length)
 
 const recoveryDays = computed(() => {
   const s = latestSummary.value
+  if (!s) return 1
   return Math.max(1, Math.min(7, Math.round(s.elevationGain / 1000 * 1.5 + s.durationMin / 60 * 0.5)))
 })
 
