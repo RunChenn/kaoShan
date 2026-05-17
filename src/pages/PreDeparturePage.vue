@@ -3536,15 +3536,6 @@ const MOCK_VISION_ITEMS: GearDetectItem[] = [
     waterproof: null,
   },
   {
-    name: '濾水器',
-    detected: true,
-    confidence: 0.9,
-    brand: 'Sawyer',
-    model: 'Squeeze',
-    primary_use: '野外水源過濾',
-    waterproof: true,
-  },
-  {
     name: '水袋',
     detected: true,
     confidence: 0.88,
