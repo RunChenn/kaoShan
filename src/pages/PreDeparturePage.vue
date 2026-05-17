@@ -1658,7 +1658,7 @@ function publishRouteRecommendations(
   profile?: ProfileForm,
 ) {
   const normalizedRoutes = rotateRoutesByScore(
-    getSimilarRouteCandidates(routes, profile),
+    diversifyByRegion(getSimilarRouteCandidates(routes, profile)),
   );
   lastRecommendationContext.value = {
     routes: normalizedRoutes,
@@ -1680,8 +1680,8 @@ function publishRouteRecommendations(
         : uniqueRegions.slice(0, 2).join('、')
       : '待確認地區';
 
-  const maxDays = Math.max(...normalizedRoutes.map((r) => r.minDays ?? 1));
-  summary.days = maxDays >= 2 ? `${maxDays} 天行程` : '1 日行程';
+  const targetDays = profile?.target_days ?? Math.min(...normalizedRoutes.map((r) => r.minDays ?? 1));
+  summary.days = targetDays >= 2 ? `${targetDays} 天行程` : '1 日行程';
 
   const elevations = normalizedRoutes
     .map((r) => r.elevation_gain)
@@ -1721,6 +1721,14 @@ function publishRouteRecommendations(
     });
   }
   recommendationsVisible.value = true;
+  // 推薦完成後自動帶入排名第一的路線
+  const firstRoute = displayCards[0] as RecommendedRoute | undefined;
+  if (firstRoute) {
+    selectedRoute.value = firstRoute;
+    showPlanningTools();
+  } else {
+    selectedRoute.value = null;
+  }
   chatCollapsed.value = true;
   quickReplies.value = [];
 }
@@ -1766,6 +1774,16 @@ function rerollRecommendations() {
       selectedRoute.value = null;
       planningRevealed.value = false;
       routeWeather.value = null;
+    }
+    // 切換批次後若無選中路線，自動帶入新批次第一條
+    if (!selectedRoute.value) {
+      const firstVisible = recommendedRouteCards.value.find(
+        (card) => card.source?.id && visibleRouteIds.has(card.source.id),
+      );
+      if (firstVisible?.source) {
+        selectedRoute.value = firstVisible.source;
+        showPlanningTools();
+      }
     }
   } finally {
     rerollingRecommendations.value = false;
@@ -1902,6 +1920,17 @@ function getSimilarRouteCandidates(
     if ((id && seenIds.has(id)) || seenNames.has(name)) return false;
     if (id) seenIds.add(id);
     seenNames.add(name);
+    return true;
+  });
+}
+
+function diversifyByRegion(routes: RecommendedRoute[], maxPerRegion = 6): RecommendedRoute[] {
+  const regionCount = new Map<string, number>();
+  return routes.filter((route) => {
+    const region = (route.region ?? '').split('｜')[0]?.trim() || '未知';
+    const count = regionCount.get(region) ?? 0;
+    if (count >= maxPerRegion) return false;
+    regionCount.set(region, count + 1);
     return true;
   });
 }
@@ -3966,6 +3995,11 @@ const weatherAiStatusClass = computed(() => ({
   mock: weatherMode.value === 'mock',
 }));
 
+function extractCounty(region: string): string {
+  const m = region.match(/[一-龥]{2,4}[縣市]/)
+  return m ? m[0] : region
+}
+
 async function loadRouteWeather(route: RecommendedRoute) {
   weatherLoading.value = true;
   routeWeather.value = null;
@@ -3973,7 +4007,7 @@ async function loadRouteWeather(route: RecommendedRoute) {
   try {
     const { data } = await api.post<RouteWeatherResponse>('/weather/forecast', {
       route_name: route.name,
-      location: route.region,
+      location: extractCounty(route.region),
       risk: route.risk,
       difficulty: routeDifficulty(route),
       days: route.minDays,
