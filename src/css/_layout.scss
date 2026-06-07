@@ -55,7 +55,8 @@
 }
 
 .nav-tabs {
-  display: flex;
+  // display: flex;
+  display: none;
   align-items: center;
   gap: 2px;
   flex: 1;

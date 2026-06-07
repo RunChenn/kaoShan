@@ -97,6 +97,27 @@
           @change="updateRisk"
         />
       </PanelRow>
+      <PanelRow label="假資料模式">
+        <button
+          @click="toggleMock"
+          :style="{
+            width: '100%',
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontFamily: '\'Noto Sans TC\', sans-serif',
+            fontSize: '11px',
+            fontWeight: 700,
+            background: config.useMock ? 'oklch(68% 0.22 72)' : 'rgba(255,255,255,0.07)',
+            color: config.useMock ? '#fff' : 'rgba(255,255,255,0.4)',
+            transition: 'all 0.18s ease',
+            letterSpacing: '0.04em',
+          }"
+        >
+          {{ config.useMock ? '🗂 Mock ON — 不打 API' : 'Mock OFF' }}
+        </button>
+      </PanelRow>
 
       <!-- Status readout -->
       <div
@@ -134,6 +155,12 @@
           <span :style="{ color: riskColors[config.risk], fontWeight: 600 }">{{
             config.risk
           }}</span>
+        </div>
+        <div>
+          資料
+          <span :style="{ color: config.useMock ? 'oklch(68% 0.22 72)' : 'oklch(62% 0.16 145)', fontWeight: 600 }">
+            {{ config.useMock ? 'mock' : 'api' }}
+          </span>
         </div>
       </div>
     </div>
@@ -281,4 +308,5 @@ function updateTheme(v: string) { update({ theme: v as 'dark' | 'light' }) }
 function updateExperience(v: string) { update({ experience: v as 'beginner' | 'experienced' }) }
 function updateSignal(v: string) { update({ signal: v as 'online' | 'offline' }) }
 function updateRisk(v: string) { update({ risk: v as 'low' | 'mid' | 'high' }) }
+function toggleMock() { update({ useMock: !config.value.useMock }) }
 </script>

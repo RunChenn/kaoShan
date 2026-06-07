@@ -5,7 +5,11 @@
     <div class="page-header q-px-md q-pt-md q-pb-sm anim-slide-down">
       <div class="text-h5 text-weight-bold page-title">路線推薦</div>
       <div class="text-body2 page-subtitle q-mt-xs">
-        根據您的體力評估，為您篩選最適合的路線
+        {{ isRecommendMode ? 'AI 依您的體能評估，為您排序最適合的路線' : '根據難度與天數篩選全部路線' }}
+      </div>
+      <div v-if="isRecommendMode" class="ai-banner q-mt-sm">
+        <q-icon name="auto_awesome" size="13px" class="q-mr-xs" />
+        AI 推薦模式
       </div>
     </div>
 
@@ -67,6 +71,15 @@
         class="anim-slide-up"
         :style="`animation-delay:${0.1 + i * 0.06}s`"
       >
+        <div
+          v-if="isRecommendMode && route.matchLabel"
+          class="match-badge q-mb-xs"
+          :style="{ background: route.matchBg, color: route.matchColor }"
+        >
+          <q-icon name="auto_awesome" size="11px" class="q-mr-xs" />
+          {{ route.matchLabel }}
+          <span class="match-score">{{ Math.round(route.matchScore) }} 分</span>
+        </div>
         <RouteCard :route="route" @click="selectRoute(route.id)" />
       </div>
     </div>
@@ -101,19 +114,21 @@ import { usePlanStore } from 'src/stores/plan'
 import RouteCard from 'src/components/RouteCard.vue'
 import {
   fetchRoutes,
+  fetchRecommendedRoutes,
   hydrateRoute,
-  type RouteViewRoute,
+  routeToRecommendation,
+  type RouteRecommendation,
 } from 'src/services/routes'
 
 const router = useRouter()
 const plan   = usePlanStore()
 
-const selectedFitness = ref<number | null>(plan.profileForm.fitness ?? null)
+const selectedFitness    = ref<number | null>(plan.profileForm.fitness ?? null)
 const selectedDifficulty = ref<string | null>(null)
-const routes = ref<RouteViewRoute[]>([])
-const loadingRoutes = ref(false)
+const routes             = ref<RouteRecommendation[]>([])
+const loadingRoutes      = ref(false)
+const isRecommendMode    = ref(false)
 
-// 從 store 帶入 targetDays（AI 聊天萃取或使用者手動設定）
 const initialDays = plan.profileForm.targetDays
 const selectedDays = ref<number | null>(
   initialDays >= 3 ? 3 : initialDays > 0 ? initialDays : null
@@ -153,9 +168,33 @@ function toggleDays(v: number) {
 
 onMounted(async () => {
   loadingRoutes.value = true
+  const p = plan.profileForm
+  const hasProfile = !!(p.age && p.weight)
+
   try {
-    const data = await fetchRoutes()
-    routes.value = data.map(hydrateRoute)
+    if (hasProfile) {
+      isRecommendMode.value = true
+      const data = await fetchRecommendedRoutes({
+        age: Number(p.age),
+        weight: Number(p.weight),
+        level: p.level,
+        fitness: p.fitness,
+        target_days: p.targetDays,
+        slopeCoeff: p.slopeCoefficient,
+      })
+      routes.value = data.map(routeToRecommendation)
+    } else {
+      isRecommendMode.value = false
+      const data = await fetchRoutes()
+      routes.value = data.map(r => ({
+        ...hydrateRoute(r),
+        matchScore: 0,
+        matchLabel: '',
+        matchBg: '',
+        matchColor: '',
+        reasons: [],
+      }))
+    }
   } catch (_) {
     routes.value = []
   } finally {
@@ -167,14 +206,15 @@ const filteredRoutes = computed(() =>
   routes.value
     .filter((r) => {
       if (selectedFitness.value != null && r.minFitness > selectedFitness.value) return false
-      if (selectedDifficulty.value && r.difficulty !== selectedDifficulty.value) return false
+      if (selectedDifficulty.value && (r as RouteRecommendation & { difficulty?: string }).difficulty !== selectedDifficulty.value) return false
       if (selectedDays.value) {
-        if (selectedDays.value === 3 && r.days < 3) return false
-        if (selectedDays.value !== 3 && r.days !== selectedDays.value) return false
+        if (selectedDays.value === 3 && r.minDays < 3) return false
+        if (selectedDays.value !== 3 && r.minDays !== selectedDays.value) return false
       }
       return true
     })
     .sort((a, b) => {
+      if (isRecommendMode.value) return b.matchScore - a.matchScore
       const fitness = selectedFitness.value ?? plan.profileForm.fitness ?? 3
       const aScore = Math.abs(a.minFitness - fitness) * 10 + a.minDays * 2 + a.elevationGain / 500
       const bScore = Math.abs(b.minFitness - fitness) * 10 + b.minDays * 2 + b.elevationGain / 500
@@ -256,6 +296,36 @@ function selectRoute(id: string) {
   border-color: rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.05);
   color: rgba(255,255,255,0.75);
+}
+
+// ── AI 推薦 banner ────────────────────────────────────────
+.ai-banner {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--summit-accent, #1A8C55);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06rem;
+}
+
+// ── Match badge ───────────────────────────────────────────
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05rem;
+
+  .match-score {
+    margin-left: 6px;
+    opacity: 0.65;
+    font-weight: 600;
+  }
 }
 
 // ── Result count ─────────────────────────────────────────

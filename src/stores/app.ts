@@ -8,6 +8,7 @@ export interface AppConfig {
   experience: 'beginner' | 'experienced'
   signal: 'online' | 'offline'
   risk: 'low' | 'mid' | 'high'
+  useMock: boolean
 }
 
 export const useAppStore = defineStore('app', () => {
@@ -17,6 +18,7 @@ export const useAppStore = defineStore('app', () => {
     experience: 'beginner',
     signal: 'online',
     risk: 'low',
+    useMock: false,
   })
 
   // Apply theme to <html data-theme>

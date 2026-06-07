@@ -28,6 +28,13 @@ export default configure(function (/* ctx */) {
 
     devServer: {
       open: false,
+      proxy: {
+        '/api': {
+          target: process.env.API_TARGET || 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
 
     framework: {

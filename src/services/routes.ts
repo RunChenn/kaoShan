@@ -1,4 +1,7 @@
 import { api } from 'src/boot/axios'
+import { useAppStore } from 'src/stores/app'
+import { mockRoutes } from 'src/mocks/routes'
+import type { HikingRoute } from 'src/mocks/routes'
 
 export type RouteDifficulty = 'easy' | 'medium' | 'hard' | 'expert'
 export type RouteKind = 'trail' | 'peak'
@@ -356,9 +359,44 @@ export function routeToRecommendation(route: RouteApiResponse): RouteRecommendat
   }
 }
 
+function mockToApiResponse(m: HikingRoute): RouteApiResponse {
+  return {
+    id: m.id,
+    name: m.name,
+    location: m.location,
+    route_kind: 'trail',
+    category: 'trail',
+    description: m.description,
+    difficulty: m.difficulty,
+    days: m.days,
+    distance_km: m.distanceKm,
+    estimated_hours: m.estimatedHours,
+    elevation_gain: m.elevationGain,
+    max_elevation: m.elevationGain + 800,
+    risks: m.risks,
+    match_score: null,
+    match_rank: null,
+    match_reason: null,
+    recommendation_source: null,
+  }
+}
+
+function isMockMode(): boolean {
+  try {
+    return useAppStore().config.useMock
+  } catch {
+    return false
+  }
+}
+
 export async function fetchRoutes(
   filter: RouteListFilter = {},
 ): Promise<RouteApiResponse[]> {
+  if (isMockMode()) {
+    let results = mockRoutes.map(mockToApiResponse)
+    if (filter.difficulty) results = results.filter((r) => r.difficulty === filter.difficulty)
+    return results
+  }
   const { data } = await api.get<RouteApiResponse[]>('/routes', {
     params: {
       difficulty: filter.difficulty,
@@ -370,6 +408,10 @@ export async function fetchRoutes(
 }
 
 export async function fetchRouteById(routeId: string): Promise<RouteApiResponse> {
+  if (isMockMode()) {
+    const found = mockRoutes.find((r) => r.id === routeId)
+    if (found) return mockToApiResponse(found)
+  }
   const { data } = await api.get<RouteApiResponse>(`/routes/${routeId}`)
   return data
 }
@@ -377,6 +419,11 @@ export async function fetchRouteById(routeId: string): Promise<RouteApiResponse>
 export async function fetchRecommendedRoutes(
   profile: RouteRecommendationRequest,
 ): Promise<RouteApiResponse[]> {
+  if (isMockMode()) {
+    return mockRoutes
+      .map(mockToApiResponse)
+      .map((r, i) => ({ ...r, match_score: 90 - i * 5, recommendation_source: 'heuristic' as const }))
+  }
   const { data } = await api.post<RouteApiResponse[]>('/routes/recommend', profile)
   return data
 }

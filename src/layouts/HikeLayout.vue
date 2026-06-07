@@ -7,7 +7,7 @@
         <span>KaoShan</span>
       </div>
 
-      <!-- <div class="nav-tabs">
+      <div class="nav-tabs">
         <button
           v-for="tab in TABS"
           :key="tab.path"
@@ -17,7 +17,7 @@
         >
           {{ tab.icon }} {{ tab.label }}
         </button>
-      </div> -->
+      </div>
 
       <div class="nav-actions">
         <button
@@ -57,14 +57,17 @@
     </div>
 
     <!-- Tweaks Panel (dev only) -->
-    <!-- <TweaksPanel /> -->
+    <TweaksPanel v-if="isDev" />
   </div>
 </template>
 
 <script setup lang="ts">
+import TweaksPanel from 'src/components/TweaksPanel.vue';
 import logoUrl from 'src/assets/img/logo.png';
 import { useAppStore } from 'src/stores/app';
 import { useRoute, useRouter } from 'vue-router';
+
+const isDev = import.meta.env.DEV;
 
 const router = useRouter();
 const route = useRoute();
